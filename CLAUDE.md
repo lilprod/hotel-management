@@ -7,6 +7,7 @@
 - Ne lire que les documents cités dans la fiche de mission (`docs/0X §Y`). Ne pas modifier `database/prisma/schema.prisma` ni `packages/shared` hors lot L0 sans accord.
 - Multi-tenancy : toute table métier a `tenant_id` + RLS. Le `tenant_id` vient toujours du contexte (AsyncLocalStorage), jamais du client. Rooms Socket.io jointes côté serveur uniquement.
 - Montants : entiers + devise (XOF par défaut). Jamais de float.
+- Pays cible v1 : Togo (doc 09). Aucune règle pays codée en dur : tout passe par `tax_rules`, `settings` et les adapters.
 - Nuits : `DATE`, arrivée incluse, départ exclu.
 - Documents financiers, points de fidélité, mouvements de stock et audit immuables : corriger par contre-passation ou avoir.
 - API : `/api/v1/admin/*` (plateforme), `/api/v1/t/*` (staff), `/api/v1/portal/*` (clients) ; validation Zod ; erreurs RFC 7807 ; `can()` + `requireFeature()` sur chaque route tenant.

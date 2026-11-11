@@ -116,7 +116,7 @@ Schémas : packages/shared/src/<m>.ts · Routes : /api/v1/t/<m>/* · Événement
 | L0-3 Noyau Express ★ | Opus | Chaîne de middlewares (doc 03 §3), erreurs, Winston, Zod → OpenAPI, Socket.io + rooms, BullMQ, S3 |
 | L0-4 `packages/shared` | Sonnet | Enums, permissions, codes de fonctionnalités, DTO Zod par module |
 | L0-5 Coquilles React ×3 | Sonnet | Vite, Ant Design, thème dynamique, clair et sombre, sidebar, cloche, routage, i18n |
-| L0b-1 Seeds & i18n | Haiku | Plans (doc 02 §1), rôles (doc 05 §2), 2 tenants de démonstration |
+| L0b-1 Seeds & i18n | Haiku | Plans (doc 02 §1), rôles (doc 05 §2), paramètres Togo et 2 tenants de démonstration togolais fictifs (doc 09 §1, §9), jours fériés, plan SYSCOHADA |
 | L1-1 Auth & sessions ★ | Opus | Doc 05 §1 (staff, portail, plateforme) |
 | L1-2 RBAC, audit, accès « en tant que » ★ | Opus | Doc 05 §2, §4, §7 |
 | L1-3 Écrans sécurité | Sonnet | Utilisateurs, rôles, politiques, sessions, journal |

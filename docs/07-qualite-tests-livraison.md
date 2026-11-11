@@ -45,13 +45,13 @@
 ## 5. Points à valider avec le client
 1. Tarifs réels des plans et durées d'essai (le doc 02 contient des valeurs indicatives).
 2. Hypothèses H1 à H6 du doc 00.
-3. Pays cibles (TVA, taxe de séjour, mentions de facture : Togo uniquement, ou UEMOA ?).
+3. ~~Pays cibles~~ → **validé : Togo uniquement en v1**. Points togolais à confirmer : checklist du doc 09 §10 (avant S6).
 4. Fournisseurs SMS et WhatsApp.
 5. Durées de grâce, de suspension et de purge.
 6. Besoin d'une facture normalisée ou certifiée (système de facturation électronique OTR, si applicable).
 7. Règles de fidélité : points par XOF, valeur d'un point, paliers, expiration.
 8. Licence FullCalendar Premium : acceptée ou non.
 9. Réservation sur le portail : acompte obligatoire ou paiement à l'hôtel.
-10. Pays ciblés pour la facture électronique (OTR Togo, e-MECeF Bénin, FNE Côte d'Ivoire) et ordre de priorité des connecteurs.
+10. ~~Facture électronique : pays prioritaire~~ → **validé : connecteur OTR Togo prioritaire** (spécifications à obtenir de l'OTR) ; Bénin et Côte d'Ivoire en P2.
 11. Logiciel comptable cible pour l'export SYSCOHADA (Sage, Odoo, autre).
 12. Prix des add-ons et règles des coupons.

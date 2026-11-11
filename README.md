@@ -17,5 +17,6 @@ Stack : React 18 + TypeScript (Vite, Ant Design) · Node.js / Express + TypeScri
 | 06 | [Découpage et sous-agents](docs/06-decoupage-sous-projets-agents.md) | 29 lots, vagues sur 12 semaines, modèle par lot, gabarit de mission |
 | 07 | [Qualité et livraison](docs/07-qualite-tests-livraison.md) | Définition de terminé, tests, jalons, risques, points à valider |
 | 08 | [Extensions et points non couverts](docs/08-extensions-points-non-couverts.md) | Principes d'extensibilité, ~70 points ajoutés au-delà du prompt, priorités et plans |
+| 09 | [Contexte Togo](docs/09-contexte-togo.md) | Paramètres pays, paiements, fiscalité, OTR, fiche de police, IPDCP, RH, checklist à confirmer |
 
 Conventions pour les agents de développement : [CLAUDE.md](CLAUDE.md).

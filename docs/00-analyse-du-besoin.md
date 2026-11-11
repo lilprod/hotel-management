@@ -28,7 +28,7 @@ Objectif : en faire un **SaaS multi-tenant** avec un espace **Super Admin**, des
 | Manque | Pourquoi c'est indispensable |
 |---|---|
 | **Tarification** : plans tarifaires, saisons, tarifs par jour de la semaine, enfant, lit supplémentaire, séjour minimum | « Pricing » est cité sans modèle tarifaire ; sans lui, le calcul du prix d'un séjour est impossible |
-| **Taxes locales** : TVA 18 %, **taxe de séjour** | « Tax compliance » non défini pour le Togo et la zone UEMOA |
+| **Taxes locales** : TVA 18 %, **taxe de séjour** | « Tax compliance » non défini pour le Togo (pays cible v1, voir doc 09) |
 | **Moyens de paiement locaux** : Mixx, Moov Money | Le prompt ne cite que cash, card, transfer et loyalty ; le Mobile Money est majoritaire localement |
 | **Fiche de police** au check-in | Obligation légale en Afrique de l'Ouest |
 | **Audit de nuit** (clôture journalière, date d'exploitation) | Il fige le chiffre d'affaires du jour et poste les nuitées ; standard de tout PMS |
@@ -73,6 +73,7 @@ Les éléments **P2** (après la semaine 12) sont le channel manager, le paiemen
 - **H4** : l'accès se fait par `{slug}.app.domaine.com` (staff), `{slug}.domaine.com` (portail) et `admin.domaine.com`. Le domaine personnalisé est réservé au plan Premium.
 - **H5** : en fin d'essai sans paiement, le compte passe en lecture seule. Les données sont conservées 90 jours (valeur paramétrable).
 - **H6** : la devise par défaut est XOF, le fuseau Africa/Lome, les langues FR (par défaut) et EN.
+- **H7 (validée)** : la v1 cible **uniquement le Togo** (fiscalité, mentions légales, fiche de police, IPDCP, Mixx et Moov). Les autres pays passent en P2 via le moteur de taxes et les adapters (doc 09).
 
 ## 4. Verdict
 La couche « hôtel » du prompt est **solide à environ 70 %**. La couche **SaaS est absente à 100 %** : multi-tenant, Super Admin, plans, facturation, branding, sécurité par tenant. Plusieurs choix techniques (node-cron, Multer local, Socket.io non cloisonné, alternatives non tranchées) doivent être corrigés pour la production. Le prompt reformulé (`docs/PROMPT-FORMALISE.md`) et les documents 01 à 07 corrigent ces points.

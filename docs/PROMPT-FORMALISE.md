@@ -8,6 +8,9 @@ Construire une **plateforme SaaS multi-tenant** de gestion de complexes hôtelie
 2. **Back-office tenant** (`{slug}.app.domaine.com`) : le personnel de l'hôtel gère **tout l'opérationnel**, sa **sécurité** et son **branding**.
 3. **Portail client** (`{slug}.domaine.com` ou domaine personnalisé) : les clients de l'hôtel réservent et suivent leurs séjours, aux couleurs de l'hôtel.
 
+## 1 bis. Pays cible
+**Togo** uniquement en v1 : XOF, Africa/Lome, +228, TVA 18 %, taxe de séjour paramétrable, mentions OTR (NIF, RCCM), facture normalisée OTR via un adapter, fiche de police, loi 2019-014 / IPDCP, Mixx by Yas et Moov Money, SYSCOHADA. L'architecture reste multi-pays. Détails et points à confirmer : doc 09.
+
 ## 2. Stack imposée (pas d'alternative)
 - **Frontend** : React 18 + TypeScript + Vite, Ant Design 5 (thème par tenant via tokens), Zustand, TanStack Query, React Router v6, React Hook Form + Zod, Recharts, FullCalendar (timeline des ressources), i18next (FR/EN).
 - **Backend** : Node.js 20 + Express + TypeScript, Zod (validation et génération OpenAPI), Prisma + PostgreSQL 16 (RLS), Redis + **BullMQ** (jobs ; pas de node-cron), **Socket.io** + adapter Redis, Nodemailer (gabarits MJML), Multer en mémoire vers **S3/MinIO**, Winston, Helmet, express-rate-limit, Swagger UI.

@@ -73,12 +73,12 @@
 | ID | Point non couvert | Prio | Plan |
 |---|---|---|---|
 | EX-50 | **Export comptable SYSCOHADA (OHADA)** : plan de comptes paramétrable, journaux ventes, encaissements et achats, écritures en CSV ou Excel pour Sage, Odoo, etc. | **M** | Medium+ |
-| EX-51 | **Facture normalisée ou électronique** : Togo (OTR), Bénin (**e-MECeF**, obligatoire), Côte d'Ivoire (FNE), via `FiscalInvoiceProvider` | M (adapter) / P2 (connecteurs) | Tous |
+| EX-51 | **Facture normalisée ou électronique** via `FiscalInvoiceProvider` : connecteur **OTR Togo** prioritaire (dès réception des spécifications OTR, doc 09 §3) ; Bénin (e-MECeF) et Côte d'Ivoire (FNE) en P2 | M (adapter) / S (OTR) / P2 (autres pays) | Tous |
 | EX-52 | **Déclaration de TVA et de taxe de séjour** : états préparatoires mensuels | M | Tous |
 | EX-53 | **Export de paie** : heures pointées, heures supplémentaires, primes, pourboires, commissions ; paie Togo (CNSS, IRPP) en P3 | S / P3 | Medium+ |
 | EX-54 | **Rapprochement des encaissements** Mobile Money et TPE : import du relevé opérateur (CSV), rapprochement par référence et montant, écarts | S | Medium+ |
 | EX-55 | **Clôture mensuelle** : verrouillage d'une période comptable (plus aucune écriture antérieure) | M | Tous |
-| EX-56 | **Registre des traitements** (RGPD et APDCP), DPA, politique de conservation par type de donnée | M | — |
+| EX-56 | **Registre des traitements** (loi togolaise 2019-014 / IPDCP et RGPD), DPA, politique de conservation par type de donnée | M | — |
 
 ## 5. Expérience client — compléments
 | ID | Point non couvert | Prio | Plan |
