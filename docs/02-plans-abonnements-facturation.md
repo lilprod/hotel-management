@@ -41,6 +41,13 @@ Codes des quotas (`quota_key`) : `properties`, `units`, `users`, `storage_mb`, `
 
 **Règle d'application** : `PlanGuard` / `@RequiresFeature('pos')` côté API, et masquage dans l'interface (menu grisé avec CTA « Passer au plan Medium »). Les quotas sont vérifiés **à la création** (chambres, utilisateurs, établissements), jamais rétroactivement.
 
+## 1 bis. Add-ons, coupons et évolutivité commerciale
+- **Add-ons** (`addons`, `tenant_addons`) : un module ou un quota ajouté en plus du plan, avec son propre prix par cycle. Exemples : *Spa & Activités* pour un tenant Standard, pack de 500 SMS, +10 unités, +1 établissement, domaine personnalisé. L'add-on est facturé sur la même facture que le plan et prorata compris.
+- **Droits effectifs** du tenant = fonctionnalités du plan ∪ add-ons actifs ∪ surcharges (SA-15). Les quotas sont additionnés.
+- **Coupons** (`coupons`, `coupon_redemptions`) : %, montant fixe ou mois offerts ; durée (une fois, N cycles, toujours) ; plans éligibles ; nombre maximal d'utilisations ; date d'expiration.
+- **Nouveaux plans** : le Super Admin peut créer d'autres plans (ex. *Enterprise* sur devis). Rien n'est limité à trois plans dans le code ; les trois plans sont seulement les données par défaut.
+- Codes de fonctionnalités supplémentaires (doc 08) : `revenue.restrictions`, `agencies`, `mice`, `vouchers`, `day_pass`, `precheckin`, `concierge`, `transfers`, `rentals`, `laundry`, `tips`, `commissions`, `checklists`, `energy`, `budget`, `consolidated_reports`, `accounting_export`, `fiscal_invoice`, `reconciliation`, `surveys`, `reviews`, `guest_chat`, `marketing`, `upsell`, `webhooks`, `door_locks`.
+
 ## 2. Cycle de vie d'un abonnement
 
 ```

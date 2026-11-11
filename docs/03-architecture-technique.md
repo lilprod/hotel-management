@@ -77,5 +77,14 @@ Middlewares globaux, dans l'ordre : `requestId` → `helmet` → `cors` → `rat
 - **API** : `/api/v1`, erreurs **RFC 7807**, pagination par curseur, filtres normalisés, `ETag` sur les référentiels.
 - **Jobs BullMQ** : `subscription-lifecycle` (quotidien), `billing-reminders`, `booking-reminders`, `pending-expiry`, `waitlist-match`, `night-audit-check`, `preventive-maintenance`, `reorder-suggestions`, `loyalty-expiry`, `scheduled-reports`, `notifications`, `pdf-render`, `purge`. Chaque job reçoit un `tenantId` et réutilise le contexte RLS.
 
+## 5 bis. Extensibilité (doc 08 §1, à livrer dans le lot L0)
+- **Registre de modules** (X1) : `defineModule({ key, routes, permissions, features, jobs, events, settings, menu })`. Le noyau charge les modules déclarés, et le front construit la sidebar à partir des métadonnées de modules et des droits effectifs.
+- **Droits effectifs** (X2, X3) : `entitlements.resolve(tenantId)` fait l'union du plan, des add-ons, des surcharges et des déploiements progressifs. Le résultat est mis en cache dans Redis et invalidé par l'événement `entitlements.changed`.
+- **Paramètres** (X4) : `settings.get(key, { tenantId, propertyId, userId })` résout la hiérarchie, avec un schéma Zod et une valeur par défaut déclarés par le module.
+- **Champs personnalisés** (X5) : définitions par entité, validation dynamique Zod, rendu automatique dans les formulaires Ant Design, filtrables (index GIN).
+- **Adapters** (X8) : interfaces dans `server/src/lib/providers/*`, sélection par paramètre tenant ; implémentations v1 `manual` (paiement), `smtp`, `sms-local`, `s3`, `gotenberg`, `fiscal-none`.
+- **Webhooks** (X9) : l'outbox est diffusée vers les abonnements webhook (URL, événements, secret HMAC), avec retries exponentiels et journal de livraison.
+- **Agrégats analytiques** (X13) : tables `daily_stats_*` alimentées par l'audit de nuit et par un job horaire. Les dashboards lisent ces tables et non les tables transactionnelles.
+
 ## 6. Environnements
 `local` (compose : postgres, redis, minio, mailpit, gotenberg, clamav) → `staging` (données de démonstration) → `production`. Migrations appliquées par la CI ; seed des plans par défaut et du compte Super Admin à partir de variables d'environnement.

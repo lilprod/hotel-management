@@ -36,6 +36,12 @@ Construire une **plateforme SaaS multi-tenant** de gestion de complexes hôtelie
 8. **Facturation** : **folio unifié**, encaissements (Espèces, Carte, Virement, Mixx, Moov Money, Points, Compte débiteur) enregistrés manuellement avec référence, **sessions de caisse**, factures et avoirs PDF numérotés sans trou, taxes, rapports de chiffre d'affaires.
 9. **Tableaux de bord** : taux d'occupation, ADR, RevPAR, KPI par département, prévisions basées sur les réservations enregistrées, performance du staff, exports PDF, Excel et CSV.
 
+## 5 bis. Le prompt est un plancher, pas un plafond
+- L'architecture doit rester **extensible sans refonte** : registre de modules, feature flags, **add-ons**, paramètres hiérarchiques, **champs personnalisés**, listes paramétrables, moteur de taxes par pays, adapters de paiement, notification, facture fiscale, channel manager et serrures, multi-devise, i18n extensible, API-first et webhooks (doc 08 §1).
+- Aucune règle métier codée en dur : statuts de machine à états en enums, tout le reste en paramètres.
+- Compléments obligatoires en v1 (doc 08) : **import de données**, encaissement **multi-devise**, **export comptable SYSCOHADA** et clôture mensuelle, états de TVA et de taxe de séjour, minibar, objets trouvés, alertes allergies et liste noire, parcours e-mail automatisés, reporting consolidé multi-établissements, matériel de caisse, CGU versionnées, add-ons et coupons d'abonnement.
+- Feuille de route prévue dès la conception : revenue management, agences et allotements, MICE, bons cadeaux, day pass, pré-check-in en ligne, conciergerie, transferts, blanchisserie, enquêtes de satisfaction, marketing, channel manager, serrures électroniques, intégrateur de paiement, applications mobiles, IA.
+
 ## 6. Exigences non fonctionnelles
 Montants en entiers (XOF), documents financiers immuables, p95 API < 300 ms, responsive tablette et mobile, PWA, WCAG 2.1 AA sur le portail, OWASP ASVS niveau 2, sauvegardes quotidiennes chiffrées, Sentry, logs JSON sans données sensibles.
 

@@ -137,6 +137,25 @@ Ajouts aux tables existantes :
 - `folio_lines.type` accepte aussi `SPA`, `ACTIVITY`, `PACKAGE`, `MINIBAR`, `PENALTY`.
 - `folio_lines.department_code` sert aux rapports de chiffre d'affaires par département.
 
+## 3 ter. Extensibilité et compléments (doc 08)
+| Domaine | Table | Colonnes principales |
+|---|---|---|
+| Commercial | `addons`, `addon_prices`, `tenant_addons` | code, feature_keys[], quota_deltas (JSONB) ; prix par cycle ; tenant, starts_at, ends_at, status |
+| Commercial | `coupons`, `coupon_redemptions` | code, type (`PERCENT`/`AMOUNT`/`FREE_MONTHS`), value, duration, max_redemptions, eligible_plans, expires_at |
+| Commercial | `feature_rollouts` | feature_key, percentage, tenant_ids[], status |
+| Légal | `legal_documents`, `legal_acceptances` | type (`TOS`/`DPA`/`PRIVACY`), version, content, published_at ; tenant/user, version, accepted_at, ip |
+| Paramétrage | `settings` | scope (`PLATFORM`/`TENANT`/`PROPERTY`/`USER`), scope_id, key, value (JSONB) |
+| Paramétrage | `custom_field_definitions` | tenant_id, entity, key, label_i18n, type, options, required, sort ; colonne `custom_fields JSONB` sur les entités clés |
+| Paramétrage | `lookup_values` | tenant_id, list_key (`SOURCE`/`SEGMENT`/`CANCEL_REASON`/`TASK_TYPE`…), code, label_i18n, active |
+| Fiscalité | `tax_rules` | country, code, kind, base, rate, inclusive, exemptions (JSONB), effective_from/to |
+| Fiscalité | `fiscal_documents` | invoice_id, provider, status, fiscal_number, qr_code, payload, error |
+| Devises | `exchange_rates` | tenant_id, base, quote, rate (numeric(18,8)), valid_on ; `folio_payments` reçoit en plus `tendered_currency`, `tendered_amount`, `rate` |
+| Import | `import_jobs`, `import_rows` | entity, file_id, mapping (JSONB), status, totals ; ligne : payload, errors, created_entity_id |
+| Comptabilité | `ledger_accounts`, `account_mappings`, `accounting_exports`, `period_closings` | plan SYSCOHADA ; mapping (département, mode de paiement, taxe) → compte ; période, fichier ; période verrouillée |
+| Opérations | `minibar_templates`, `minibar_counts`, `lost_found_items` | — |
+| Intégrations | `api_keys`, `webhook_subscriptions`, `webhook_deliveries` | scopes, hash, last_used_at ; url, events[], secret_enc ; status, attempts, response_code |
+| Analytique | `daily_stats_property`, `daily_stats_department` | business_date, occupied, available, revenue_room, revenue_by_dept (JSONB), adr, revpar, covers, appointments |
+
 ## 4. Index et contraintes notables
 - `UNIQUE (tenant_id, property_id, number)` sur les chambres, réservations, factures et folios.
 - `UNIQUE (unit_id, night)` sur `unit_nights` (anti-surbooking).

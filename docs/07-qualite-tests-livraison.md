@@ -52,3 +52,6 @@
 7. Règles de fidélité : points par XOF, valeur d'un point, paliers, expiration.
 8. Licence FullCalendar Premium : acceptée ou non.
 9. Réservation sur le portail : acompte obligatoire ou paiement à l'hôtel.
+10. Pays ciblés pour la facture électronique (OTR Togo, e-MECeF Bénin, FNE Côte d'Ivoire) et ordre de priorité des connecteurs.
+11. Logiciel comptable cible pour l'export SYSCOHADA (Sage, Odoo, autre).
+12. Prix des add-ons et règles des coupons.

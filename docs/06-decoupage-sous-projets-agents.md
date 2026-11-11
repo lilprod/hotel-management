@@ -123,3 +123,20 @@ Schémas : packages/shared/src/<m>.ts · Routes : /api/v1/t/<m>/* · Événement
 | L4-1 Branding & onboarding | Sonnet | TN-01/02, TN-20…25 |
 | L5-1 Référentiels hébergement | Sonnet + Haiku | OP-01…08 |
 | L17-1 Notifications & PDF | Sonnet + Haiku | Adapters + gabarits |
+
+## 8. Lots complémentaires (doc 08) et intégration au planning
+| Lot | Contenu | Exigences | Modèle | Dépend de | Semaines |
+|---|---|---|---|---|---|
+| L0 (extension) ★ | Registre de modules, droits effectifs, paramètres hiérarchiques, champs personnalisés, listes, moteur de taxes, interfaces des adapters, multi-devise, agrégats analytiques | X1–X13 | **Opus** | — | S1–S2 (+2 j) |
+| L2 (extension) ★ | Add-ons, coupons, CGU versionnées, TVA plateforme, export avant purge | EX-01, 03, 04, 11 | **Opus** (calculs) / Sonnet | L1 | S4–S5 |
+| **L21 Import de données** | Assistant d'import CSV et Excel (correspondance des colonnes, aperçu, validation, rapport) pour clients, unités, tarifs, réservations futures, articles | EX-20 | Sonnet | L5, L9 | S6–S7 |
+| **L22 Comptabilité & clôtures** ★ | Plan de comptes SYSCOHADA, correspondance des comptes, exports de journaux, clôture mensuelle | EX-50, 55 | **Opus** (règles d'écriture) / Haiku (plan de comptes seed) | L8b | S9–S10 |
+| L23 Matériel | Agent d'impression local (ESC/POS), tiroir-caisse, lecteur de codes-barres | EX-70 | Sonnet | L11 | S9 |
+| L8 (extension) ★ | Multi-devise à l'encaissement, `FiscalInvoiceProvider` (implémentation `none`) | EX-21, 51 | **Opus** | L6 | S6–S7 |
+| L14 (extension) | Minibar, objets trouvés | EX-32, 33 | Sonnet | L12 | S8–S9 |
+| L16 (extension) | Consolidé multi-établissements, états de TVA et de taxe de séjour | EX-41, 52 | Sonnet | L8b | S10–S11 |
+| L17 (extension) | Parcours e-mail automatisés | EX-65 | Haiku (gabarits) / Sonnet (déclencheurs) | L6 | S6 |
+| v1.1 (S13–S14) | Points **S** du doc 08 | EX-* S | Sonnet (Opus : EX-22 revenue, EX-23 agences, EX-54 rapprochement) | v1 | S13–S14 |
+| Feuille de route | Points **P2** et **P3** du doc 08 | EX-* P2/P3 | selon la grille §3 | v1.1 | M4+ |
+
+Après ces ajouts : 29 lots en v1 ; environ 22 % Opus, 58 % Sonnet, 20 % Haiku. La mise en production reste en S12.

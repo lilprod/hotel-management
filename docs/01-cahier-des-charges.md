@@ -180,3 +180,31 @@ Source : prompt initial (marqué ◆) + compléments issus de l'analyse 00 (marq
 - **TR-08 (M)** — Interface `PaymentProvider` (seule implémentation en v1 : `manual`).
 - **TR-09 (M)** — Impression des tickets 80 mm et des documents A4.
 - **TR-10 (M)** — Notifications SMS et WhatsApp via des adapters interchangeables.
+
+## 7. Exigences complémentaires (au-delà du prompt)
+Le prompt est un **plancher**. Les exigences `EX-*` et les principes d'extensibilité `X1` à `X13` du **doc 08** font partie intégrante de ce cahier des charges. Exigences **M** à livrer en S12 :
+
+| ID | Exigence | Lot |
+|---|---|---|
+| X1–X13 | Registre de modules, feature flags, add-ons, paramètres hiérarchiques, champs personnalisés, listes paramétrables, moteur de taxes, adapters, multi-devise, i18n extensible | L0 |
+| EX-01 | Add-ons facturables | L2 |
+| EX-03 | TVA et facture conforme de la plateforme | L2 |
+| EX-04 | CGU, CGV et DPA versionnées, acceptation tracée | L1 |
+| EX-11 | Export remis avant la purge d'un tenant | L2 |
+| EX-20 | **Import de données** (CSV et Excel) | L21 |
+| EX-21 | Encaissement multi-devise | L8 |
+| EX-32 | Minibar | L14 |
+| EX-33 | Objets trouvés | L14 |
+| EX-41 | Reporting consolidé multi-établissements | L16 |
+| EX-44 | Alerte allergies transverse | L9 / L11 / L13 |
+| EX-45 | Liste noire et alertes de fraude | L9 |
+| EX-50 | **Export comptable SYSCOHADA** | L22 |
+| EX-51 | Adapter de facture normalisée (`FiscalInvoiceProvider`) | L8 |
+| EX-52 | États préparatoires de TVA et de taxe de séjour | L16 |
+| EX-55 | Clôture mensuelle | L22 |
+| EX-56 | Registre des traitements | L19 |
+| EX-65 | Parcours e-mail automatisés | L17 |
+| EX-70 | Imprimantes thermiques, tiroir-caisse, lecteur de codes-barres | L23 |
+| EX-81, EX-84, EX-86 | Sauvegardes et reprise, performance des requêtes lourdes, migrations sans interruption | L0 / L19 |
+
+Les exigences **S**, **P2** et **P3** sont listées dans le doc 08.
