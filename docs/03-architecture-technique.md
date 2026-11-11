@@ -1,85 +1,81 @@
 # 03 — Architecture technique
 
-## 1. Stack retenue (recommandation)
-| Couche | Choix | Justification |
+## 1. Stack (alignée sur le prompt, alternatives tranchées)
+| Couche | Choix | Remarque |
 |---|---|---|
-| Monorepo | **pnpm + Turborepo** | Types partagés front/back, builds incrémentaux |
-| Backend | **NestJS 11 (TypeScript)**, architecture modulaire | Modules = bounded contexts ; guards et intercepteurs pour le tenant et les plans |
-| ORM | **Prisma** + SQL brut pour les contraintes avancées | Productivité ; migrations versionnées |
-| Base de données | **PostgreSQL 16** | RLS, contraintes d'exclusion (anti-double-booking), JSONB |
-| Cache / files | **Redis 7 + BullMQ** | Jobs (relances, audit de nuit, PDF, e-mails/SMS) |
-| Frontend | **Next.js 15 (App Router) + React + Tailwind + shadcn/ui** | Thème dynamique par tenant (variables CSS) ; PWA |
-| État et données | TanStack Query, Zod (schémas partagés) | Validation unique front/back |
-| Fichiers | Stockage compatible S3 (MinIO en dev) | Logos, pièces d'identité (chiffrées), PDF |
-| PDF | Gotenberg (HTML → PDF) | Gabarits HTML brandés |
-| E-mail / SMS | Adapters (SMTP/Brevo ; SMS : agrégateur local) | Interchangeables |
-| Authentification | Sessions JWT courtes (15 min) + refresh token rotatif (cookie httpOnly) ; TOTP (otplib) ; argon2id | — |
-| Observabilité | OpenTelemetry, Pino (logs JSON), Sentry | — |
-| Déploiement | Docker, Docker Compose (dev), Kubernetes ou VPS + Traefik (prod) ; TLS automatique (Let's Encrypt) pour les domaines personnalisés | — |
-| CI | GitHub Actions : lint, typecheck, tests, build, scan de dépendances | — |
+| Monorepo | **pnpm workspaces + Turborepo** | Types et schémas Zod partagés |
+| Frontend | **React 18 + TypeScript + Vite** | 3 applications : `client` (staff), `portal` (clients), `admin` (Super Admin) |
+| UI | **Ant Design 5** (tokens de thème par tenant, ConfigProvider, mode sombre via `theme.darkAlgorithm`) | Composants denses en données |
+| État | **Zustand** (UI, session) + **TanStack Query** (données serveur) | Pas de Redux |
+| Routage, formulaires | React Router v6, React Hook Form + Zod | Schémas partagés depuis `packages/shared` |
+| Graphiques, calendrier | **Recharts**, **FullCalendar** (resource timeline, Premium Scheduler) | Vérifier la licence FullCalendar Premium pour la timeline des ressources, sinon utiliser `react-calendar-timeline` (MIT) |
+| i18n | i18next (FR, EN) | Montants au format `Intl.NumberFormat` avec XOF |
+| Backend | **Node.js 20 + Express 4 + TypeScript** | Architecture modulaire en couches (§3) |
+| Validation et documentation | **Zod** + `@asteasolutions/zod-to-openapi` → **Swagger UI** (`/api/docs`) | Une seule source de vérité |
+| ORM, base | **Prisma** + **PostgreSQL 16** | SQL brut dans les migrations pour la RLS et les contraintes |
+| Jobs | **BullMQ** sur Redis 7 (jobs répétables) | **Remplace node-cron**, qui s'exécute en double sur plusieurs instances et ne relance pas les jobs en échec |
+| Temps réel | **Socket.io** + `@socket.io/redis-adapter` | Rooms cloisonnées par tenant (§4) |
+| Fichiers | Multer (`memoryStorage`, limites) → **S3/MinIO** ; ClamAV | URL signées de 5 min |
+| E-mail | Nodemailer + gabarits **MJML/Handlebars** brandés ; SMS et WhatsApp via adapters | Envois via la file `notifications` |
+| PDF | **Gotenberg** (HTML → PDF) | Factures, reçus, fiches de police |
+| Logs, monitoring | **Winston** (JSON, masquage des données sensibles), Sentry, `/health` et `/ready` | Identifiant de requête propagé |
+| Sécurité | Helmet, CORS par liste blanche, express-rate-limit (store Redis), cookies `httpOnly`, CSRF, argon2id | HTTPS forcé derrière Traefik |
+| Infrastructure | Docker Compose (dev) ; production sur VPS ou Kubernetes avec Traefik (TLS Let's Encrypt, domaines personnalisés) | `.env.development`, `.env.staging`, `.env.production` |
+| CI | GitHub Actions : lint, typecheck, test, build, `pnpm audit`, images Docker | — |
 
-## 2. Multi-tenancy
-**Modèle : base partagée, schéma partagé, colonne `tenant_id` + Row-Level Security PostgreSQL** (défense en profondeur).
-
-- Résolution du tenant : sous-domaine (`{slug}.app.domaine.com`) ou domaine personnalisé → table `tenant_domains` → `tenant_id` (mis en cache dans Redis).
-- Un middleware Nest place le `tenant_id` dans `AsyncLocalStorage`. Une **extension Prisma** exécute `SET LOCAL app.tenant_id = '…'` dans chaque transaction et ajoute le filtre `tenant_id`.
-- Politique RLS sur **toutes** les tables tenant :
-  `USING (tenant_id = current_setting('app.tenant_id')::uuid)`.
-- L'espace Super Admin utilise un **rôle PostgreSQL distinct** (`BYPASSRLS`) et une application et un domaine séparés (`admin.`).
-- Le JWT contient `tenant_id` ; une requête est rejetée si le `tenant_id` du jeton est différent du tenant résolu par l'hôte.
-- **Test obligatoire** : une suite e2e « cross-tenant » tente de lire et d'écrire les ressources d'un tenant B avec un jeton du tenant A, pour chaque route (générée à partir de l'inventaire des routes).
-
-## 3. Découpage des applications et des paquets
+## 2. Structure du dépôt (extension de la structure du prompt)
 ```
-apps/
-  api/            NestJS (routes /admin/* et /t/* séparées par module)
-  web-tenant/     Next.js — espace hôtel
-  web-admin/      Next.js — espace Super Admin
-  worker/         BullMQ (jobs : facturation, relances, audit de nuit, PDF, notifications)
-packages/
-  db/             Schéma Prisma, migrations, SQL RLS, seeds
-  contracts/      Schémas Zod + types DTO partagés
-  ui/             Design system (shadcn), thème dynamique
-  config/         eslint, tsconfig, tailwind preset
-  pdf-templates/  Gabarits HTML des factures, reçus, fiches de police
+/hotel-management
+├── /client                  # React — back-office staff (tenant)
+│   └── /src/{components,pages,features,hooks,services,utils,types,theme}
+├── /portal                  # React — portail client public (brandé par tenant)
+├── /admin                   # React — espace Super Admin
+├── /server
+│   └── /src
+│       ├── /modules/<module>/{routes,controller,service,repository,schemas,events}.ts
+│       ├── /middleware      # tenant, auth, rbac, entitlements, subscription, validate, error, audit
+│       ├── /jobs            # processeurs BullMQ (billing, reminders, night-audit, preventive, reorder…)
+│       ├── /realtime        # passerelle Socket.io
+│       ├── /lib             # prisma, redis, s3, mailer, pdf, logger, sequences
+│       └── /utils
+├── /packages
+│   ├── /shared              # schémas Zod, DTO, enums, permissions, codes des fonctionnalités
+│   ├── /ui                  # composants Ant Design partagés, StatusTag, thème
+│   └── /config              # eslint, tsconfig, prettier
+├── /database
+│   ├── /prisma/schema.prisma
+│   ├── /migrations          # migrations Prisma + SQL (RLS, contraintes d'exclusion)
+│   └── /seeds               # plans, rôles, permissions, 2 tenants de démonstration réalistes
+├── docker-compose.yml
+└── /docs
 ```
+Le prompt prévoyait des couches techniques globales (`/controllers`, `/routes`, `/services`). Je les remplace par un **découpage par module** (`/modules/<module>`) : un sous-agent travaille ainsi sur un seul dossier, ce qui limite les conflits et le contexte à charger.
 
-## 4. Modules backend (bounded contexts)
-| Module | Contexte | Dépend de |
-|---|---|---|
-| `platform-auth` | Authentification des utilisateurs plateforme | — |
-| `tenancy` | Tenants, domaines, résolution | — |
-| `billing` | Plans, tarifs, abonnements, factures, paiements, relances | tenancy |
-| `entitlements` | Fonctionnalités et quotas (guard, décorateurs) | billing |
-| `iam` | Utilisateurs tenant, rôles, permissions, politiques de sécurité, sessions, 2FA | tenancy, entitlements |
-| `audit` | Journal immuable (plateforme + tenant) | — |
-| `branding` | Thème, logos, documents, domaine personnalisé | tenancy |
-| `property` | Établissements, types de chambres, chambres, équipements | entitlements |
-| `rates` | Plans tarifaires, saisons, taxes, politiques | property |
-| `reservations` | Disponibilités, réservations, groupes, planning | property, rates, crm |
-| `front-desk` | Check-in/out, fiches de police, changements de chambre | reservations |
-| `folio` | Folios, postes, factures, avoirs, encaissements, caisse, city ledger | front-desk |
-| `night-audit` | Clôture journalière | folio, reservations |
-| `housekeeping` | Statuts des chambres, tâches | property |
-| `maintenance` | Tickets | property |
-| `pos` | Points de vente, commandes, tickets | folio, inventory |
-| `inventory` | Articles, magasins, mouvements, inventaires | — |
-| `crm` | Clients, sociétés | — |
-| `reporting` | KPI, rapports, exports | lecture multi-modules (vues SQL) |
-| `notifications` | E-mail, SMS, WhatsApp, modèles | — |
-| `files` | Upload, scan antivirus (ClamAV), URL signées | — |
+## 3. Couches backend
+`route` (Express Router + `validate(zodSchema)` + `can('perm')` + `requireFeature('spa')`) → `controller` (HTTP uniquement) → `service` (règles métier, transactions) → `repository` (Prisma). Les événements de domaine passent par une **outbox**, relayée vers BullMQ et Socket.io.
 
-Communication interne : appels de services pour le synchrone, **outbox + BullMQ** pour les événements (`reservation.confirmed`, `payment.confirmed`, `subscription.suspended`…).
+Middlewares globaux, dans l'ordre : `requestId` → `helmet` → `cors` → `rateLimit` → `tenantResolver` → `auth` → `subscriptionGuard` (lecture seule si suspendu) → `audit`.
+
+## 4. Multi-tenancy
+- **Base et schéma partagés + `tenant_id` + RLS** :
+  `CREATE POLICY tenant_isolation ON <table> USING (tenant_id = current_setting('app.tenant_id')::uuid)`.
+- `tenantResolver` : `Host` → `tenant_domains` (cache Redis de 5 min) → `req.tenant` + **AsyncLocalStorage**.
+- Une extension Prisma (`$extends`) encapsule chaque requête dans une transaction qui exécute `SET LOCAL app.tenant_id`. Le rôle applicatif est `NOBYPASSRLS`.
+- L'application `admin` utilise un rôle DB distinct (`BYPASSRLS`), des routes `/api/v1/admin/*` et une authentification séparée.
+- Le JWT contient `tid`. On vérifie `tid === req.tenant.id`, sinon on renvoie une erreur 403.
+- **Socket.io** : authentification JWT au handshake, puis jonction **côté serveur uniquement** aux rooms `t:{tid}`, `t:{tid}:p:{propertyId}`, `t:{tid}:u:{userId}` et `t:{tid}:dept:{dept}`. Le client ne choisit jamais sa room.
+- Portail client : les comptes `guest_accounts` sont propres à chaque tenant (le même e-mail peut exister chez deux tenants).
 
 ## 5. Règles techniques clés
-- **Montants** : entiers (`BIGINT`) en unité minimale, plus la devise. Jamais de `float`.
-- **Dates hôtelières** : `DATE` pour les nuits (arrivée inclusive, départ exclusive) ; `TIMESTAMPTZ` pour les événements ; une « date d'exploitation » (`business_date`) par établissement, avancée par l'audit de nuit.
-- **Anti-double-booking** : table `room_nights` (une ligne par chambre et par nuit assignée) avec `UNIQUE (tenant_id, room_id, night)`, ou une contrainte d'exclusion `EXCLUDE USING gist (room_id WITH =, daterange(arrival, departure) WITH &&)` sur les affectations actives.
-- **Numérotation sans trou** : table `sequences` verrouillée (`SELECT … FOR UPDATE`) dans la transaction d'émission.
-- **Immutabilité** : factures émises, paiements et audit ne sont jamais modifiés ; on corrige par contre-passation ou avoir.
-- **Idempotence** : en-tête `Idempotency-Key` sur les POST de paiement et d'encaissement.
-- **Mode lecture seule (abonnement suspendu)** : un guard global refuse les méthodes non-GET sur `/t/*` (sauf auth, export et déclaration de paiement), avec le code `SUBSCRIPTION_SUSPENDED`.
-- **API** : REST JSON, préfixe `/api/v1`, OpenAPI généré, pagination par curseur, erreurs RFC 7807.
+- **Montants** : `BigInt` ou `Int` en unité minimale + devise ; XOF sans décimale.
+- **Nuits** : `DATE`, arrivée incluse, départ exclu ; `business_date` par établissement, avancée par l'audit de nuit.
+- **Anti-surbooking** : table `unit_nights` avec `UNIQUE (unit_id, night)`, insérée dans la transaction de confirmation ou d'affectation. Pour le spa et les activités, une contrainte d'exclusion GiST `tstzrange` sur le praticien, la cabine et le créneau, plus un compteur de capacité verrouillé (`SELECT … FOR UPDATE`).
+- **Liste d'attente** : à l'événement `inventory.released`, le job `waitlist-match` notifie les candidats dans l'ordre, avec une offre qui expire.
+- **Numérotation sans trou** : table `sequences` verrouillée dans la transaction d'émission.
+- **Immutabilité** : factures, paiements, lignes de folio, mouvements de points et de stock ne sont jamais mis à jour ni supprimés ; on contre-passe. La suppression logique (`deleted_at`) est réservée aux référentiels.
+- **Idempotence** : en-tête `Idempotency-Key` sur les créations de paiements, encaissements et réservations du portail.
+- **API** : `/api/v1`, erreurs **RFC 7807**, pagination par curseur, filtres normalisés, `ETag` sur les référentiels.
+- **Jobs BullMQ** : `subscription-lifecycle` (quotidien), `billing-reminders`, `booking-reminders`, `pending-expiry`, `waitlist-match`, `night-audit-check`, `preventive-maintenance`, `reorder-suggestions`, `loyalty-expiry`, `scheduled-reports`, `notifications`, `pdf-render`, `purge`. Chaque job reçoit un `tenantId` et réutilise le contexte RLS.
 
 ## 6. Environnements
-`local` (docker compose : postgres, redis, minio, mailpit, gotenberg) → `staging` → `production`. Migrations appliquées par la CI, *seed* des plans par défaut.
+`local` (compose : postgres, redis, minio, mailpit, gotenberg, clamav) → `staging` (données de démonstration) → `production`. Migrations appliquées par la CI ; seed des plans par défaut et du compte Super Admin à partir de variables d'environnement.

@@ -12,23 +12,32 @@
 | Utilisateurs | 5 | 15 | Illimité |
 | Stockage | 1 Go | 5 Go | 20 Go |
 | SMS inclus par mois | 0 | 200 | 1 000 |
-| PMS cœur (planning, réservations, réception, folio, caisse, housekeeping, audit de nuit, CRM, rapports de base) | ✅ | ✅ | ✅ |
-| Rôles personnalisés | ❌ (rôles prédéfinis) | ✅ | ✅ |
-| 2FA, politiques de mot de passe et de session | ✅ | ✅ | ✅ |
-| Restriction IP / horaires | ❌ | ✅ | ✅ |
-| Branding (logo, couleurs, documents) | ✅ | ✅ | ✅ |
-| Domaine personnalisé | ❌ | ❌ | ✅ |
-| Maintenance (tickets) | ✅ | ✅ | ✅ |
-| POS restaurant/bar | ❌ | ✅ | ✅ |
-| Stocks | ❌ | ✅ | ✅ |
+| Hébergement : calendrier, réservations, réception, fiche de police, audit de nuit | ✅ | ✅ | ✅ |
+| Folio unifié, encaissements, caisse, factures | ✅ | ✅ | ✅ |
+| CRM (profils, historique, communications) | ✅ | ✅ | ✅ |
+| Housekeeping + maintenance corrective | ✅ | ✅ | ✅ |
+| Maintenance préventive | ❌ | ✅ | ✅ |
+| Restaurant (plan de salle, menu, commandes, réservations de table) | ❌ | ✅ | ✅ |
+| Spa et activités (soins, praticiens, forfaits) | ❌ | ✅ | ✅ |
+| Stocks + bons de commande + suggestions de réapprovisionnement | ❌ | ✅ | ✅ |
+| Staff et RH (shifts, pointage, tâches, messagerie) | Tâches + messagerie | ✅ | ✅ |
+| Fidélité (points, paliers) | ❌ | ✅ | ✅ |
+| Portail client (réservation en ligne, compte client) | Vitrine + demande de réservation | ✅ | ✅ |
 | Groupes et comptes débiteurs | ❌ | ✅ | ✅ |
-| Rapports avancés et exports programmés | ❌ | Partiel | ✅ |
-| API et webhooks, SSO (P2) | ❌ | ❌ | ✅ |
-| Moteur de réservation en ligne (P2) | ❌ | ✅ | ✅ |
+| Tableaux de bord de base (TO, ADR, RevPAR) | ✅ | ✅ | ✅ |
+| Analytique avancée (KPI par département, prévisions, performance du staff, exports programmés) | ❌ | Partiel (sans export programmé) | ✅ |
+| Rôles personnalisés | ❌ (rôles système) | ✅ | ✅ |
+| 2FA, politiques de mot de passe et de session, audit | ✅ | ✅ | ✅ |
+| Restriction IP / horaires | ❌ | ✅ | ✅ |
+| Branding (logo, couleurs, documents, portail) | ✅ | ✅ | ✅ |
+| Domaine personnalisé | ❌ | ❌ | ✅ |
+| API, webhooks, SSO, channel manager (P2) | ❌ | ❌ | ✅ |
 | Support | E-mail | E-mail + WhatsApp | Prioritaire |
 
-Codes des fonctionnalités (`feature_key`) : `pms.core`, `security.custom_roles`, `security.ip_restriction`, `branding.custom_domain`, `pos`, `inventory`, `groups`, `city_ledger`, `reports.advanced`, `reports.scheduled`, `api`, `sso`, `booking_engine`, `sms`.
-Codes des quotas (`quota_key`) : `properties`, `rooms`, `users`, `storage_mb`, `sms_per_month`.
+Codes des fonctionnalités (`feature_key`) : `lodging.core`, `billing.core`, `crm.core`, `housekeeping`, `maintenance.preventive`, `restaurant`, `spa`, `activities`, `inventory`, `hr.shifts`, `hr.timeclock`, `loyalty`, `portal.booking`, `groups`, `city_ledger`, `analytics.advanced`, `reports.scheduled`, `security.custom_roles`, `security.ip_restriction`, `branding.custom_domain`, `api`, `sso`, `channel_manager`, `sms`.
+Codes des quotas (`quota_key`) : `properties`, `units`, `users`, `storage_mb`, `sms_per_month`.
+
+> Encaissements **côté hôtel** (clients finaux) : même principe d'enregistrement manuel, avec les modes `CASH`, `CARD`, `BANK_TRANSFER`, `MIXX`, `MOOV_MONEY`, `LOYALTY_POINTS`, `CITY_LEDGER` (doc 01, OP-91).
 
 **Règle d'application** : `PlanGuard` / `@RequiresFeature('pos')` côté API, et masquage dans l'interface (menu grisé avec CTA « Passer au plan Medium »). Les quotas sont vérifiés **à la création** (chambres, utilisateurs, établissements), jamais rétroactivement.
 

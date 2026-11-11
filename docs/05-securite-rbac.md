@@ -11,25 +11,26 @@
 - **RBAC à permissions fines** `module.action[.scope]`, avec une **portée par établissement** (`user_properties`).
 - Rôles système prédéfinis (non supprimables, clonables) :
 
-| Rôle | Permissions clés |
+| Rôle système | Permissions clés |
 |---|---|
-| Propriétaire | `*` (y compris abonnement, sécurité, branding) |
-| Directeur | Tout l'opérationnel + rapports + utilisateurs (hors abonnement) |
-| Réceptionniste | `reservations.*`, `front_desk.*`, `folio.post`, `folio.pay`, `cash.session` |
-| Caissier | `folio.pay`, `cash.*`, `pos.pay` |
-| Gouvernante | `housekeeping.*`, `maintenance.create` |
-| Femme de chambre | `housekeeping.update_own` |
-| Technicien | `maintenance.update_assigned` |
-| Serveur / barman | `pos.order`, `pos.pay` (selon le paramétrage) |
-| Comptable | `reports.*`, `invoices.read`, `city_ledger.*` |
-| Auditeur | Lecture seule |
+| Propriétaire | `*` (y compris l'abonnement, la sécurité et le branding) |
+| Admin (prompt) | Tout sauf l'abonnement ; utilisateurs, rôles, sécurité, paramétrage |
+| Manager (prompt) | Tout l'opérationnel de ses établissements et départements + rapports + plannings |
+| Front Desk (prompt) | `reservations.*`, `front_desk.*`, `guests.*`, `folio.post`, `folio.pay`, `cash.session`, `waitlist.*` |
+| Housekeeping (prompt) | `housekeeping.*`, `maintenance.create`, `tasks.update_own`, `inventory.consume` (linge, produits) |
+| Restaurant Staff (prompt) | `restaurant.orders.*`, `restaurant.tables.*`, `restaurant.reservations.*`, `folio.charge_room`, `pos.pay` |
+| Spa Staff (prompt) | `spa.appointments.*`, `spa.records.read/write` (soins attribués), `folio.charge_room` |
+| Maintenance (prompt) | `maintenance.*` (bons affectés), `assets.read`, `inventory.consume` (pièces) |
+| Caissier | `folio.pay`, `cash.*` |
+| Comptable | `reports.*`, `invoices.read`, `city_ledger.*`, `exports.*` |
+| Client (portail) | Son profil, ses réservations, ses demandes, ses factures, ses points (politique `guest_id = self`) |
 
-- Permissions sensibles (toujours auditées, éventuellement soumises à 2FA) : `folio.discount`, `folio.reverse`, `invoice.credit_note`, `cash.close_with_variance`, `pos.void`, `night_audit.run`, `users.manage`, `security.manage`, `billing.manage`, `guests.export`.
-- Côté API : décorateur `@Can('reservations.create')` + `@RequiresFeature('pos')` + guard d'abonnement. Côté interface : masquage, jamais comme unique contrôle.
+- Permissions sensibles (toujours auditées, éventuellement soumises à 2FA) : `folio.discount`, `folio.reverse`, `invoice.credit_note`, `cash.close_with_variance`, `pos.void`, `night_audit.run`, `loyalty.adjust`, `spa.records.read`, `hr.timeclock.edit`, `users.manage`, `security.manage`, `billing.manage`, `guests.export`.
+- Côté API : middlewares Express `can('reservations.create')` + `requireFeature('spa')` + `subscriptionGuard`. Socket.io : vérifier la permission avant chaque émission ciblée. Côté interface : masquage, jamais comme unique contrôle.
 - Le cache des permissions est invalidé via `perm_ver` (incrémenté à chaque changement de rôle).
 
 ## 3. Isolation des tenants
-Voir doc 03 §2 (RLS + contexte + tests cross-tenant). Fichiers : clés S3 préfixées `t/{tenant_id}/…`, accès uniquement via URL signée (5 min) délivrée après contrôle.
+Voir doc 03 §4 (RLS + contexte + rooms Socket.io + tests cross-tenant). Fichiers : clés S3 préfixées `t/{tenant_id}/…`, accès uniquement via URL signée (5 min) délivrée après contrôle.
 
 ## 4. Impersonation (support)
 Elle exige le rôle plateforme `SUPPORT`/`SUPER_ADMIN`, l'autorisation du tenant (`allow_impersonation`), un motif et une durée de 30 min max. Le jeton porte `impersonated_by` ; un bandeau est visible ; certaines actions sont bloquées (changement de mot de passe, sécurité, paiements). Elle est tracée des deux côtés.

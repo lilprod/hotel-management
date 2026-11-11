@@ -1,70 +1,78 @@
-# 00 — Analyse critique du besoin initial
+# 00 — Analyse critique du prompt « Gestion d'un complexe hôtelier »
 
-## 1. Besoin exprimé (reformulé)
+Point de vue : chef de projet et développeur senior, spécialisé en SaaS et en PMS hôtelier.
+Prompt analysé : application React / Node.js-Express / PostgreSQL, 9 modules, portail client, 12 semaines.
+Objectif : en faire un **SaaS multi-tenant** avec un espace **Super Admin**, des **tenants** autonomes (sécurité, branding, opérationnel), **3 plans** (Standard, Medium, Premium) à tarifs et essais paramétrables, et des **paiements d'abonnement enregistrés manuellement** (Mixx, Moov Money, Espèces, Carte bancaire + référence facultative).
 
-> Une application SaaS de gestion hôtelière **multi-tenant**, avec :
-> - un **espace Super Admin** (éditeur de la plateforme) ;
-> - des **tenants** (hôtels clients) autonomes sur leur **sécurité**, leur **branding** et tout leur **opérationnel** ;
-> - **3 plans** : Standard, Medium, Premium, avec **tarifs paramétrables** et **périodes d'essai** ;
-> - **pas d'intégrateur de paiement** pour l'instant : le Super Admin **enregistre manuellement** les paiements d'abonnement (modes : **Mixx**, **Moov Money**, **Espèces**, **Carte bancaire**) avec une **référence facultative**.
+## 1. Points forts du prompt
+- Périmètre fonctionnel riche et bien structuré (9 modules, cycle de vie de la réservation, folio unifié).
+- Stack moderne et cohérente (TypeScript de bout en bout, React Query, Zod, Prisma, Socket.io).
+- Préoccupations de production présentes : Docker, Swagger, logs, Helmet, rate limiting, RGPD, WCAG.
+- Phasage en 5 phases et livrables explicites.
 
-## 2. Ce qui est couvert par le besoin initial
+## 2. Ce qui manque ou pose problème
 
-| Domaine | Couvert | Commentaire |
+### 2.1 Bloquant : le prompt décrit une application mono-hôtel, pas un SaaS
+| Manque | Conséquence | Correction (doc) |
 |---|---|---|
-| Multi-tenancy | ✅ | Il faut encore choisir le modèle d'isolation (voir doc 03) |
-| Espace Super Admin | ✅ (partiel) | Le périmètre fonctionnel n'est pas détaillé |
-| Plans et essais | ✅ (partiel) | Ni quotas ni fonctionnalités par plan, ni cycle de facturation, ni règle de fin d'essai |
-| Paiement manuel | ✅ (partiel) | Pas de facture, de reçu, de rapprochement, de relance ni de suspension |
-| Sécurité tenant | ✅ (intention) | Le contenu reste à définir : 2FA, mots de passe, sessions, IP, audit |
-| Branding tenant | ✅ (intention) | Le contenu reste à définir : logo, couleurs, sous-domaine, documents |
-| « Tout l'opérationnel » | ⚠️ | C'est le cœur du produit, et il n'est **pas détaillé** |
+| Aucune notion de **tenant** (pas de `tenant_id`, pas d'isolation) | Impossible de vendre à plusieurs hôtels ; risque de fuite de données | Base partagée + `tenant_id` + **RLS PostgreSQL** (03) |
+| Aucun **espace Super Admin** | Pas de gestion des clients, des plans ni de la facturation | Application `admin` dédiée (01 §2) |
+| Aucun **plan d'abonnement**, essai, quota ni limite de fonctionnalités | Pas de modèle économique | Plans, quotas, fonctionnalités, machine à états (02) |
+| Aucun **paiement d'abonnement** | — | Enregistrement manuel Mixx, Moov Money, Espèces, Carte + référence, reçus, relances, suspension (02) |
+| Pas de **branding par tenant** | Le portail client « luxe » ne peut porter qu'une seule marque | Thème, logos, documents, domaine personnalisé (01 TN-20) |
+| **Sécurité** définie globalement, pas par tenant | Les hôtels ne peuvent pas définir leurs propres règles | Politiques de mot de passe, 2FA, sessions, IP, rôles personnalisés **par tenant** (05) |
+| RBAC figé sur 7 rôles | Chaque hôtel a une organisation différente | Rôles système + rôles personnalisés à permissions fines (05) |
+| Portail client unique | Les clients d'un hôtel A ne doivent jamais voir l'hôtel B | Portail par tenant (`{slug}.domaine` ou domaine propre), comptes clients cloisonnés |
 
-## 3. Manques identifiés (à intégrer — tous intégrés dans le doc 01)
+### 2.2 Métier hôtelier : lacunes importantes
+| Manque | Pourquoi c'est indispensable |
+|---|---|
+| **Tarification** : plans tarifaires, saisons, tarifs par jour de la semaine, enfant, lit supplémentaire, séjour minimum | « Pricing » est cité sans modèle tarifaire ; sans lui, le calcul du prix d'un séjour est impossible |
+| **Taxes locales** : TVA 18 %, **taxe de séjour** | « Tax compliance » non défini pour le Togo et la zone UEMOA |
+| **Moyens de paiement locaux** : Mixx, Moov Money | Le prompt ne cite que cash, card, transfer et loyalty ; le Mobile Money est majoritaire localement |
+| **Fiche de police** au check-in | Obligation légale en Afrique de l'Ouest |
+| **Audit de nuit** (clôture journalière, date d'exploitation) | Il fige le chiffre d'affaires du jour et poste les nuitées ; standard de tout PMS |
+| **Sessions de caisse** (ouverture, clôture, écarts) | Contrôle anti-fraude des encaissements en espèces |
+| **Housekeeping** comme module à part entière | Le prompt ne le traite que via le statut des chambres et les tâches, alors qu'il faut statuts propre/sale/inspecté, affectation et vue mobile |
+| **Immutabilité financière** : factures numérotées sans trou, avoirs, contre-passations | La « suppression logique » ne suffit pas : on ne supprime ni ne modifie une facture émise |
+| **Points de fidélité comme moyen de paiement** | Il faut un registre de points (gain, utilisation, expiration, valeur) ; c'est une dette comptable |
+| **Paiement en ligne sur le portail** | Aucun intégrateur n'est disponible : il faut un mode « payer à l'hôtel » ou un **acompte déclaré** (Mobile Money + référence) validé par la réception |
+| **Groupes et séminaires**, comptes débiteurs entreprises | Fréquent dans les complexes touristiques |
+| **Module Activités** | Cité (« activities ») mais jamais spécifié : créneaux, capacité, guide |
+| **Multi-établissements** | Un groupe peut posséder plusieurs complexes |
+| **Notifications SMS / WhatsApp** | L'e-mail seul est insuffisant localement |
+| Channel manager / OTA (Booking, Expedia) | Non cité ; à prévoir en phase 2 |
 
-### 3.1 Opérationnel hôtelier (PMS) — le plus gros manque
-1. **Structure de l'établissement** : multi-établissements par tenant, bâtiments et étages, **types de chambres**, chambres, équipements.
-2. **Tarification** : plans tarifaires, **saisons**, tarifs week-end, tarifs enfant et lit supplémentaire, tarifs entreprise négociés, promotions, séjour minimum.
-3. **Disponibilités** : planning (vue Gantt), blocage de chambres (hors service), gestion du **surbooking**.
-4. **Réservations** : individuelles, **groupes**, walk-in, statuts (option, confirmée, arrivée, partie, annulée, no-show), politiques d'annulation, **acomptes**.
-5. **Réception** : check-in et check-out, **fiche de police** (obligatoire en Afrique de l'Ouest : pièce d'identité, nationalité, provenance/destination), délogement, changement de chambre, prolongation.
-6. **Folio client** : consommations, extras, **taxe de séjour**, **TVA** (18 % au Togo et au Bénin), remises, **factures et reçus numérotés sans trou**, factures entreprise (débiteurs), avoirs.
-7. **Encaissements côté hôtel** : mêmes modes que la plateforme (Mixx, Moov Money, Espèces, Carte) + virement, paiements partiels, **sessions de caisse** (ouverture, clôture, écarts).
-8. **Audit de nuit** (clôture journalière) : report des nuitées, gel de la journée, rapports du jour.
-9. **Housekeeping** : statut des chambres (propre, sale, à inspecter, hors service), affectation des femmes de chambre, linge.
-10. **Maintenance** : tickets d'incident par chambre ou équipement, priorité, suivi.
-11. **Point de vente restaurant/bar** : carte, commandes, **imputation sur la chambre**, tickets.
-12. **Stocks** (minibar, bar, consommables) : entrées, sorties, inventaire, alertes de seuil.
-13. **CRM clients** : historique, préférences, clients VIP, liste noire, sociétés.
-14. **Rapports et KPI** : taux d'occupation, **ADR**, **RevPAR**, chiffre d'affaires par source, encaissements par mode, main courante, état de caisse.
-15. **Notifications** : e-mail, SMS, WhatsApp (confirmation de réservation, rappel, facture).
-16. **Moteur de réservation en ligne** (widget public) et **channel manager** (OTA) : à prévoir en phase 2.
+### 2.3 Choix techniques à trancher ou corriger
+| Point du prompt | Problème | Décision |
+|---|---|---|
+| « Redux Toolkit **ou** Zustand », « Ant Design **ou** MUI », « Knex **ou** Prisma », « Joi **ou** Zod », « Recharts **ou** Chart.js » | Laisser le choix à chaque agent fragmente le code | **Zustand**, **Ant Design 5**, **Prisma**, **Zod**, **Recharts** (03) |
+| `node-cron` | S'exécute en double sur plusieurs instances ; aucune reprise après erreur | **BullMQ** (jobs répétables + retry) sur Redis ; node-cron exclu |
+| Socket.io | Aucun cloisonnement multi-tenant ; ne passe pas à l'échelle sans adapter | Rooms `tenant:{id}`, `property:{id}`, `user:{id}` + **adapter Redis** ; auth JWT au handshake |
+| Multer (stockage local) | Incompatible avec plusieurs conteneurs | Multer en mémoire, puis stockage **S3/MinIO**, accès par URL signée |
+| Suppression logique « pour l'audit » | Ce n'est pas un journal d'audit | Table `audit_logs` immuable + suppression logique pour les référentiels uniquement |
+| Montants | Non spécifiés | Entiers en unité minimale (XOF = 0 décimale), jamais de float |
+| Tests | **Absents du prompt** | Vitest, Supertest, Playwright, suite de tests d'isolation inter-tenants (07) |
+| CI/CD, sauvegardes, monitoring | Absents | GitHub Actions, sauvegardes chiffrées quotidiennes, Sentry, uptime (03, 07) |
+| Cibles de performance | Absentes | p95 API < 300 ms ; calendrier de 150 unités sur 31 jours < 1 s (01 TR) |
+| Concurrence des réservations | « Overbooking prevention » sans mécanisme | Contrainte d'unicité `(room_id, night)` en base + transaction (03) |
+| « Forecasting » | Ambigu | Prévisions sur les réservations déjà enregistrées (OTB) + moyenne N-1 ; pas de ML en v1 |
 
-### 3.2 Plateforme SaaS
-1. **Cycle de vie du tenant** : inscription → essai → actif → impayé (période de grâce) → suspendu (lecture seule) → résilié → purge (RGPD).
-2. **Facturation plateforme** : factures d'abonnement générées automatiquement, **reçus PDF** à l'enregistrement d'un paiement, numérotation, prorata lors d'un changement de plan.
-3. **Workflow de paiement manuel** : saisie → (option) **double validation** → affectation à une ou plusieurs factures → prolongation de l'abonnement. Il faut aussi annuler ou contre-passer (jamais supprimer) et contrôler l'**unicité de la référence** par mode de paiement.
-4. **Déclaration de paiement par le tenant** (recommandé) : le tenant déclare « j'ai payé par Mixx, réf. XXX » et joint une capture ; le Super Admin valide. Cette étape prépare la future intégration d'un agrégateur.
-5. **Relances** : J-7, J-3, J0 et J+3 avant ou après échéance (e-mail, SMS, bandeau dans l'application).
-6. **Quotas et fonctionnalités par plan** (*feature flags*) : nombre de chambres, d'établissements, d'utilisateurs, modules activés, stockage.
-7. **Impersonation** (connexion « en tant que ») encadrée et tracée, pour le support.
-8. **Support** : tickets, annonces globales, maintenance planifiée.
-9. **Monitoring** : santé de la plateforme, sauvegardes, journaux.
-10. **Conformité** : export des données d'un tenant, suppression, CGU/CGV, loi togolaise n° 2019-014 sur la protection des données personnelles.
+### 2.4 Planning : 12 semaines est ambitieux
+9 modules, un portail client, une couche SaaS, l'enregistrement des paiements et la conformité tiennent en 12 semaines **seulement si** :
+1. les fondations (schéma, isolation, contrats d'API) sont figées en semaines 1-2 ;
+2. les modules sont développés **en parallèle** par des sous-agents bornés (06) ;
+3. le périmètre est priorisé M / S / P2 (01).
 
-### 3.3 Transverses
-- **Langues** : FR (par défaut), EN. **Devise** : XOF (FCFA) par défaut, paramétrable par tenant. **Fuseau** : Africa/Lome.
-- **Faible connectivité** : interface légère, PWA, mise en cache, tolérance aux coupures (mode hors ligne complet : hors périmètre v1).
-- **Mobile-first** pour le housekeeping et la maintenance.
-- **Intégrateur de paiement futur** : abstraire dès maintenant un `PaymentProvider` (le mode `manual` étant la seule implémentation v1).
+Les éléments **P2** (après la semaine 12) sont le channel manager, le paiement en ligne via un intégrateur, le SSO, l'API publique et les webhooks, ainsi que les prévisions avancées.
 
-## 4. Hypothèses retenues (à valider par le client)
-- H1 : les tenants encaissent aussi leurs clients avec les modes Mixx, Moov Money, Espèces, Carte et Virement, en **enregistrement manuel** (même modèle que la plateforme).
-- H2 : un tenant = une organisation hôtelière, qui peut avoir **plusieurs établissements** selon son plan.
-- H3 : l'accès se fait par sous-domaine `{slug}.app.domaine.com`, avec un domaine personnalisé en Premium.
-- H4 : le paiement « carte bancaire » v1 = encaissement par TPE physique ; on saisit seulement la référence du ticket TPE.
-- H5 : un abonnement est payable au mois, au trimestre ou à l'année, avec une remise paramétrable.
-- H6 : en fin d'essai sans paiement, le tenant passe en **suspendu (lecture seule)** et ne perd pas ses données pendant N jours (paramétrable, 90 par défaut).
+## 3. Hypothèses retenues (à valider)
+- **H1** : un tenant correspond à une organisation (hôtel ou complexe) et peut avoir plusieurs établissements selon son plan.
+- **H2** : les clients de l'hôtel paient en Espèces, Carte (TPE), Virement, Mixx, Moov Money, points de fidélité ou compte débiteur. Tout paiement est **enregistré manuellement**, avec une référence facultative.
+- **H3** : sur le portail client, une réservation en ligne est créée au statut `PENDING`. Elle devient `CONFIRMED` après validation par l'hôtel ou après validation d'un acompte déclaré.
+- **H4** : l'accès se fait par `{slug}.app.domaine.com` (staff), `{slug}.domaine.com` (portail) et `admin.domaine.com`. Le domaine personnalisé est réservé au plan Premium.
+- **H5** : en fin d'essai sans paiement, le compte passe en lecture seule. Les données sont conservées 90 jours (valeur paramétrable).
+- **H6** : la devise par défaut est XOF, le fuseau Africa/Lome, les langues FR (par défaut) et EN.
 
-## 5. Verdict
-Le besoin initial pose correctement la **dimension SaaS** (multi-tenant, plans, paiement manuel). En revanche, il **sous-spécifie fortement le métier hôtelier** (« tout l'opérationnel ») et le **cycle de facturation** (factures, relances, suspension). Les documents 01 à 07 comblent ces manques.
+## 4. Verdict
+La couche « hôtel » du prompt est **solide à environ 70 %**. La couche **SaaS est absente à 100 %** : multi-tenant, Super Admin, plans, facturation, branding, sécurité par tenant. Plusieurs choix techniques (node-cron, Multer local, Socket.io non cloisonné, alternatives non tranchées) doivent être corrigés pour la production. Le prompt reformulé (`docs/PROMPT-FORMALISE.md`) et les documents 01 à 07 corrigent ces points.
