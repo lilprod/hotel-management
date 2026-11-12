@@ -3,18 +3,18 @@ import { seedId, SEED_CURRENCY, type Logger } from './common.js';
 import { demoIds, seedDemoTenant, type DemoTenantSpec } from './demo-common.js';
 
 /**
- * Fictional demo tenant in Lomé: 60 units, restaurant, bar, spa and activities, PREMIUM plan.
- * The name and every identifier are invented.
+ * Demo tenant "Hôtel 2 Février" in Lomé: 60 units, restaurant, bar, spa and activities, PREMIUM plan.
+ * Name chosen by the client; addresses, NIF/RCCM, phones and guests are demo placeholders.
  */
-export const LOME_SLUG = 'lagune-bleue';
+export const LOME_SLUG = 'hotel-2-fevrier';
 
 export const LOME_SPEC: DemoTenantSpec = {
   slug: LOME_SLUG,
-  name: 'Résidence Lagune Bleue',
-  legalName: 'Résidence Lagune Bleue (données fictives de démonstration)',
+  name: 'Hôtel 2 Février',
+  legalName: 'Hôtel 2 Février (données de démonstration)',
   planCode: 'PREMIUM',
   city: 'Lomé',
-  address: 'Boulevard de la Lagune (adresse fictive), Lomé',
+  address: 'Adresse de démonstration, Lomé',
   taxId: 'NIF-FICTIF-0000001',
   rccm: 'RCCM-FICTIF-LOM-0001',
   primaryColor: '#0F766E',
@@ -295,10 +295,10 @@ export async function seedDemoLome(
       propertyId,
       departmentId: restaurantDept,
       type: 'RESTAURANT',
-      name: 'Restaurant La Lagune (fictif)',
+      name: 'Restaurant principal',
       openingHours: { lunch: '12:00-15:00', dinner: '19:00-22:30' },
     },
-    update: { name: 'Restaurant La Lagune (fictif)' },
+    update: { name: 'Restaurant principal' },
   });
   const barId = seedId(`outlet:${slug}:bar`);
   await admin.outlet.upsert({
@@ -309,10 +309,10 @@ export async function seedDemoLome(
       propertyId,
       departmentId: restaurantDept,
       type: 'BAR',
-      name: 'Bar du Ponton (fictif)',
+      name: 'Bar',
       openingHours: { daily: '10:00-23:00' },
     },
-    update: { name: 'Bar du Ponton (fictif)' },
+    update: { name: 'Bar' },
   });
 
   // Menu: 3 categories, 10 items with dietary tags.

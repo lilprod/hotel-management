@@ -1,5 +1,6 @@
 /**
- * Idempotent seeds: platform catalog, Togo parameters and two fictional demo tenants.
+ * Idempotent seeds: platform catalog, Togo parameters and three demo tenants
+ * (Hôtel 2 Février — PREMIUM, Jess Hôtel — MEDIUM, Hôtel Collines Vertes à Kpalimé — STANDARD).
  *
  * Run with the admin client (DATABASE_URL_ADMIN):
  *   pnpm --filter @hm/database db:seed
@@ -10,6 +11,7 @@
  */
 import { pathToFileURL } from 'node:url';
 import { createAdminClient, type AdminClient } from '../src/index.js';
+import { seedDemoJess } from './demo-jess.js';
 import { seedDemoKpalime } from './demo-kpalime.js';
 import { seedDemoLome } from './demo-lome.js';
 import { seedPlatform } from './platform.js';
@@ -28,6 +30,7 @@ export interface SeedSummary {
   togo: Awaited<ReturnType<typeof seedTogo>>;
   lome: Awaited<ReturnType<typeof seedDemoLome>>;
   kpalime: Awaited<ReturnType<typeof seedDemoKpalime>>;
+  jess: Awaited<ReturnType<typeof seedDemoJess>>;
 }
 
 export function seedOptionsFromEnv(env: NodeJS.ProcessEnv = process.env): SeedOptions {
@@ -52,7 +55,8 @@ export async function runSeeds(
   const togo = await seedTogo(admin, log);
   const lome = await seedDemoLome(admin, { demoPassword: options.demoPassword, log });
   const kpalime = await seedDemoKpalime(admin, { demoPassword: options.demoPassword, log });
-  return { platform, togo, lome, kpalime };
+  const jess = await seedDemoJess(admin, { demoPassword: options.demoPassword, log });
+  return { platform, togo, lome, kpalime, jess };
 }
 
 // CLI entry point (pnpm db:seed).

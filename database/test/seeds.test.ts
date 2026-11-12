@@ -6,12 +6,14 @@ import { runSeeds } from '../seeds/index.js';
 import { seedId, SEED_BASE_DOMAIN } from '../seeds/common.js';
 import { LOME_SLUG } from '../seeds/demo-lome.js';
 import { KPALIME_SLUG } from '../seeds/demo-kpalime.js';
+import { JESS_SLUG } from '../seeds/demo-jess.js';
 
 const { adminUrl, appUrl } = inject('pg');
 
 const LOME_ID = seedId(`tenant:${LOME_SLUG}`);
 const KPALIME_ID = seedId(`tenant:${KPALIME_SLUG}`);
-const SEEDED_TENANTS = [LOME_ID, KPALIME_ID];
+const JESS_ID = seedId(`tenant:${JESS_SLUG}`);
+const SEEDED_TENANTS = [LOME_ID, KPALIME_ID, JESS_ID];
 const SEED_OPTIONS = {
   superAdminEmail: 'superadmin@seed.example.invalid',
   superAdminPassword: 'seed-superadmin-pass-1',
@@ -109,12 +111,12 @@ describe('seeds', () => {
     expect(first.platformUsers).toBe(1);
   });
 
-  it('seeds the two fictional tenants with their expected sizes', async () => {
-    expect(first.tenants).toBe(2);
-    expect(first.roles).toBe(20); // 10 system roles x 2 tenants
-    expect(first.users).toBe(2); // one owner per tenant
-    expect(first.rooms).toBe(80); // 60 (Lomé) + 20 (Kpalimé)
-    expect(first.guests).toBe(20);
+  it('seeds the three demo tenants with their expected sizes', async () => {
+    expect(first.tenants).toBe(3);
+    expect(first.roles).toBe(30); // 10 system roles x 3 tenants
+    expect(first.users).toBe(3); // one owner per tenant
+    expect(first.rooms).toBe(110); // 60 (2 Février) + 20 (Kpalimé) + 30 (Jess)
+    expect(first.guests).toBe(30);
 
     const lome = await admin.tenant.findUniqueOrThrow({ where: { id: LOME_ID } });
     const kpalime = await admin.tenant.findUniqueOrThrow({ where: { id: KPALIME_ID } });
@@ -125,7 +127,11 @@ describe('seeds', () => {
       where: { tenantId: { in: SEEDED_TENANTS } },
     });
     expect(domains.map((d) => d.hostname).sort()).toEqual(
-      [`${KPALIME_SLUG}.${SEED_BASE_DOMAIN}`, `${LOME_SLUG}.${SEED_BASE_DOMAIN}`].sort(),
+      [
+        `${KPALIME_SLUG}.${SEED_BASE_DOMAIN}`,
+        `${LOME_SLUG}.${SEED_BASE_DOMAIN}`,
+        `${JESS_SLUG}.${SEED_BASE_DOMAIN}`,
+      ].sort(),
     );
   });
 
@@ -140,6 +146,11 @@ describe('seeds', () => {
     expect(kpalimeSub.status).toBe('TRIALING');
     expect(lomePlan.code).toBe('PREMIUM');
     expect(kpalimePlan.code).toBe('STANDARD');
+    const jessSub = await admin.subscription.findFirstOrThrow({ where: { tenantId: JESS_ID } });
+    const jessPlan = await admin.plan.findUniqueOrThrow({ where: { id: jessSub.planId } });
+    expect(jessPlan.code).toBe('MEDIUM');
+    expect(await admin.room.count({ where: { tenantId: JESS_ID } })).toBe(30);
+    expect(await admin.outlet.count({ where: { tenantId: KPALIME_ID } })).toBe(0);
     expect(await admin.room.count({ where: { tenantId: LOME_ID } })).toBe(60);
     expect(await admin.room.count({ where: { tenantId: KPALIME_ID } })).toBe(20);
   });
