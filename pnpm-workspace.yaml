@@ -1,0 +1,7 @@
+packages:
+  - client
+  - portal
+  - admin
+  - server
+  - database
+  - packages/*

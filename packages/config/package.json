@@ -1,0 +1,24 @@
+{
+  "name": "@hm/config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./eslint": "./eslint.config.js",
+    "./prettier": "./prettier.config.js",
+    "./tsconfig.base.json": "./tsconfig.base.json",
+    "./tsconfig.node.json": "./tsconfig.node.json"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "echo \"@hm/config: nothing to typecheck\"",
+    "test": "echo \"@hm/config: no tests\"",
+    "build": "echo \"@hm/config: nothing to build\""
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "eslint": "^9.39.0",
+    "eslint-config-prettier": "^10.1.8",
+    "typescript-eslint": "^8.72.2"
+  }
+}

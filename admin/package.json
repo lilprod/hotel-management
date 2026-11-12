@@ -1,0 +1,13 @@
+{
+  "name": "@hm/admin",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "echo \"@hm/admin: placeholder, scaffolded by another mission\"",
+    "build": "echo \"@hm/admin: placeholder\"",
+    "lint": "echo \"@hm/admin: placeholder\"",
+    "typecheck": "echo \"@hm/admin: placeholder\"",
+    "test": "echo \"@hm/admin: placeholder\""
+  }
+}

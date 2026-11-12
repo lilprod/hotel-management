@@ -1,0 +1,13 @@
+{
+  "name": "@hm/portal",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "echo \"@hm/portal: placeholder, scaffolded by another mission\"",
+    "build": "echo \"@hm/portal: placeholder\"",
+    "lint": "echo \"@hm/portal: placeholder\"",
+    "typecheck": "echo \"@hm/portal: placeholder\"",
+    "test": "echo \"@hm/portal: placeholder\""
+  }
+}

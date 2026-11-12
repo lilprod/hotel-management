@@ -1,0 +1,13 @@
+{
+  "name": "@hm/client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "echo \"@hm/client: placeholder, scaffolded by another mission\"",
+    "build": "echo \"@hm/client: placeholder\"",
+    "lint": "echo \"@hm/client: placeholder\"",
+    "typecheck": "echo \"@hm/client: placeholder\"",
+    "test": "echo \"@hm/client: placeholder\""
+  }
+}
