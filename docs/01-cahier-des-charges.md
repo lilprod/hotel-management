@@ -96,6 +96,7 @@ Source : prompt initial (marqué ◆) + compléments issus de l'analyse 00 (marq
 - **OP-21 (M)** ✚ — Check-in avec **fiche de police** (pièce, nationalité, naissance, profession, provenance, destination, motif), signature, attribution de l'unité.
 - **OP-22 (M)** — Walk-in, changement d'unité, prolongation, départ anticipé.
 - **OP-23 (M)** — Check-out : folio soldé ou transféré sur un compte débiteur, facture.
+- **OP-25 (M)** ✚ — **Registre des voyageurs** (fiches de police) imprimable et exportable par période (doc 09 §4).
 - **OP-24 (M)** ✚ — **Audit de nuit** : contrôles, report des nuitées, clôture de la date d'exploitation, rapports du jour.
 
 ### 4.4 CRM ◆

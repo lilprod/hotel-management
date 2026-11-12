@@ -39,7 +39,7 @@ Codes des quotas (`quota_key`) : `properties`, `units`, `users`, `storage_mb`, `
 
 > Encaissements **côté hôtel** (clients finaux) : même principe d'enregistrement manuel, avec les modes `CASH`, `CARD`, `BANK_TRANSFER`, `MIXX`, `MOOV_MONEY`, `LOYALTY_POINTS`, `CITY_LEDGER` (doc 01, OP-91).
 
-**Règle d'application** : `PlanGuard` / `@RequiresFeature('pos')` côté API, et masquage dans l'interface (menu grisé avec CTA « Passer au plan Medium »). Les quotas sont vérifiés **à la création** (chambres, utilisateurs, établissements), jamais rétroactivement.
+**Règle d'application** : middleware Express `requireFeature('restaurant')` (droits effectifs : plan + add-ons + surcharges) côté API, et masquage dans l'interface (menu grisé avec CTA « Passer au plan Medium »). Les quotas sont vérifiés **à la création** (chambres, utilisateurs, établissements), jamais rétroactivement.
 
 ## 1 bis. Add-ons, coupons et évolutivité commerciale
 - **Add-ons** (`addons`, `tenant_addons`) : un module ou un quota ajouté en plus du plan, avec son propre prix par cycle. Exemples : *Spa & Activités* pour un tenant Standard, pack de 500 SMS, +10 unités, +1 établissement, domaine personnalisé. L'add-on est facturé sur la même facture que le plan et prorata compris.
