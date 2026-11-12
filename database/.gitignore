@@ -1,0 +1,2 @@
+# Prisma client is generated (pnpm db:generate, also run by postinstall/typecheck/build)
+src/generated/

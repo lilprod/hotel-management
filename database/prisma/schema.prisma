@@ -1,0 +1,4273 @@
+// Hotel Management SaaS — Prisma schema (doc 04 — modèle de données).
+// Conventions: UUID v7 ids, snake_case tables/columns, money = BigInt minor units + currency CHAR(3),
+// nights = DATE (arrival included, departure excluded), events = timestamptz.
+// RLS policies, grants, exclusion constraints, partial indexes and immutability triggers live in
+// the hand-written migration "*_rls_security" (Prisma cannot express them).
+
+generator client {
+  provider               = "prisma-client"
+  output                 = "../src/generated/prisma"
+  moduleFormat           = "esm"
+  runtime                = "nodejs"
+  importFileExtension    = "js"
+  generatedFileExtension = "ts"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ======================================================================
+// §1 Plateforme (sans RLS — accès admin uniquement)
+// ======================================================================
+
+model PlatformUser {
+  id            String       @id @default(uuid(7)) @db.Uuid
+  email         String       @unique
+  passwordHash  String       @map("password_hash")
+  name          String
+  role          PlatformRole
+  totpSecretEnc String?      @map("totp_secret_enc")
+  isActive      Boolean      @default(true) @map("is_active")
+  lastLoginAt   DateTime?    @map("last_login_at") @db.Timestamptz(6)
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("platform_users")
+}
+
+model Plan {
+  id            String         @id @default(uuid(7)) @db.Uuid
+  code          String         @unique
+  name          String
+  description   String?
+  trialDays     Int            @default(0) @map("trial_days")
+  sort          Int            @default(0)
+  isPublic      Boolean        @default(true) @map("is_public")
+  isActive      Boolean        @default(true) @map("is_active")
+  deletedAt     DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  planPrices    PlanPrice[]
+  planFeatures  PlanFeature[]
+  planQuotas    PlanQuota[]
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model PlanPrice {
+  id           String       @id @default(uuid(7)) @db.Uuid
+  planId       String       @map("plan_id") @db.Uuid
+  plan         Plan         @relation(fields: [planId], references: [id], onDelete: Cascade)
+  billingCycle BillingCycle @map("billing_cycle")
+  currency     String       @default("XOF") @db.Char(3)
+  amount       BigInt
+  validFrom    DateTime     @map("valid_from") @db.Date
+  validTo      DateTime?    @map("valid_to") @db.Date
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([planId, billingCycle, currency])
+  @@map("plan_prices")
+}
+
+model PlanFeature {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  planId     String   @map("plan_id") @db.Uuid
+  plan       Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  featureKey String   @map("feature_key")
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([planId, featureKey])
+  @@map("plan_features")
+}
+
+model PlanQuota {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  planId    String   @map("plan_id") @db.Uuid
+  plan      Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  quotaKey  String   @map("quota_key")
+  limit     Int? // NULL = illimité
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([planId, quotaKey])
+  @@map("plan_quotas")
+}
+
+model Tenant {
+  id                      String                   @id @default(uuid(7)) @db.Uuid
+  slug                    String                   @unique
+  name                    String
+  legalName               String?                  @map("legal_name")
+  country                 String                   @db.Char(2)
+  phone                   String?
+  email                   String?
+  status                  TenantStatus             @default(ACTIVE)
+  defaultLocale           String                   @default("fr") @map("default_locale")
+  defaultCurrency         String                   @default("XOF") @map("default_currency") @db.Char(3)
+  timezone                String
+  allowImpersonation      Boolean                  @default(false) @map("allow_impersonation")
+  notes                   String?
+  tags                    String[]
+  deletedAt               DateTime?                @map("deleted_at") @db.Timestamptz(6)
+  createdAt               DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenantDomains           TenantDomain[]
+  tenantOverrides         TenantOverride[]
+  subscriptions           Subscription[]
+  platformInvoices        PlatformInvoice[]
+  payments                Payment[]
+  tenantCredits           TenantCredit[]
+  paymentDeclarations     PaymentDeclaration[]
+  supportTickets          SupportTicket[]
+  sequences               Sequence[]
+  tenantAddons            TenantAddon[]
+  couponRedemptions       CouponRedemption[]
+  users                   User[]
+  userProperties          UserProperty[]
+  roles                   Role[]
+  rolePermissions         RolePermission[]
+  userRoles               UserRole[]
+  securityPolicy          SecurityPolicy?
+  sessions                Session[]
+  auditLogs               AuditLog[]
+  branding                Branding?
+  messageTemplates        MessageTemplate[]
+  legalAcceptances        LegalAcceptance[]
+  properties              Property[]
+  roomTypes               RoomType[]
+  rooms                   Room[]
+  roomBlocks              RoomBlock[]
+  taxes                   Tax[]
+  ratePlans               RatePlan[]
+  seasons                 Season[]
+  rates                   Rate[]
+  policies                Policy[]
+  guests                  Guest[]
+  companies               Company[]
+  reservations            Reservation[]
+  reservationRooms        ReservationRoom[]
+  unitNights              UnitNight[]
+  waitlistEntries         WaitlistEntry[]
+  reservationGuests       ReservationGuest[]
+  groups                  Group[]
+  stays                   Stay[]
+  policeRecords           PoliceRecord[]
+  folios                  Folio[]
+  folioLines              FolioLine[]
+  invoices                Invoice[]
+  folioPayments           FolioPayment[]
+  cashSessions            CashSession[]
+  cashMovements           CashMovement[]
+  nightAudits             NightAudit[]
+  hkTasks                 HkTask[]
+  products                Product[]
+  outlets                 Outlet[]
+  warehouses              Warehouse[]
+  stockMovements          StockMovement[]
+  stockCounts             StockCount[]
+  stockCountLines         StockCountLine[]
+  suppliers               Supplier[]
+  purchaseOrders          PurchaseOrder[]
+  files                   File[]
+  outboxEvents            OutboxEvent[]
+  guestAccounts           GuestAccount[]
+  guestRequests           GuestRequest[]
+  depositDeclarations     DepositDeclaration[]
+  guestPreferences        GuestPreference[]
+  communications          Communication[]
+  consents                Consent[]
+  loyaltyPrograms         LoyaltyProgram[]
+  loyaltyTiers            LoyaltyTier[]
+  loyaltyAccounts         LoyaltyAccount[]
+  loyaltyTransactions     LoyaltyTransaction[]
+  departments             Department[]
+  employees               Employee[]
+  shiftTemplates          ShiftTemplate[]
+  staffSchedules          StaffSchedule[]
+  timeEntries             TimeEntry[]
+  leaves                  Leave[]
+  tasks                   Task[]
+  conversations           Conversation[]
+  conversationMembers     ConversationMember[]
+  messages                Message[]
+  notifications           Notification[]
+  notificationPreferences NotificationPreference[]
+  floorPlans              FloorPlan[]
+  diningTables            DiningTable[]
+  menuCategories          MenuCategory[]
+  menuItems               MenuItem[]
+  dailySpecials           DailySpecial[]
+  orders                  Order[]
+  orderItems              OrderItem[]
+  tableReservations       TableReservation[]
+  spaServices             SpaService[]
+  therapists              Therapist[]
+  treatmentRooms          TreatmentRoom[]
+  appointments            Appointment[]
+  treatmentRecords        TreatmentRecord[]
+  packages                Package[]
+  packageComponents       PackageComponent[]
+  activities              Activity[]
+  activitySlots           ActivitySlot[]
+  activityBookings        ActivityBooking[]
+  inventoryItems          InventoryItem[]
+  stockLevels             StockLevel[]
+  recipes                 Recipe[]
+  recipeLines             RecipeLine[]
+  purchaseOrderLines      PurchaseOrderLine[]
+  goodsReceipts           GoodsReceipt[]
+  goodsReceiptLines       GoodsReceiptLine[]
+  reorderSuggestions      ReorderSuggestion[]
+  assets                  Asset[]
+  maintenanceRequests     MaintenanceRequest[]
+  workOrders              WorkOrder[]
+  preventivePlans         PreventivePlan[]
+  roomStatusHistories     RoomStatusHistory[]
+  settings                Setting[]
+  customFieldDefinitions  CustomFieldDefinition[]
+  lookupValues            LookupValue[]
+  fiscalDocuments         FiscalDocument[]
+  exchangeRates           ExchangeRate[]
+  importJobs              ImportJob[]
+  importRows              ImportRow[]
+  ledgerAccounts          LedgerAccount[]
+  accountMappings         AccountMapping[]
+  accountingExports       AccountingExport[]
+  periodClosings          PeriodClosing[]
+  minibarTemplates        MinibarTemplate[]
+  minibarCounts           MinibarCount[]
+  lostFoundItems          LostFoundItem[]
+  apiKeys                 ApiKey[]
+  webhookSubscriptions    WebhookSubscription[]
+  webhookDeliveries       WebhookDelivery[]
+  dailyStatsProperties    DailyStatsProperty[]
+  dailyStatsDepartments   DailyStatsDepartment[]
+
+  @@map("tenants")
+}
+
+model TenantDomain {
+  id         String     @id @default(uuid(7)) @db.Uuid
+  tenantId   String     @map("tenant_id") @db.Uuid
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  hostname   String     @unique
+  type       DomainType
+  verifiedAt DateTime?  @map("verified_at") @db.Timestamptz(6)
+  tlsStatus  TlsStatus  @default(PENDING) @map("tls_status")
+  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tenantId])
+  @@map("tenant_domains")
+}
+
+model TenantOverride {
+  id        String       @id @default(uuid(7)) @db.Uuid
+  tenantId  String       @map("tenant_id") @db.Uuid
+  tenant    Tenant       @relation(fields: [tenantId], references: [id])
+  kind      OverrideKind
+  key       String
+  value     Json
+  endsAt    DateTime?    @map("ends_at") @db.Timestamptz(6)
+  note      String?
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tenantId, kind, key])
+  @@map("tenant_overrides")
+}
+
+model Subscription {
+  id                 String              @id @default(uuid(7)) @db.Uuid
+  tenantId           String              @map("tenant_id") @db.Uuid
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  planId             String              @map("plan_id") @db.Uuid
+  plan               Plan                @relation(fields: [planId], references: [id])
+  billingCycle       BillingCycle        @map("billing_cycle")
+  status             SubscriptionStatus  @default(TRIALING)
+  trialEndsAt        DateTime?           @map("trial_ends_at") @db.Timestamptz(6)
+  currentPeriodStart DateTime?           @map("current_period_start") @db.Timestamptz(6)
+  currentPeriodEnd   DateTime?           @map("current_period_end") @db.Timestamptz(6)
+  graceEndsAt        DateTime?           @map("grace_ends_at") @db.Timestamptz(6)
+  cancelAt           DateTime?           @map("cancel_at") @db.Timestamptz(6)
+  priceSnapshot      Json?               @map("price_snapshot")
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  subscriptionEvents SubscriptionEvent[]
+  platformInvoices   PlatformInvoice[]
+  couponRedemptions  CouponRedemption[]
+
+  @@index([tenantId, status])
+  @@index([planId])
+  @@map("subscriptions")
+}
+
+model SubscriptionEvent {
+  id             String              @id @default(uuid(7)) @db.Uuid
+  subscriptionId String              @map("subscription_id") @db.Uuid
+  subscription   Subscription        @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  fromStatus     SubscriptionStatus? @map("from_status")
+  toStatus       SubscriptionStatus  @map("to_status")
+  reason         String?
+  actor          String?
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([subscriptionId])
+  @@map("subscription_events")
+}
+
+model PlatformInvoice {
+  id                   String                @id @default(uuid(7)) @db.Uuid
+  tenantId             String                @map("tenant_id") @db.Uuid
+  tenant               Tenant                @relation(fields: [tenantId], references: [id])
+  subscriptionId       String?               @map("subscription_id") @db.Uuid
+  subscription         Subscription?         @relation(fields: [subscriptionId], references: [id])
+  number               String                @unique
+  issueDate            DateTime              @map("issue_date") @db.Date
+  dueDate              DateTime              @map("due_date") @db.Date
+  periodStart          DateTime?             @map("period_start") @db.Date
+  periodEnd            DateTime?             @map("period_end") @db.Date
+  currency             String                @default("XOF") @db.Char(3)
+  subtotal             BigInt
+  tax                  BigInt                @default(0)
+  total                BigInt
+  amountPaid           BigInt                @default(0) @map("amount_paid")
+  status               PlatformInvoiceStatus @default(ISSUED)
+  pdfFileId            String?               @map("pdf_file_id") @db.Uuid
+  createdAt            DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  platformInvoiceLines PlatformInvoiceLine[]
+  paymentAllocations   PaymentAllocation[]
+
+  @@index([tenantId, status])
+  @@index([subscriptionId])
+  @@map("platform_invoices")
+}
+
+model PlatformInvoiceLine {
+  id         String          @id @default(uuid(7)) @db.Uuid
+  invoiceId  String          @map("invoice_id") @db.Uuid
+  invoice    PlatformInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  label      String
+  qty        Int             @default(1)
+  unitAmount BigInt          @map("unit_amount")
+  amount     BigInt
+  createdAt  DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([invoiceId])
+  @@map("platform_invoice_lines")
+}
+
+model Payment {
+  id                 String              @id @default(uuid(7)) @db.Uuid
+  tenantId           String              @map("tenant_id") @db.Uuid
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  amount             BigInt
+  currency           String              @default("XOF") @db.Char(3)
+  method             PaymentMethod
+  reference          String?             @db.VarChar(100)
+  paidAt             DateTime            @map("paid_at") @db.Date
+  status             PaymentStatus       @default(PENDING_VALIDATION)
+  provider           String              @default("manual")
+  providerPayload    Json?               @map("provider_payload")
+  attachmentFileId   String?             @map("attachment_file_id") @db.Uuid
+  note               String?
+  recordedBy         String?             @map("recorded_by") @db.Uuid
+  validatedBy        String?             @map("validated_by") @db.Uuid
+  validatedAt        DateTime?           @map("validated_at") @db.Timestamptz(6)
+  reversedBy         String?             @map("reversed_by") @db.Uuid
+  reversedAt         DateTime?           @map("reversed_at") @db.Timestamptz(6)
+  reversalReason     String?             @map("reversal_reason")
+  receiptNumber      String?             @unique @map("receipt_number")
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  paymentAllocations PaymentAllocation[]
+  tenantCredits      TenantCredit[]
+  paymentDeclaration PaymentDeclaration?
+
+  @@index([tenantId, paidAt])
+  @@index([method, reference])
+  @@map("payments")
+}
+
+model PaymentAllocation {
+  id        String          @id @default(uuid(7)) @db.Uuid
+  paymentId String          @map("payment_id") @db.Uuid
+  payment   Payment         @relation(fields: [paymentId], references: [id])
+  invoiceId String          @map("invoice_id") @db.Uuid
+  invoice   PlatformInvoice @relation(fields: [invoiceId], references: [id])
+  amount    BigInt
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([paymentId, invoiceId])
+  @@index([invoiceId])
+  @@map("payment_allocations")
+}
+
+model TenantCredit {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  sourcePaymentId String?  @map("source_payment_id") @db.Uuid
+  sourcePayment   Payment? @relation(fields: [sourcePaymentId], references: [id])
+  amount          BigInt
+  currency        String   @default("XOF") @db.Char(3)
+  consumedAmount  BigInt   @default(0) @map("consumed_amount")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tenantId])
+  @@index([sourcePaymentId])
+  @@map("tenant_credits")
+}
+
+model PaymentDeclaration {
+  id               String            @id @default(uuid(7)) @db.Uuid
+  tenantId         String            @map("tenant_id") @db.Uuid
+  tenant           Tenant            @relation(fields: [tenantId], references: [id])
+  paymentId        String?           @unique @map("payment_id") @db.Uuid
+  payment          Payment?          @relation(fields: [paymentId], references: [id])
+  amount           BigInt
+  currency         String            @default("XOF") @db.Char(3)
+  method           PaymentMethod
+  reference        String?           @db.VarChar(100)
+  paidAt           DateTime          @map("paid_at") @db.Date
+  attachmentFileId String?           @map("attachment_file_id") @db.Uuid
+  note             String?
+  status           DeclarationStatus @default(SUBMITTED)
+  submittedBy      String?           @map("submitted_by") @db.Uuid
+  reviewedBy       String?           @map("reviewed_by") @db.Uuid
+  reviewedAt       DateTime?         @map("reviewed_at") @db.Timestamptz(6)
+  rejectReason     String?           @map("reject_reason")
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tenantId, status])
+  @@map("payment_declarations")
+}
+
+model PlatformSetting {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  key       String   @unique
+  value     Json
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("platform_settings")
+}
+
+model Announcement {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  title           String
+  body            String
+  severity        String    @default("INFO")
+  targetTenantIds String[]  @map("target_tenant_ids") @db.Uuid
+  publishedAt     DateTime? @map("published_at") @db.Timestamptz(6)
+  expiresAt       DateTime? @map("expires_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("announcements")
+}
+
+model SupportTicket {
+  id              String              @id @default(uuid(7)) @db.Uuid
+  tenantId        String              @map("tenant_id") @db.Uuid
+  tenant          Tenant              @relation(fields: [tenantId], references: [id])
+  subject         String
+  status          SupportTicketStatus @default(OPEN)
+  priority        Priority            @default(NORMAL)
+  openedBy        String?             @map("opened_by") @db.Uuid
+  assignedTo      String?             @map("assigned_to") @db.Uuid
+  closedAt        DateTime?           @map("closed_at") @db.Timestamptz(6)
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  supportMessages SupportMessage[]
+
+  @@index([tenantId, status])
+  @@map("support_tickets")
+}
+
+model SupportMessage {
+  id         String            @id @default(uuid(7)) @db.Uuid
+  ticketId   String            @map("ticket_id") @db.Uuid
+  ticket     SupportTicket     @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorType SupportAuthorType @map("author_type")
+  authorId   String            @map("author_id") @db.Uuid
+  body       String
+  fileIds    String[]          @map("file_ids") @db.Uuid
+  isInternal Boolean           @default(false) @map("is_internal")
+  createdAt  DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([ticketId])
+  @@map("support_messages")
+}
+
+model PlatformAuditLog {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  actorId   String?  @map("actor_id") @db.Uuid
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  before    Json?
+  after     Json?
+  ip        String?  @db.Inet
+  userAgent String?  @map("user_agent")
+  at        DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([entity, entityId])
+  @@index([at])
+  @@map("platform_audit_logs")
+}
+
+model Sequence {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  tenantId  String?  @map("tenant_id") @db.Uuid
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
+  scope     String // "platform" ou "<tenant_id>:<property_id>"
+  key       String
+  year      Int      @default(0)
+  nextValue BigInt   @default(1) @map("next_value")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([scope, key, year])
+  @@index([tenantId])
+  @@map("sequences")
+}
+
+// ======================================================================
+// §3 ter — catalogue commercial, légal et fiscal (plateforme)
+// ======================================================================
+
+model Addon {
+  id           String        @id @default(uuid(7)) @db.Uuid
+  code         String        @unique
+  name         String
+  description  String?
+  featureKeys  String[]      @map("feature_keys")
+  quotaDeltas  Json?         @map("quota_deltas")
+  sort         Int           @default(0)
+  isActive     Boolean       @default(true) @map("is_active")
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  addonPrices  AddonPrice[]
+  tenantAddons TenantAddon[]
+
+  @@map("addons")
+}
+
+model AddonPrice {
+  id           String       @id @default(uuid(7)) @db.Uuid
+  addonId      String       @map("addon_id") @db.Uuid
+  addon        Addon        @relation(fields: [addonId], references: [id], onDelete: Cascade)
+  billingCycle BillingCycle @map("billing_cycle")
+  currency     String       @default("XOF") @db.Char(3)
+  amount       BigInt
+  validFrom    DateTime?    @map("valid_from") @db.Date
+  validTo      DateTime?    @map("valid_to") @db.Date
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([addonId])
+  @@map("addon_prices")
+}
+
+model TenantAddon {
+  id            String            @id @default(uuid(7)) @db.Uuid
+  tenantId      String            @map("tenant_id") @db.Uuid
+  tenant        Tenant            @relation(fields: [tenantId], references: [id])
+  addonId       String            @map("addon_id") @db.Uuid
+  addon         Addon             @relation(fields: [addonId], references: [id])
+  startsAt      DateTime          @map("starts_at") @db.Timestamptz(6)
+  endsAt        DateTime?         @map("ends_at") @db.Timestamptz(6)
+  status        TenantAddonStatus @default(ACTIVE)
+  priceSnapshot Json?             @map("price_snapshot")
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tenantId])
+  @@index([addonId])
+  @@map("tenant_addons")
+}
+
+model Coupon {
+  id                String             @id @default(uuid(7)) @db.Uuid
+  code              String             @unique
+  type              CouponType
+  value             Decimal            @db.Decimal(18, 4)
+  duration          Int?
+  maxRedemptions    Int?               @map("max_redemptions")
+  redeemedCount     Int                @default(0) @map("redeemed_count")
+  eligiblePlans     String[]           @map("eligible_plans")
+  expiresAt         DateTime?          @map("expires_at") @db.Timestamptz(6)
+  isActive          Boolean            @default(true) @map("is_active")
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  couponRedemptions CouponRedemption[]
+
+  @@map("coupons")
+}
+
+model CouponRedemption {
+  id             String        @id @default(uuid(7)) @db.Uuid
+  tenantId       String        @map("tenant_id") @db.Uuid
+  tenant         Tenant        @relation(fields: [tenantId], references: [id])
+  couponId       String        @map("coupon_id") @db.Uuid
+  coupon         Coupon        @relation(fields: [couponId], references: [id])
+  subscriptionId String?       @map("subscription_id") @db.Uuid
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+  redeemedAt     DateTime      @default(now()) @map("redeemed_at") @db.Timestamptz(6)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([couponId, tenantId])
+  @@index([tenantId])
+  @@index([subscriptionId])
+  @@map("coupon_redemptions")
+}
+
+model FeatureRollout {
+  id         String               @id @default(uuid(7)) @db.Uuid
+  featureKey String               @unique @map("feature_key")
+  percentage Int                  @default(0)
+  tenantIds  String[]             @map("tenant_ids") @db.Uuid
+  status     FeatureRolloutStatus @default(DRAFT)
+  createdAt  DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("feature_rollouts")
+}
+
+model LegalDocument {
+  id               String            @id @default(uuid(7)) @db.Uuid
+  type             LegalDocType
+  version          String
+  locale           String            @default("fr")
+  content          String
+  publishedAt      DateTime?         @map("published_at") @db.Timestamptz(6)
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  legalAcceptances LegalAcceptance[]
+
+  @@unique([type, version, locale])
+  @@map("legal_documents")
+}
+
+model TaxRule {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  country       String    @db.Char(2)
+  code          String
+  name          String?
+  kind          String
+  base          String
+  rate          Decimal   @db.Decimal(9, 4)
+  inclusive     Boolean   @default(false)
+  exemptions    Json?
+  effectiveFrom DateTime  @map("effective_from") @db.Date
+  effectiveTo   DateTime? @map("effective_to") @db.Date
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  taxes         Tax[]
+
+  @@unique([country, code, effectiveFrom])
+  @@map("tax_rules")
+}
+
+// ======================================================================
+// §2 Tenant — IAM, sécurité et branding (RLS)
+// ======================================================================
+
+model User {
+  id                      String                   @id @default(uuid(7)) @db.Uuid
+  tenantId                String                   @map("tenant_id") @db.Uuid
+  tenant                  Tenant                   @relation(fields: [tenantId], references: [id])
+  email                   String
+  phone                   String?
+  name                    String
+  passwordHash            String?                  @map("password_hash")
+  status                  UserStatus               @default(ACTIVE)
+  totpSecretEnc           String?                  @map("totp_secret_enc")
+  mustChangePassword      Boolean                  @default(false) @map("must_change_password")
+  failedAttempts          Int                      @default(0) @map("failed_attempts")
+  lockedUntil             DateTime?                @map("locked_until") @db.Timestamptz(6)
+  lastLoginAt             DateTime?                @map("last_login_at") @db.Timestamptz(6)
+  passwordChangedAt       DateTime?                @map("password_changed_at") @db.Timestamptz(6)
+  deletedAt               DateTime?                @map("deleted_at") @db.Timestamptz(6)
+  createdAt               DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+  userProperties          UserProperty[]
+  userRoles               UserRole[]
+  sessions                Session[]
+  legalAcceptances        LegalAcceptance[]
+  cashSessions            CashSession[]
+  hkTasks                 HkTask[]
+  employee                Employee?
+  tasks                   Task[]
+  conversationMembers     ConversationMember[]
+  messages                Message[]
+  notifications           Notification[]
+  notificationPreferences NotificationPreference[]
+  orders                  Order[]
+  maintenanceRequests     MaintenanceRequest[]
+  workOrders              WorkOrder[]
+
+  @@unique([tenantId, email])
+  @@map("users")
+}
+
+model UserProperty {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  userId     String   @map("user_id") @db.Uuid
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  propertyId String   @map("property_id") @db.Uuid
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([userId, propertyId])
+  @@index([tenantId])
+  @@index([propertyId])
+  @@map("user_properties")
+}
+
+model Role {
+  id              String           @id @default(uuid(7)) @db.Uuid
+  tenantId        String           @map("tenant_id") @db.Uuid
+  tenant          Tenant           @relation(fields: [tenantId], references: [id])
+  name            String
+  isSystem        Boolean          @default(false) @map("is_system")
+  description     String?
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+
+  @@unique([tenantId, name])
+  @@map("roles")
+}
+
+model RolePermission {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  roleId        String   @map("role_id") @db.Uuid
+  role          Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissionKey String   @map("permission_key")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([roleId, permissionKey])
+  @@index([tenantId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleId    String   @map("role_id") @db.Uuid
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([userId, roleId])
+  @@index([tenantId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+model SecurityPolicy {
+  id                 String   @id @default(uuid(7)) @db.Uuid
+  tenantId           String   @unique @map("tenant_id") @db.Uuid
+  tenant             Tenant   @relation(fields: [tenantId], references: [id])
+  pwdMinLength       Int      @default(10) @map("pwd_min_length")
+  pwdRequireClasses  Int      @default(3) @map("pwd_require_classes")
+  pwdExpiryDays      Int?     @map("pwd_expiry_days")
+  pwdHistory         Int      @default(0) @map("pwd_history")
+  mfaMode            MfaMode  @default(OPTIONAL) @map("mfa_mode")
+  mfaRoles           String[] @map("mfa_roles") @db.Uuid
+  sessionIdleMinutes Int      @default(30) @map("session_idle_minutes")
+  maxSessions        Int?     @map("max_sessions")
+  lockoutThreshold   Int      @default(5) @map("lockout_threshold")
+  lockoutMinutes     Int      @default(15) @map("lockout_minutes")
+  ipAllowlist        String[] @map("ip_allowlist") @db.Inet // CIDR (inet accepte la notation réseau)
+  allowImpersonation Boolean  @default(false) @map("allow_impersonation")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("security_policies")
+}
+
+model Session {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  userId      String    @map("user_id") @db.Uuid
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshHash String    @unique @map("refresh_hash")
+  ip          String?   @db.Inet
+  userAgent   String?   @map("user_agent")
+  expiresAt   DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt   DateTime? @map("revoked_at") @db.Timestamptz(6)
+  lastSeenAt  DateTime? @map("last_seen_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tenantId])
+  @@index([userId])
+  @@map("sessions")
+}
+
+model AuditLog {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  userId         String?  @map("user_id") @db.Uuid
+  impersonatedBy String?  @map("impersonated_by") @db.Uuid
+  action         String
+  entity         String
+  entityId       String?  @map("entity_id")
+  before         Json?
+  after          Json?
+  ip             String?  @db.Inet
+  userAgent      String?  @map("user_agent")
+  at             DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([tenantId, at])
+  @@index([tenantId, entity, entityId])
+  @@map("audit_logs")
+}
+
+model Branding {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  tenantId        String   @unique @map("tenant_id") @db.Uuid
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  logoFileId      String?  @map("logo_file_id") @db.Uuid
+  logoDarkFileId  String?  @map("logo_dark_file_id") @db.Uuid
+  faviconFileId   String?  @map("favicon_file_id") @db.Uuid
+  primaryColor    String?  @map("primary_color") @db.VarChar(9)
+  secondaryColor  String?  @map("secondary_color") @db.VarChar(9)
+  loginBgFileId   String?  @map("login_bg_file_id") @db.Uuid
+  loginMessage    String?  @map("login_message")
+  docHeader       String?  @map("doc_header")
+  docFooter       String?  @map("doc_footer")
+  legalMentions   String?  @map("legal_mentions")
+  signatureFileId String?  @map("signature_file_id") @db.Uuid
+  emailSenderName String?  @map("email_sender_name")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("branding")
+}
+
+model MessageTemplate {
+  id        String               @id @default(uuid(7)) @db.Uuid
+  tenantId  String               @map("tenant_id") @db.Uuid
+  tenant    Tenant               @relation(fields: [tenantId], references: [id])
+  channel   CommunicationChannel
+  code      String
+  locale    String
+  subject   String?
+  body      String
+  createdAt DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, channel, code, locale])
+  @@map("message_templates")
+}
+
+model LegalAcceptance {
+  id              String        @id @default(uuid(7)) @db.Uuid
+  tenantId        String        @map("tenant_id") @db.Uuid
+  tenant          Tenant        @relation(fields: [tenantId], references: [id])
+  legalDocumentId String        @map("legal_document_id") @db.Uuid
+  legalDocument   LegalDocument @relation(fields: [legalDocumentId], references: [id])
+  userId          String?       @map("user_id") @db.Uuid
+  user            User?         @relation(fields: [userId], references: [id])
+  version         String
+  acceptedAt      DateTime      @default(now()) @map("accepted_at") @db.Timestamptz(6)
+  ip              String?       @db.Inet
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([tenantId])
+  @@index([legalDocumentId])
+  @@index([userId])
+  @@map("legal_acceptances")
+}
+
+// ======================================================================
+// §3 Tenant — opérationnel (RLS)
+// ======================================================================
+
+model Property {
+  id                    String                 @id @default(uuid(7)) @db.Uuid
+  tenantId              String                 @map("tenant_id") @db.Uuid
+  tenant                Tenant                 @relation(fields: [tenantId], references: [id])
+  name                  String
+  address               String?
+  city                  String?
+  country               String                 @db.Char(2)
+  phone                 String?
+  email                 String?
+  taxId                 String?                @map("tax_id")
+  rccm                  String?
+  currency              String                 @default("XOF") @db.Char(3)
+  timezone              String
+  checkinTime           String                 @default("14:00") @map("checkin_time") @db.VarChar(5)
+  checkoutTime          String                 @default("12:00") @map("checkout_time") @db.VarChar(5)
+  businessDate          DateTime               @map("business_date") @db.Date
+  deletedAt             DateTime?              @map("deleted_at") @db.Timestamptz(6)
+  createdAt             DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+  userProperties        UserProperty[]
+  roomTypes             RoomType[]
+  rooms                 Room[]
+  taxes                 Tax[]
+  ratePlans             RatePlan[]
+  seasons               Season[]
+  policies              Policy[]
+  reservations          Reservation[]
+  reservationRooms      ReservationRoom[]
+  waitlistEntries       WaitlistEntry[]
+  groups                Group[]
+  stays                 Stay[]
+  folios                Folio[]
+  folioLines            FolioLine[]
+  invoices              Invoice[]
+  folioPayments         FolioPayment[]
+  cashSessions          CashSession[]
+  nightAudits           NightAudit[]
+  hkTasks               HkTask[]
+  products              Product[]
+  outlets               Outlet[]
+  warehouses            Warehouse[]
+  purchaseOrders        PurchaseOrder[]
+  guestRequests         GuestRequest[]
+  departments           Department[]
+  tasks                 Task[]
+  conversations         Conversation[]
+  orders                Order[]
+  spaServices           SpaService[]
+  treatmentRooms        TreatmentRoom[]
+  appointments          Appointment[]
+  packages              Package[]
+  activities            Activity[]
+  assets                Asset[]
+  maintenanceRequests   MaintenanceRequest[]
+  preventivePlans       PreventivePlan[]
+  accountMappings       AccountMapping[]
+  accountingExports     AccountingExport[]
+  periodClosings        PeriodClosing[]
+  minibarTemplates      MinibarTemplate[]
+  lostFoundItems        LostFoundItem[]
+  dailyStatsProperties  DailyStatsProperty[]
+  dailyStatsDepartments DailyStatsDepartment[]
+
+  @@index([tenantId])
+  @@map("properties")
+}
+
+model RoomType {
+  id               String            @id @default(uuid(7)) @db.Uuid
+  tenantId         String            @map("tenant_id") @db.Uuid
+  tenant           Tenant            @relation(fields: [tenantId], references: [id])
+  propertyId       String            @map("property_id") @db.Uuid
+  property         Property          @relation(fields: [propertyId], references: [id])
+  code             String
+  name             String
+  description      String?
+  maxAdults        Int               @map("max_adults")
+  maxChildren      Int               @default(0) @map("max_children")
+  baseOccupancy    Int               @map("base_occupancy")
+  beds             String?
+  sizeM2           Int?              @map("size_m2")
+  amenities        String[]
+  photos           String[]          @db.Uuid
+  sort             Int               @default(0)
+  isActive         Boolean           @default(true) @map("is_active")
+  deletedAt        DateTime?         @map("deleted_at") @db.Timestamptz(6)
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  rooms            Room[]
+  rates            Rate[]
+  reservationRooms ReservationRoom[]
+  waitlistEntries  WaitlistEntry[]
+  minibarTemplates MinibarTemplate[]
+
+  @@unique([tenantId, propertyId, code])
+  @@index([propertyId])
+  @@map("room_types")
+}
+
+model Room {
+  id                  String               @id @default(uuid(7)) @db.Uuid
+  tenantId            String               @map("tenant_id") @db.Uuid
+  tenant              Tenant               @relation(fields: [tenantId], references: [id])
+  propertyId          String               @map("property_id") @db.Uuid
+  property            Property             @relation(fields: [propertyId], references: [id])
+  roomTypeId          String               @map("room_type_id") @db.Uuid
+  roomType            RoomType             @relation(fields: [roomTypeId], references: [id])
+  number              String
+  floor               String?
+  building            String?
+  hkStatus            HkStatus             @default(DIRTY) @map("hk_status")
+  isActive            Boolean              @default(true) @map("is_active")
+  features            String[]
+  customFields        Json                 @default("{}") @map("custom_fields")
+  deletedAt           DateTime?            @map("deleted_at") @db.Timestamptz(6)
+  createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  roomBlocks          RoomBlock[]
+  reservationRooms    ReservationRoom[]
+  unitNights          UnitNight[]
+  hkTasks             HkTask[]
+  orders              Order[]
+  assets              Asset[]
+  maintenanceRequests MaintenanceRequest[]
+  preventivePlans     PreventivePlan[]
+  roomStatusHistories RoomStatusHistory[]
+  minibarCounts       MinibarCount[]
+  lostFoundItems      LostFoundItem[]
+
+  @@unique([tenantId, propertyId, number])
+  @@index([propertyId])
+  @@index([roomTypeId])
+  @@map("rooms")
+}
+
+model RoomBlock {
+  id                   String              @id @default(uuid(7)) @db.Uuid
+  tenantId             String              @map("tenant_id") @db.Uuid
+  tenant               Tenant              @relation(fields: [tenantId], references: [id])
+  roomId               String              @map("room_id") @db.Uuid
+  room                 Room                @relation(fields: [roomId], references: [id])
+  maintenanceRequestId String?             @map("maintenance_request_id") @db.Uuid
+  maintenanceRequest   MaintenanceRequest? @relation(fields: [maintenanceRequestId], references: [id])
+  fromDate             DateTime            @map("from_date") @db.Date
+  toDate               DateTime            @map("to_date") @db.Date
+  reason               RoomBlockReason
+  note                 String?
+  createdAt            DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy            String?             @map("created_by") @db.Uuid
+
+  @@index([roomId, fromDate])
+  @@index([tenantId])
+  @@index([maintenanceRequestId])
+  @@map("room_blocks")
+}
+
+model Tax {
+  id          String       @id @default(uuid(7)) @db.Uuid
+  tenantId    String       @map("tenant_id") @db.Uuid
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  propertyId  String       @map("property_id") @db.Uuid
+  property    Property     @relation(fields: [propertyId], references: [id])
+  taxRuleId   String?      @map("tax_rule_id") @db.Uuid
+  taxRule     TaxRule?     @relation(fields: [taxRuleId], references: [id])
+  code        String
+  name        String
+  type        TaxType
+  value       Decimal      @db.Decimal(18, 4) // PERCENT: pourcentage ; FIXED_*: unités mineures
+  inclusive   Boolean      @default(false)
+  appliesTo   String[]     @map("applies_to")
+  deletedAt   DateTime?    @map("deleted_at") @db.Timestamptz(6)
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  products    Product[]
+  menuItems   MenuItem[]
+  spaServices SpaService[]
+
+  @@unique([tenantId, propertyId, code])
+  @@index([propertyId])
+  @@index([taxRuleId])
+  @@map("taxes")
+}
+
+model RatePlan {
+  id                   String            @id @default(uuid(7)) @db.Uuid
+  tenantId             String            @map("tenant_id") @db.Uuid
+  tenant               Tenant            @relation(fields: [tenantId], references: [id])
+  propertyId           String            @map("property_id") @db.Uuid
+  property             Property          @relation(fields: [propertyId], references: [id])
+  cancellationPolicyId String?           @map("cancellation_policy_id") @db.Uuid
+  cancellationPolicy   Policy?           @relation(fields: [cancellationPolicyId], references: [id])
+  companyId            String?           @map("company_id") @db.Uuid
+  company              Company?          @relation("RatePlanCompany", fields: [companyId], references: [id])
+  code                 String
+  name                 String
+  mealPlan             MealPlan          @default(RO) @map("meal_plan")
+  isPublic             Boolean           @default(true) @map("is_public")
+  currency             String            @default("XOF") @db.Char(3)
+  isActive             Boolean           @default(true) @map("is_active")
+  deletedAt            DateTime?         @map("deleted_at") @db.Timestamptz(6)
+  createdAt            DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  rates                Rate[]
+  companies            Company[]         @relation("CompanyRatePlan")
+  reservationRooms     ReservationRoom[]
+
+  @@unique([tenantId, propertyId, code])
+  @@index([propertyId])
+  @@index([cancellationPolicyId])
+  @@index([companyId])
+  @@map("rate_plans")
+}
+
+model Season {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  propertyId String   @map("property_id") @db.Uuid
+  property   Property @relation(fields: [propertyId], references: [id])
+  name       String
+  fromDate   DateTime @map("from_date") @db.Date
+  toDate     DateTime @map("to_date") @db.Date
+  priority   Int      @default(0)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  rates      Rate[]
+
+  @@index([tenantId])
+  @@index([propertyId])
+  @@map("seasons")
+}
+
+model Rate {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  ratePlanId String   @map("rate_plan_id") @db.Uuid
+  ratePlan   RatePlan @relation(fields: [ratePlanId], references: [id], onDelete: Cascade)
+  roomTypeId String   @map("room_type_id") @db.Uuid
+  roomType   RoomType @relation(fields: [roomTypeId], references: [id])
+  seasonId   String?  @map("season_id") @db.Uuid
+  season     Season?  @relation(fields: [seasonId], references: [id])
+  dowMask    Int      @default(127) @map("dow_mask")
+  currency   String   @default("XOF") @db.Char(3)
+  price      BigInt
+  extraAdult BigInt   @default(0) @map("extra_adult")
+  extraChild BigInt   @default(0) @map("extra_child")
+  minStay    Int      @default(1) @map("min_stay")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([ratePlanId, roomTypeId])
+  @@index([tenantId])
+  @@index([roomTypeId])
+  @@index([seasonId])
+  @@map("rates")
+}
+
+model Policy {
+  id         String     @id @default(uuid(7)) @db.Uuid
+  tenantId   String     @map("tenant_id") @db.Uuid
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  propertyId String     @map("property_id") @db.Uuid
+  property   Property   @relation(fields: [propertyId], references: [id])
+  kind       PolicyKind
+  name       String
+  rules      Json
+  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  ratePlans  RatePlan[]
+
+  @@index([tenantId])
+  @@index([propertyId])
+  @@map("policies")
+}
+
+model Guest {
+  id                String             @id @default(uuid(7)) @db.Uuid
+  tenantId          String             @map("tenant_id") @db.Uuid
+  tenant            Tenant             @relation(fields: [tenantId], references: [id])
+  firstName         String             @map("first_name")
+  lastName          String             @map("last_name")
+  gender            String?
+  birthDate         DateTime?          @map("birth_date") @db.Date
+  birthPlace        String?            @map("birth_place")
+  nationality       String?            @db.Char(2)
+  profession        String?
+  phone             String?
+  email             String?
+  address           String?
+  idDocType         String?            @map("id_doc_type")
+  idDocNumberEnc    String?            @map("id_doc_number_enc")
+  idDocFileId       String?            @map("id_doc_file_id") @db.Uuid
+  tags              String[]
+  isBlacklisted     Boolean            @default(false) @map("is_blacklisted")
+  notes             String?
+  customFields      Json               @default("{}") @map("custom_fields")
+  deletedAt         DateTime?          @map("deleted_at") @db.Timestamptz(6)
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy         String?            @map("created_by") @db.Uuid
+  reservations      Reservation[]
+  waitlistEntries   WaitlistEntry[]
+  reservationGuests ReservationGuest[]
+  policeRecords     PoliceRecord[]
+  guestAccount      GuestAccount?
+  guestRequests     GuestRequest[]
+  guestPreferences  GuestPreference[]
+  communications    Communication[]
+  consents          Consent[]
+  loyaltyAccounts   LoyaltyAccount[]
+  tableReservations TableReservation[]
+  appointments      Appointment[]
+  treatmentRecords  TreatmentRecord[]
+  activityBookings  ActivityBooking[]
+  lostFoundItems    LostFoundItem[]
+
+  @@index([tenantId, lastName, firstName])
+  @@index([tenantId, phone])
+  @@index([tenantId, email])
+  @@index([lastName(ops: raw("gin_trgm_ops"))], type: Gin, map: "guests_last_name_trgm_idx")
+  @@index([customFields(ops: JsonbPathOps)], type: Gin)
+  @@map("guests")
+}
+
+model Company {
+  id           String        @id @default(uuid(7)) @db.Uuid
+  tenantId     String        @map("tenant_id") @db.Uuid
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  ratePlanId   String?       @map("rate_plan_id") @db.Uuid
+  ratePlan     RatePlan?     @relation("CompanyRatePlan", fields: [ratePlanId], references: [id])
+  name         String
+  taxId        String?       @map("tax_id")
+  address      String?
+  contact      Json?
+  creditLimit  BigInt?       @map("credit_limit")
+  currency     String        @default("XOF") @db.Char(3)
+  customFields Json          @default("{}") @map("custom_fields")
+  deletedAt    DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  ratePlans    RatePlan[]    @relation("RatePlanCompany")
+  reservations Reservation[]
+  groups       Group[]
+  folios       Folio[]
+
+  @@index([tenantId])
+  @@index([ratePlanId])
+  @@map("companies")
+}
+
+model Reservation {
+  id                  String               @id @default(uuid(7)) @db.Uuid
+  tenantId            String               @map("tenant_id") @db.Uuid
+  tenant              Tenant               @relation(fields: [tenantId], references: [id])
+  propertyId          String               @map("property_id") @db.Uuid
+  property            Property             @relation(fields: [propertyId], references: [id])
+  bookerGuestId       String?              @map("booker_guest_id") @db.Uuid
+  bookerGuest         Guest?               @relation(fields: [bookerGuestId], references: [id])
+  companyId           String?              @map("company_id") @db.Uuid
+  company             Company?             @relation(fields: [companyId], references: [id])
+  groupId             String?              @map("group_id") @db.Uuid
+  group               Group?               @relation(fields: [groupId], references: [id])
+  number              String
+  status              ReservationStatus    @default(PENDING)
+  channel             ReservationChannel   @default(FRONT_DESK)
+  source              String?
+  segment             String?
+  arrival             DateTime             @db.Date
+  departure           DateTime             @db.Date
+  adults              Int                  @default(1)
+  children            Int                  @default(0)
+  notes               String?
+  pendingExpiresAt    DateTime?            @map("pending_expires_at") @db.Timestamptz(6)
+  optionExpiresAt     DateTime?            @map("option_expires_at") @db.Timestamptz(6)
+  confirmedAt         DateTime?            @map("confirmed_at") @db.Timestamptz(6)
+  cancelledAt         DateTime?            @map("cancelled_at") @db.Timestamptz(6)
+  cancelReason        String?              @map("cancel_reason")
+  customFields        Json                 @default("{}") @map("custom_fields")
+  createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy           String?              @map("created_by") @db.Uuid
+  reservationRooms    ReservationRoom[]
+  depositDeclarations DepositDeclaration[]
+  tableReservations   TableReservation[]
+  appointments        Appointment[]
+  activityBookings    ActivityBooking[]
+
+  @@unique([tenantId, propertyId, number])
+  @@index([tenantId, bookerGuestId])
+  @@index([tenantId, propertyId, status])
+  @@index([tenantId, propertyId, arrival])
+  @@index([customFields(ops: JsonbPathOps)], type: Gin)
+  @@index([propertyId])
+  @@index([bookerGuestId])
+  @@index([companyId])
+  @@index([groupId])
+  @@map("reservations")
+}
+
+model ReservationRoom {
+  id                String             @id @default(uuid(7)) @db.Uuid
+  tenantId          String             @map("tenant_id") @db.Uuid
+  tenant            Tenant             @relation(fields: [tenantId], references: [id])
+  propertyId        String             @map("property_id") @db.Uuid
+  property          Property           @relation(fields: [propertyId], references: [id])
+  reservationId     String             @map("reservation_id") @db.Uuid
+  reservation       Reservation        @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  roomTypeId        String             @map("room_type_id") @db.Uuid
+  roomType          RoomType           @relation(fields: [roomTypeId], references: [id])
+  roomId            String?            @map("room_id") @db.Uuid
+  room              Room?              @relation(fields: [roomId], references: [id])
+  ratePlanId        String             @map("rate_plan_id") @db.Uuid
+  ratePlan          RatePlan           @relation(fields: [ratePlanId], references: [id])
+  arrival           DateTime           @db.Date
+  departure         DateTime           @db.Date
+  adults            Int                @default(1)
+  children          Int                @default(0)
+  status            ReservationStatus  @default(PENDING)
+  currency          String             @default("XOF") @db.Char(3)
+  dailyPrices       Json               @default("[]") @map("daily_prices")
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  unitNights        UnitNight[]
+  reservationGuests ReservationGuest[]
+  stay              Stay?
+
+  @@index([tenantId, propertyId, arrival])
+  @@index([tenantId, propertyId, departure])
+  @@index([propertyId])
+  @@index([reservationId])
+  @@index([roomTypeId])
+  @@index([roomId])
+  @@index([ratePlanId])
+  @@map("reservation_rooms")
+}
+
+model UnitNight {
+  id                String          @id @default(uuid(7)) @db.Uuid
+  tenantId          String          @map("tenant_id") @db.Uuid
+  tenant            Tenant          @relation(fields: [tenantId], references: [id])
+  unitId            String          @map("unit_id") @db.Uuid
+  unit              Room            @relation(fields: [unitId], references: [id])
+  reservationRoomId String          @map("reservation_room_id") @db.Uuid
+  reservationRoom   ReservationRoom @relation(fields: [reservationRoomId], references: [id], onDelete: Cascade)
+  night             DateTime        @db.Date
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([unitId, night])
+  @@index([tenantId])
+  @@index([reservationRoomId])
+  @@map("unit_nights")
+}
+
+model WaitlistEntry {
+  id             String         @id @default(uuid(7)) @db.Uuid
+  tenantId       String         @map("tenant_id") @db.Uuid
+  tenant         Tenant         @relation(fields: [tenantId], references: [id])
+  propertyId     String         @map("property_id") @db.Uuid
+  property       Property       @relation(fields: [propertyId], references: [id])
+  guestId        String         @map("guest_id") @db.Uuid
+  guest          Guest          @relation(fields: [guestId], references: [id])
+  roomTypeId     String?        @map("room_type_id") @db.Uuid
+  roomType       RoomType?      @relation(fields: [roomTypeId], references: [id])
+  arrival        DateTime       @db.Date
+  departure      DateTime       @db.Date
+  adults         Int            @default(1)
+  children       Int            @default(0)
+  status         WaitlistStatus @default(WAITING)
+  offeredAt      DateTime?      @map("offered_at") @db.Timestamptz(6)
+  offerExpiresAt DateTime?      @map("offer_expires_at") @db.Timestamptz(6)
+  priority       Int            @default(0)
+  notes          String?
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tenantId, guestId])
+  @@index([tenantId, propertyId, status, arrival])
+  @@index([propertyId])
+  @@index([guestId])
+  @@index([roomTypeId])
+  @@map("waitlist_entries")
+}
+
+model ReservationGuest {
+  id                String          @id @default(uuid(7)) @db.Uuid
+  tenantId          String          @map("tenant_id") @db.Uuid
+  tenant            Tenant          @relation(fields: [tenantId], references: [id])
+  reservationRoomId String          @map("reservation_room_id") @db.Uuid
+  reservationRoom   ReservationRoom @relation(fields: [reservationRoomId], references: [id], onDelete: Cascade)
+  guestId           String          @map("guest_id") @db.Uuid
+  guest             Guest           @relation(fields: [guestId], references: [id])
+  isPrimary         Boolean         @default(false) @map("is_primary")
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([reservationRoomId, guestId])
+  @@index([tenantId, guestId])
+  @@index([guestId])
+  @@map("reservation_guests")
+}
+
+model Group {
+  id            String        @id @default(uuid(7)) @db.Uuid
+  tenantId      String        @map("tenant_id") @db.Uuid
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  propertyId    String        @map("property_id") @db.Uuid
+  property      Property      @relation(fields: [propertyId], references: [id])
+  companyId     String?       @map("company_id") @db.Uuid
+  company       Company?      @relation(fields: [companyId], references: [id])
+  masterFolioId String?       @unique @map("master_folio_id") @db.Uuid
+  masterFolio   Folio?        @relation("GroupMasterFolio", fields: [masterFolioId], references: [id])
+  name          String
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  reservations  Reservation[]
+  folios        Folio[]       @relation("FolioGroup")
+
+  @@index([tenantId])
+  @@index([propertyId])
+  @@index([companyId])
+  @@map("groups")
+}
+
+model Stay {
+  id                String          @id @default(uuid(7)) @db.Uuid
+  tenantId          String          @map("tenant_id") @db.Uuid
+  tenant            Tenant          @relation(fields: [tenantId], references: [id])
+  propertyId        String          @map("property_id") @db.Uuid
+  property          Property        @relation(fields: [propertyId], references: [id])
+  reservationRoomId String          @unique @map("reservation_room_id") @db.Uuid
+  reservationRoom   ReservationRoom @relation(fields: [reservationRoomId], references: [id])
+  checkedInAt       DateTime        @map("checked_in_at") @db.Timestamptz(6)
+  checkedInBy       String?         @map("checked_in_by") @db.Uuid
+  checkedOutAt      DateTime?       @map("checked_out_at") @db.Timestamptz(6)
+  checkedOutBy      String?         @map("checked_out_by") @db.Uuid
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  policeRecords     PoliceRecord[]
+  folios            Folio[]
+  guestRequests     GuestRequest[]
+  orders            Order[]
+  minibarCounts     MinibarCount[]
+
+  @@index([tenantId])
+  @@index([propertyId])
+  @@map("stays")
+}
+
+model PoliceRecord {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  stayId          String   @map("stay_id") @db.Uuid
+  stay            Stay     @relation(fields: [stayId], references: [id])
+  guestId         String   @map("guest_id") @db.Uuid
+  guest           Guest    @relation(fields: [guestId], references: [id])
+  snapshot        Json
+  signatureFileId String?  @map("signature_file_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tenantId, guestId])
+  @@index([stayId])
+  @@index([guestId])
+  @@map("police_records")
+}
+
+model Folio {
+  id                 String            @id @default(uuid(7)) @db.Uuid
+  tenantId           String            @map("tenant_id") @db.Uuid
+  tenant             Tenant            @relation(fields: [tenantId], references: [id])
+  propertyId         String            @map("property_id") @db.Uuid
+  property           Property          @relation(fields: [propertyId], references: [id])
+  stayId             String?           @map("stay_id") @db.Uuid
+  stay               Stay?             @relation(fields: [stayId], references: [id])
+  groupId            String?           @map("group_id") @db.Uuid
+  group              Group?            @relation("FolioGroup", fields: [groupId], references: [id])
+  companyId          String?           @map("company_id") @db.Uuid
+  company            Company?          @relation(fields: [companyId], references: [id])
+  number             String
+  status             FolioStatus       @default(OPEN)
+  currency           String            @default("XOF") @db.Char(3)
+  balance            BigInt            @default(0)
+  closedAt           DateTime?         @map("closed_at") @db.Timestamptz(6)
+  createdAt          DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  groupAsMasterFolio Group?            @relation("GroupMasterFolio")
+  folioLines         FolioLine[]
+  invoices           Invoice[]
+  folioPayments      FolioPayment[]
+  orders             Order[]
+  appointments       Appointment[]
+  activityBookings   ActivityBooking[]
+  minibarCounts      MinibarCount[]
+
+  @@unique([tenantId, propertyId, number])
+  @@index([propertyId])
+  @@index([stayId])
+  @@index([groupId])
+  @@index([companyId])
+  @@map("folios")
+}
+
+model FolioLine {
+  id             String        @id @default(uuid(7)) @db.Uuid
+  tenantId       String        @map("tenant_id") @db.Uuid
+  tenant         Tenant        @relation(fields: [tenantId], references: [id])
+  propertyId     String        @map("property_id") @db.Uuid
+  property       Property      @relation(fields: [propertyId], references: [id])
+  folioId        String        @map("folio_id") @db.Uuid
+  folio          Folio         @relation(fields: [folioId], references: [id])
+  productId      String?       @map("product_id") @db.Uuid
+  product        Product?      @relation(fields: [productId], references: [id])
+  reversalOfId   String?       @unique @map("reversal_of_id") @db.Uuid
+  reversalOf     FolioLine?    @relation("FolioLineReversalOf", fields: [reversalOfId], references: [id])
+  orderId        String?       @map("order_id") @db.Uuid
+  order          Order?        @relation(fields: [orderId], references: [id])
+  businessDate   DateTime      @map("business_date") @db.Date
+  type           FolioLineType
+  departmentCode String?       @map("department_code")
+  label          String
+  qty            Decimal       @default(1) @db.Decimal(12, 3)
+  currency       String        @default("XOF") @db.Char(3)
+  unitAmount     BigInt        @map("unit_amount")
+  amount         BigInt
+  taxAmount      BigInt        @default(0) @map("tax_amount")
+  sourceType     String?       @map("source_type")
+  sourceId       String?       @map("source_id") @db.Uuid
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy      String?       @map("created_by") @db.Uuid
+  reversal       FolioLine?    @relation("FolioLineReversalOf")
+
+  @@index([tenantId, propertyId, businessDate])
+  @@index([propertyId])
+  @@index([folioId])
+  @@index([productId])
+  @@index([orderId])
+  @@map("folio_lines")
+}
+
+model Invoice {
+  id               String           @id @default(uuid(7)) @db.Uuid
+  tenantId         String           @map("tenant_id") @db.Uuid
+  tenant           Tenant           @relation(fields: [tenantId], references: [id])
+  propertyId       String           @map("property_id") @db.Uuid
+  property         Property         @relation(fields: [propertyId], references: [id])
+  folioId          String           @map("folio_id") @db.Uuid
+  folio            Folio            @relation(fields: [folioId], references: [id])
+  creditNoteOfId   String?          @map("credit_note_of_id") @db.Uuid
+  creditNoteOf     Invoice?         @relation("InvoiceCreditNoteOf", fields: [creditNoteOfId], references: [id])
+  number           String
+  issueDate        DateTime         @map("issue_date") @db.Date
+  customerSnapshot Json             @map("customer_snapshot")
+  currency         String           @default("XOF") @db.Char(3)
+  subtotal         BigInt
+  taxTotal         BigInt           @map("tax_total")
+  total            BigInt
+  totals           Json
+  status           InvoiceStatus    @default(ISSUED)
+  pdfFileId        String?          @map("pdf_file_id") @db.Uuid
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy        String?          @map("created_by") @db.Uuid
+  creditNotes      Invoice[]        @relation("InvoiceCreditNoteOf")
+  fiscalDocuments  FiscalDocument[]
+
+  @@unique([tenantId, propertyId, number])
+  @@index([propertyId])
+  @@index([folioId])
+  @@index([creditNoteOfId])
+  @@map("invoices")
+}
+
+model FolioPayment {
+  id                 String              @id @default(uuid(7)) @db.Uuid
+  tenantId           String              @map("tenant_id") @db.Uuid
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  propertyId         String              @map("property_id") @db.Uuid
+  property           Property            @relation(fields: [propertyId], references: [id])
+  folioId            String              @map("folio_id") @db.Uuid
+  folio              Folio               @relation(fields: [folioId], references: [id])
+  cashSessionId      String?             @map("cash_session_id") @db.Uuid
+  cashSession        CashSession?        @relation(fields: [cashSessionId], references: [id])
+  reversedById       String?             @unique @map("reversed_by_id") @db.Uuid
+  reversedBy         FolioPayment?       @relation("FolioPaymentReversedBy", fields: [reversedById], references: [id])
+  currency           String              @default("XOF") @db.Char(3)
+  amount             BigInt
+  method             FolioPaymentMethod
+  reference          String?             @db.VarChar(100)
+  isDeposit          Boolean             @default(false) @map("is_deposit")
+  status             PaymentStatus       @default(CONFIRMED)
+  paidAt             DateTime            @default(now()) @map("paid_at") @db.Timestamptz(6)
+  tenderedCurrency   String?             @map("tendered_currency") @db.Char(3)
+  tenderedAmount     BigInt?             @map("tendered_amount")
+  rate               Decimal?            @db.Decimal(18, 8)
+  reversedAt         DateTime?           @map("reversed_at") @db.Timestamptz(6)
+  reversalReason     String?             @map("reversal_reason")
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy          String?             @map("created_by") @db.Uuid
+  reversalOf         FolioPayment?       @relation("FolioPaymentReversedBy")
+  depositDeclaration DepositDeclaration?
+
+  @@index([tenantId])
+  @@index([propertyId])
+  @@index([folioId])
+  @@index([cashSessionId])
+  @@map("folio_payments")
+}
+
+model CashSession {
+  id             String         @id @default(uuid(7)) @db.Uuid
+  tenantId       String         @map("tenant_id") @db.Uuid
+  tenant         Tenant         @relation(fields: [tenantId], references: [id])
+  propertyId     String         @map("property_id") @db.Uuid
+  property       Property       @relation(fields: [propertyId], references: [id])
+  userId         String         @map("user_id") @db.Uuid
+  user           User           @relation(fields: [userId], references: [id])
+  openedAt       DateTime       @default(now()) @map("opened_at") @db.Timestamptz(6)
+  currency       String         @default("XOF") @db.Char(3)
+  openingFloat   BigInt         @default(0) @map("opening_float")
+  closedAt       DateTime?      @map("closed_at") @db.Timestamptz(6)
+  countedAmount  BigInt?        @map("counted_amount")
+  expectedAmount BigInt?        @map("expected_amount")
+  variance       BigInt?
+  note           String?
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  folioPayments  FolioPayment[]
+  cashMovements  CashMovement[]
+
+  @@index([tenantId])
+  @@index([propertyId])
+  @@index([userId])
+  @@map("cash_sessions")
+}
+
+model CashMovement {
+  id            String           @id @default(uuid(7)) @db.Uuid
+  tenantId      String           @map("tenant_id") @db.Uuid
+  tenant        Tenant           @relation(fields: [tenantId], references: [id])
+  cashSessionId String           @map("cash_session_id") @db.Uuid
+  cashSession   CashSession      @relation(fields: [cashSessionId], references: [id])
+  type          CashMovementType
+  currency      String           @default("XOF") @db.Char(3)
+  amount        BigInt
+  reason        String
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy     String?          @map("created_by") @db.Uuid
+
+  @@index([tenantId])
+  @@index([cashSessionId])
+  @@map("cash_movements")
+}
+
+model NightAudit {
+  id           String           @id @default(uuid(7)) @db.Uuid
+  tenantId     String           @map("tenant_id") @db.Uuid
+  tenant       Tenant           @relation(fields: [tenantId], references: [id])
+  propertyId   String           @map("property_id") @db.Uuid
+  property     Property         @relation(fields: [propertyId], references: [id])
+  businessDate DateTime         @map("business_date") @db.Date
+  status       NightAuditStatus @default(RUNNING)
+  startedBy    String?          @map("started_by") @db.Uuid
+  startedAt    DateTime         @default(now()) @map("started_at") @db.Timestamptz(6)
+  completedAt  DateTime?        @map("completed_at") @db.Timestamptz(6)
+  summary      Json?
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([propertyId, businessDate])
+  @@index([tenantId])
+  @@map("night_audits")
+}
+
+model HkTask {
+  id           String       @id @default(uuid(7)) @db.Uuid
+  tenantId     String       @map("tenant_id") @db.Uuid
+  tenant       Tenant       @relation(fields: [tenantId], references: [id])
+  propertyId   String       @map("property_id") @db.Uuid
+  property     Property     @relation(fields: [propertyId], references: [id])
+  roomId       String       @map("room_id") @db.Uuid
+  room         Room         @relation(fields: [roomId], references: [id])
+  assignedToId String?      @map("assigned_to_id") @db.Uuid
+  assignedTo   User?        @relation(fields: [assignedToId], references: [id])
+  date         DateTime     @db.Date
+  type         String
+  status       HkTaskStatus @default(TODO)
+  notes        String?
+  startedAt    DateTime?    @map("started_at") @db.Timestamptz(6)
+  completedAt  DateTime?    @map("completed_at") @db.Timestamptz(6)
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tenantId, propertyId, date])
+  @@index([propertyId])
+  @@index([roomId])
+  @@index([assignedToId])
+  @@map("hk_tasks")
+}
+
+model Product {
+  id             String         @id @default(uuid(7)) @db.Uuid
+  tenantId       String         @map("tenant_id") @db.Uuid
+  tenant         Tenant         @relation(fields: [tenantId], references: [id])
+  propertyId     String         @map("property_id") @db.Uuid
+  property       Property       @relation(fields: [propertyId], references: [id])
+  categoryId     String?        @map("category_id") @db.Uuid
+  category       LookupValue?   @relation(fields: [categoryId], references: [id])
+  taxId          String?        @map("tax_id") @db.Uuid
+  tax            Tax?           @relation(fields: [taxId], references: [id])
+  stockItemId    String?        @map("stock_item_id") @db.Uuid
+  stockItem      InventoryItem? @relation(fields: [stockItemId], references: [id])
+  name           String
+  currency       String         @default("XOF") @db.Char(3)
+  price          BigInt
+  departmentCode String?        @map("department_code")
+  isStockItem    Boolean        @default(false) @map("is_stock_item")
+  isActive       Boolean        @default(true) @map("is_active")
+  deletedAt      DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  folioLines     FolioLine[]
+  orderItems     OrderItem[]
+
+  @@index([tenantId])
+  @@index([propertyId])
+  @@index([categoryId])
+  @@index([taxId])
+  @@index([stockItemId])
+  @@map("products")
+}
+
+model Outlet {
+  id                String             @id @default(uuid(7)) @db.Uuid
+  tenantId          String             @map("tenant_id") @db.Uuid
+  tenant            Tenant             @relation(fields: [tenantId], references: [id])
+  propertyId        String             @map("property_id") @db.Uuid
+  property          Property           @relation(fields: [propertyId], references: [id])
+  departmentId      String?            @map("department_id") @db.Uuid
+  department        Department?        @relation(fields: [departmentId], references: [id])
+  type              OutletType
+  name              String
+  openingHours      Json?              @map("opening_hours")
+  isActive          Boolean            @default(true) @map("is_active")
+  deletedAt         DateTime?          @map("deleted_at") @db.Timestamptz(6)
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  floorPlans        FloorPlan[]
+  diningTables      DiningTable[]
+  menuCategories    MenuCategory[]
+  menuItems         MenuItem[]
+  dailySpecials     DailySpecial[]
+  orders            Order[]
+  tableReservations TableReservation[]
+
+  @@index([tenantId])
+  @@index([propertyId])
+  @@index([departmentId])
+  @@map("outlets")
+}
+
+model Warehouse {
+  id                 String              @id @default(uuid(7)) @db.Uuid
+  tenantId           String              @map("tenant_id") @db.Uuid
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  propertyId         String              @map("property_id") @db.Uuid
+  property           Property            @relation(fields: [propertyId], references: [id])
+  departmentId       String?             @map("department_id") @db.Uuid
+  department         Department?         @relation(fields: [departmentId], references: [id])
+  name               String
+  isActive           Boolean             @default(true) @map("is_active")
+  deletedAt          DateTime?           @map("deleted_at") @db.Timestamptz(6)
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  stockMovements     StockMovement[]
+  stockCounts        StockCount[]
+  purchaseOrders     PurchaseOrder[]
+  stockLevels        StockLevel[]
+  goodsReceipts      GoodsReceipt[]
+  reorderSuggestions ReorderSuggestion[]
+
+  @@index([tenantId])
+  @@index([propertyId])
+  @@index([departmentId])
+  @@map("warehouses")
+}
+
+model StockMovement {
+  id              String            @id @default(uuid(7)) @db.Uuid
+  tenantId        String            @map("tenant_id") @db.Uuid
+  tenant          Tenant            @relation(fields: [tenantId], references: [id])
+  itemId          String            @map("item_id") @db.Uuid
+  item            InventoryItem     @relation(fields: [itemId], references: [id])
+  warehouseId     String            @map("warehouse_id") @db.Uuid
+  warehouse       Warehouse         @relation(fields: [warehouseId], references: [id])
+  type            StockMovementType
+  qty             Decimal           @db.Decimal(14, 3)
+  currency        String            @default("XOF") @db.Char(3)
+  unitCost        BigInt?           @map("unit_cost")
+  transferGroupId String?           @map("transfer_group_id") @db.Uuid
+  sourceType      String?           @map("source_type")
+  sourceId        String?           @map("source_id") @db.Uuid
+  reason          String?
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy       String?           @map("created_by") @db.Uuid
+
+  @@index([itemId, warehouseId])
+  @@index([tenantId, sourceType, sourceId])
+  @@index([warehouseId])
+  @@map("stock_movements")
+}
+
+model StockCount {
+  id              String           @id @default(uuid(7)) @db.Uuid
+  tenantId        String           @map("tenant_id") @db.Uuid
+  tenant          Tenant           @relation(fields: [tenantId], references: [id])
+  warehouseId     String           @map("warehouse_id") @db.Uuid
+  warehouse       Warehouse        @relation(fields: [warehouseId], references: [id])
+  status          StockCountStatus @default(DRAFT)
+  countedAt       DateTime?        @map("counted_at") @db.Timestamptz(6)
+  validatedAt     DateTime?        @map("validated_at") @db.Timestamptz(6)
+  validatedBy     String?          @map("validated_by") @db.Uuid
+  notes           String?
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy       String?          @map("created_by") @db.Uuid
+  stockCountLines StockCountLine[]
+
+  @@index([tenantId])
+  @@index([warehouseId])
+  @@map("stock_counts")
+}
+
+model StockCountLine {
+  id          String        @id @default(uuid(7)) @db.Uuid
+  tenantId    String        @map("tenant_id") @db.Uuid
+  tenant      Tenant        @relation(fields: [tenantId], references: [id])
+  countId     String        @map("count_id") @db.Uuid
+  count       StockCount    @relation(fields: [countId], references: [id], onDelete: Cascade)
+  itemId      String        @map("item_id") @db.Uuid
+  item        InventoryItem @relation(fields: [itemId], references: [id])
+  expectedQty Decimal       @map("expected_qty") @db.Decimal(14, 3)
+  countedQty  Decimal?      @map("counted_qty") @db.Decimal(14, 3)
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([countId, itemId])
+  @@index([tenantId])
+  @@index([itemId])
+  @@map("stock_count_lines")
+}
+
+model Supplier {
+  id             String          @id @default(uuid(7)) @db.Uuid
+  tenantId       String          @map("tenant_id") @db.Uuid
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  name           String
+  contactName    String?         @map("contact_name")
+  phone          String?
+  email          String?
+  address        String?
+  taxId          String?         @map("tax_id")
+  paymentTerms   String?         @map("payment_terms")
+  isActive       Boolean         @default(true) @map("is_active")
+  deletedAt      DateTime?       @map("deleted_at") @db.Timestamptz(6)
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  purchaseOrders PurchaseOrder[]
+  inventoryItems InventoryItem[]
+
+  @@index([tenantId])
+  @@map("suppliers")
+}
+
+model PurchaseOrder {
+  id                 String              @id @default(uuid(7)) @db.Uuid
+  tenantId           String              @map("tenant_id") @db.Uuid
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  propertyId         String              @map("property_id") @db.Uuid
+  property           Property            @relation(fields: [propertyId], references: [id])
+  supplierId         String              @map("supplier_id") @db.Uuid
+  supplier           Supplier            @relation(fields: [supplierId], references: [id])
+  warehouseId        String?             @map("warehouse_id") @db.Uuid
+  warehouse          Warehouse?          @relation(fields: [warehouseId], references: [id])
+  number             String
+  status             PurchaseOrderStatus @default(DRAFT)
+  orderedAt          DateTime?           @map("ordered_at") @db.Timestamptz(6)
+  expectedAt         DateTime?           @map("expected_at") @db.Date
+  currency           String              @default("XOF") @db.Char(3)
+  total              BigInt              @default(0)
+  notes              String?
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy          String?             @map("created_by") @db.Uuid
+  purchaseOrderLines PurchaseOrderLine[]
+  goodsReceipts      GoodsReceipt[]
+  reorderSuggestions ReorderSuggestion[]
+
+  @@unique([tenantId, propertyId, number])
+  @@index([propertyId])
+  @@index([supplierId])
+  @@index([warehouseId])
+  @@map("purchase_orders")
+}
+
+model File {
+  id           String         @id @default(uuid(7)) @db.Uuid
+  tenantId     String         @map("tenant_id") @db.Uuid
+  tenant       Tenant         @relation(fields: [tenantId], references: [id])
+  key          String         @unique
+  originalName String?        @map("original_name")
+  mime         String
+  size         BigInt
+  checksum     String?
+  isSensitive  Boolean        @default(false) @map("is_sensitive")
+  scanStatus   FileScanStatus @default(PENDING) @map("scan_status")
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy    String?        @map("created_by") @db.Uuid
+
+  @@index([tenantId])
+  @@map("files")
+}
+
+model OutboxEvent {
+  id                String            @id @default(uuid(7)) @db.Uuid
+  tenantId          String            @map("tenant_id") @db.Uuid
+  tenant            Tenant            @relation(fields: [tenantId], references: [id])
+  type              String
+  payload           Json
+  processedAt       DateTime?         @map("processed_at") @db.Timestamptz(6)
+  attempts          Int               @default(0)
+  lastError         String?           @map("last_error")
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  webhookDeliveries WebhookDelivery[]
+
+  @@index([processedAt, createdAt])
+  @@index([tenantId])
+  @@map("outbox_events")
+}
+
+// ======================================================================
+// §3 bis — Modules complexe touristique (RLS)
+// ======================================================================
+
+model GuestAccount {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  guestId         String    @unique @map("guest_id") @db.Uuid
+  guest           Guest     @relation(fields: [guestId], references: [id])
+  email           String
+  passwordHash    String?   @map("password_hash")
+  emailVerifiedAt DateTime? @map("email_verified_at") @db.Timestamptz(6)
+  locale          String    @default("fr")
+  lastLoginAt     DateTime? @map("last_login_at") @db.Timestamptz(6)
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, email])
+  @@map("guest_accounts")
+}
+
+model GuestRequest {
+  id                   String              @id @default(uuid(7)) @db.Uuid
+  tenantId             String              @map("tenant_id") @db.Uuid
+  tenant               Tenant              @relation(fields: [tenantId], references: [id])
+  propertyId           String              @map("property_id") @db.Uuid
+  property             Property            @relation(fields: [propertyId], references: [id])
+  stayId               String              @map("stay_id") @db.Uuid
+  stay                 Stay                @relation(fields: [stayId], references: [id])
+  guestId              String              @map("guest_id") @db.Uuid
+  guest                Guest               @relation(fields: [guestId], references: [id])
+  linkedOrderId        String?             @map("linked_order_id") @db.Uuid
+  linkedOrder          Order?              @relation(fields: [linkedOrderId], references: [id])
+  maintenanceRequestId String?             @map("maintenance_request_id") @db.Uuid
+  maintenanceRequest   MaintenanceRequest? @relation(fields: [maintenanceRequestId], references: [id])
+  type                 GuestRequestType
+  details              String?
+  status               GuestRequestStatus  @default(OPEN)
+  handledBy            String?             @map("handled_by") @db.Uuid
+  createdAt            DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tenantId, guestId])
+  @@index([propertyId])
+  @@index([stayId])
+  @@index([guestId])
+  @@index([linkedOrderId])
+  @@index([maintenanceRequestId])
+  @@map("guest_requests")
+}
+
+model DepositDeclaration {
+  id               String            @id @default(uuid(7)) @db.Uuid
+  tenantId         String            @map("tenant_id") @db.Uuid
+  tenant           Tenant            @relation(fields: [tenantId], references: [id])
+  reservationId    String            @map("reservation_id") @db.Uuid
+  reservation      Reservation       @relation(fields: [reservationId], references: [id])
+  folioPaymentId   String?           @unique @map("folio_payment_id") @db.Uuid
+  folioPayment     FolioPayment?     @relation(fields: [folioPaymentId], references: [id])
+  currency         String            @default("XOF") @db.Char(3)
+  amount           BigInt
+  method           DepositMethod
+  reference        String?           @db.VarChar(100)
+  attachmentFileId String?           @map("attachment_file_id") @db.Uuid
+  status           DeclarationStatus @default(SUBMITTED)
+  reviewedBy       String?           @map("reviewed_by") @db.Uuid
+  reviewedAt       DateTime?         @map("reviewed_at") @db.Timestamptz(6)
+  rejectReason     String?           @map("reject_reason")
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tenantId])
+  @@index([reservationId])
+  @@map("deposit_declarations")
+}
+
+model GuestPreference {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  guestId   String   @map("guest_id") @db.Uuid
+  guest     Guest    @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  key       String
+  value     Json
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([guestId, key])
+  @@index([tenantId, guestId])
+  @@map("guest_preferences")
+}
+
+model Communication {
+  id           String                 @id @default(uuid(7)) @db.Uuid
+  tenantId     String                 @map("tenant_id") @db.Uuid
+  tenant       Tenant                 @relation(fields: [tenantId], references: [id])
+  guestId      String                 @map("guest_id") @db.Uuid
+  guest        Guest                  @relation(fields: [guestId], references: [id])
+  channel      CommunicationChannel
+  direction    CommunicationDirection
+  subject      String?
+  body         String
+  templateCode String?                @map("template_code")
+  sentAt       DateTime?              @map("sent_at") @db.Timestamptz(6)
+  userId       String?                @map("user_id") @db.Uuid
+  createdAt    DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tenantId, guestId])
+  @@index([guestId])
+  @@map("communications")
+}
+
+model Consent {
+  id        String         @id @default(uuid(7)) @db.Uuid
+  tenantId  String         @map("tenant_id") @db.Uuid
+  tenant    Tenant         @relation(fields: [tenantId], references: [id])
+  guestId   String         @map("guest_id") @db.Uuid
+  guest     Guest          @relation(fields: [guestId], references: [id])
+  purpose   ConsentPurpose
+  granted   Boolean
+  at        DateTime       @default(now()) @db.Timestamptz(6)
+  source    String
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([tenantId, guestId])
+  @@index([guestId])
+  @@map("consents")
+}
+
+model LoyaltyProgram {
+  id              String           @id @default(uuid(7)) @db.Uuid
+  tenantId        String           @map("tenant_id") @db.Uuid
+  tenant          Tenant           @relation(fields: [tenantId], references: [id])
+  name            String
+  currency        String           @default("XOF") @db.Char(3)
+  pointsPerUnit   Int              @default(1) @map("points_per_unit")
+  unitAmount      BigInt           @map("unit_amount") // montant donnant pointsPerUnit points (ex. 1 000 XOF)
+  pointValue      BigInt           @map("point_value") // valeur d'un point en unités mineures
+  expiryMonths    Int?             @map("expiry_months")
+  rules           Json?
+  isActive        Boolean          @default(true) @map("is_active")
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  loyaltyTiers    LoyaltyTier[]
+  loyaltyAccounts LoyaltyAccount[]
+
+  @@index([tenantId])
+  @@map("loyalty_programs")
+}
+
+model LoyaltyTier {
+  id              String           @id @default(uuid(7)) @db.Uuid
+  tenantId        String           @map("tenant_id") @db.Uuid
+  tenant          Tenant           @relation(fields: [tenantId], references: [id])
+  programId       String           @map("program_id") @db.Uuid
+  program         LoyaltyProgram   @relation(fields: [programId], references: [id], onDelete: Cascade)
+  code            String
+  name            String
+  minPoints       Int              @map("min_points")
+  discountPercent Decimal          @default(0) @map("discount_percent") @db.Decimal(5, 2)
+  perks           Json?
+  sort            Int              @default(0)
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  loyaltyAccounts LoyaltyAccount[]
+
+  @@unique([programId, code])
+  @@index([tenantId])
+  @@map("loyalty_tiers")
+}
+
+model LoyaltyAccount {
+  id                  String               @id @default(uuid(7)) @db.Uuid
+  tenantId            String               @map("tenant_id") @db.Uuid
+  tenant              Tenant               @relation(fields: [tenantId], references: [id])
+  programId           String               @map("program_id") @db.Uuid
+  program             LoyaltyProgram       @relation(fields: [programId], references: [id])
+  guestId             String               @map("guest_id") @db.Uuid
+  guest               Guest                @relation(fields: [guestId], references: [id])
+  tierId              String?              @map("tier_id") @db.Uuid
+  tier                LoyaltyTier?         @relation(fields: [tierId], references: [id])
+  balance             Int                  @default(0)
+  lifetimePoints      Int                  @default(0) @map("lifetime_points")
+  createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  loyaltyTransactions LoyaltyTransaction[]
+
+  @@unique([programId, guestId])
+  @@index([tenantId, guestId])
+  @@index([guestId])
+  @@index([tierId])
+  @@map("loyalty_accounts")
+}
+
+model LoyaltyTransaction {
+  id           String              @id @default(uuid(7)) @db.Uuid
+  tenantId     String              @map("tenant_id") @db.Uuid
+  tenant       Tenant              @relation(fields: [tenantId], references: [id])
+  accountId    String              @map("account_id") @db.Uuid
+  account      LoyaltyAccount      @relation(fields: [accountId], references: [id])
+  reversalOfId String?             @unique @map("reversal_of_id") @db.Uuid
+  reversalOf   LoyaltyTransaction? @relation("LoyaltyTransactionReversalOf", fields: [reversalOfId], references: [id])
+  type         LoyaltyTxType
+  points       Int
+  sourceType   String?             @map("source_type")
+  sourceId     String?             @map("source_id") @db.Uuid
+  expiresAt    DateTime?           @map("expires_at") @db.Timestamptz(6)
+  note         String?
+  createdAt    DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy    String?             @map("created_by") @db.Uuid
+  reversal     LoyaltyTransaction? @relation("LoyaltyTransactionReversalOf")
+
+  @@index([tenantId])
+  @@index([accountId])
+  @@map("loyalty_transactions")
+}
+
+model Department {
+  id             String          @id @default(uuid(7)) @db.Uuid
+  tenantId       String          @map("tenant_id") @db.Uuid
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  propertyId     String          @map("property_id") @db.Uuid
+  property       Property        @relation(fields: [propertyId], references: [id])
+  code           String
+  name           String
+  isActive       Boolean         @default(true) @map("is_active")
+  deletedAt      DateTime?       @map("deleted_at") @db.Timestamptz(6)
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  outlets        Outlet[]
+  warehouses     Warehouse[]
+  employees      Employee[]
+  shiftTemplates ShiftTemplate[]
+  tasks          Task[]
+  conversations  Conversation[]
+
+  @@unique([tenantId, propertyId, code])
+  @@index([propertyId])
+  @@map("departments")
+}
+
+model Employee {
+  id               String          @id @default(uuid(7)) @db.Uuid
+  tenantId         String          @map("tenant_id") @db.Uuid
+  tenant           Tenant          @relation(fields: [tenantId], references: [id])
+  userId           String?         @unique @map("user_id") @db.Uuid
+  user             User?           @relation(fields: [userId], references: [id])
+  departmentId     String?         @map("department_id") @db.Uuid
+  department       Department?     @relation(fields: [departmentId], references: [id])
+  firstName        String          @map("first_name")
+  lastName         String          @map("last_name")
+  position         String?
+  hireDate         DateTime?       @map("hire_date") @db.Date
+  contractType     String?         @map("contract_type")
+  phone            String?
+  emergencyContact Json?           @map("emergency_contact")
+  pinHash          String?         @map("pin_hash")
+  skills           String[]
+  isActive         Boolean         @default(true) @map("is_active")
+  customFields     Json            @default("{}") @map("custom_fields")
+  deletedAt        DateTime?       @map("deleted_at") @db.Timestamptz(6)
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  staffSchedules   StaffSchedule[]
+  timeEntries      TimeEntry[]
+  leaves           Leave[]
+  therapist        Therapist?
+  activities       Activity[]
+
+  @@index([tenantId])
+  @@index([departmentId])
+  @@map("employees")
+}
+
+model ShiftTemplate {
+  id             String          @id @default(uuid(7)) @db.Uuid
+  tenantId       String          @map("tenant_id") @db.Uuid
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  departmentId   String          @map("department_id") @db.Uuid
+  department     Department      @relation(fields: [departmentId], references: [id])
+  name           String
+  startTime      String          @map("start_time") @db.VarChar(5)
+  endTime        String          @map("end_time") @db.VarChar(5)
+  breakMinutes   Int             @default(0) @map("break_minutes")
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  staffSchedules StaffSchedule[]
+
+  @@index([tenantId])
+  @@index([departmentId])
+  @@map("shift_templates")
+}
+
+model StaffSchedule {
+  id              String         @id @default(uuid(7)) @db.Uuid
+  tenantId        String         @map("tenant_id") @db.Uuid
+  tenant          Tenant         @relation(fields: [tenantId], references: [id])
+  employeeId      String         @map("employee_id") @db.Uuid
+  employee        Employee       @relation(fields: [employeeId], references: [id])
+  shiftTemplateId String?        @map("shift_template_id") @db.Uuid
+  shiftTemplate   ShiftTemplate? @relation(fields: [shiftTemplateId], references: [id])
+  date            DateTime       @db.Date
+  startAt         DateTime       @map("start_at") @db.Timestamptz(6)
+  endAt           DateTime       @map("end_at") @db.Timestamptz(6)
+  status          ScheduleStatus @default(DRAFT)
+  note            String?
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  timeEntries     TimeEntry[]
+
+  @@index([tenantId, date])
+  @@index([employeeId])
+  @@index([shiftTemplateId])
+  @@map("staff_schedules")
+}
+
+model TimeEntry {
+  id         String          @id @default(uuid(7)) @db.Uuid
+  tenantId   String          @map("tenant_id") @db.Uuid
+  tenant     Tenant          @relation(fields: [tenantId], references: [id])
+  employeeId String          @map("employee_id") @db.Uuid
+  employee   Employee        @relation(fields: [employeeId], references: [id])
+  scheduleId String?         @map("schedule_id") @db.Uuid
+  schedule   StaffSchedule?  @relation(fields: [scheduleId], references: [id])
+  clockInAt  DateTime        @map("clock_in_at") @db.Timestamptz(6)
+  clockOutAt DateTime?       @map("clock_out_at") @db.Timestamptz(6)
+  source     TimeEntrySource
+  anomaly    String?
+  createdAt  DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tenantId])
+  @@index([employeeId])
+  @@index([scheduleId])
+  @@map("time_entries")
+}
+
+model Leave {
+  id         String      @id @default(uuid(7)) @db.Uuid
+  tenantId   String      @map("tenant_id") @db.Uuid
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  employeeId String      @map("employee_id") @db.Uuid
+  employee   Employee    @relation(fields: [employeeId], references: [id])
+  type       String
+  fromDate   DateTime    @map("from_date") @db.Date
+  toDate     DateTime    @map("to_date") @db.Date
+  status     LeaveStatus @default(REQUESTED)
+  reason     String?
+  approvedBy String?     @map("approved_by") @db.Uuid
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tenantId])
+  @@index([employeeId])
+  @@map("leaves")
+}
+
+model Task {
+  id           String      @id @default(uuid(7)) @db.Uuid
+  tenantId     String      @map("tenant_id") @db.Uuid
+  tenant       Tenant      @relation(fields: [tenantId], references: [id])
+  propertyId   String      @map("property_id") @db.Uuid
+  property     Property    @relation(fields: [propertyId], references: [id])
+  departmentId String?     @map("department_id") @db.Uuid
+  department   Department? @relation(fields: [departmentId], references: [id])
+  assignedToId String?     @map("assigned_to_id") @db.Uuid
+  assignedTo   User?       @relation(fields: [assignedToId], references: [id])
+  title        String
+  description  String?
+  dueAt        DateTime?   @map("due_at") @db.Timestamptz(6)
+  priority     Priority    @default(NORMAL)
+  status       TaskStatus  @default(TODO)
+  proofFileIds String[]    @map("proof_file_ids") @db.Uuid
+  sourceType   String?     @map("source_type")
+  sourceId     String?     @map("source_id") @db.Uuid
+  completedAt  DateTime?   @map("completed_at") @db.Timestamptz(6)
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy    String?     @map("created_by") @db.Uuid
+
+  @@index([tenantId, status, dueAt])
+  @@index([propertyId])
+  @@index([departmentId])
+  @@index([assignedToId])
+  @@map("tasks")
+}
+
+model Conversation {
+  id                  String               @id @default(uuid(7)) @db.Uuid
+  tenantId            String               @map("tenant_id") @db.Uuid
+  tenant              Tenant               @relation(fields: [tenantId], references: [id])
+  propertyId          String?              @map("property_id") @db.Uuid
+  property            Property?            @relation(fields: [propertyId], references: [id])
+  departmentId        String?              @map("department_id") @db.Uuid
+  department          Department?          @relation(fields: [departmentId], references: [id])
+  type                ConversationType
+  title               String?
+  createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy           String?              @map("created_by") @db.Uuid
+  conversationMembers ConversationMember[]
+  messages            Message[]
+
+  @@index([tenantId])
+  @@index([propertyId])
+  @@index([departmentId])
+  @@map("conversations")
+}
+
+model ConversationMember {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  tenantId       String       @map("tenant_id") @db.Uuid
+  tenant         Tenant       @relation(fields: [tenantId], references: [id])
+  conversationId String       @map("conversation_id") @db.Uuid
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String       @map("user_id") @db.Uuid
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt     DateTime?    @map("last_read_at") @db.Timestamptz(6)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([conversationId, userId])
+  @@index([tenantId])
+  @@index([userId])
+  @@map("conversation_members")
+}
+
+model Message {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  tenantId       String       @map("tenant_id") @db.Uuid
+  tenant         Tenant       @relation(fields: [tenantId], references: [id])
+  conversationId String       @map("conversation_id") @db.Uuid
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String       @map("sender_id") @db.Uuid
+  sender         User         @relation(fields: [senderId], references: [id])
+  body           String
+  fileIds        String[]     @map("file_ids") @db.Uuid
+  readBy         String[]     @map("read_by") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tenantId])
+  @@index([conversationId])
+  @@index([senderId])
+  @@map("messages")
+}
+
+model Notification {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  userId    String    @map("user_id") @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String?
+  link      String?
+  readAt    DateTime? @map("read_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([tenantId, userId, readAt])
+  @@index([userId])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  channels  String[]
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([userId, type])
+  @@index([tenantId])
+  @@map("notification_preferences")
+}
+
+model FloorPlan {
+  id           String        @id @default(uuid(7)) @db.Uuid
+  tenantId     String        @map("tenant_id") @db.Uuid
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  outletId     String        @map("outlet_id") @db.Uuid
+  outlet       Outlet        @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  name         String
+  layout       Json?
+  sort         Int           @default(0)
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  diningTables DiningTable[]
+
+  @@index([tenantId])
+  @@index([outletId])
+  @@map("floor_plans")
+}
+
+model DiningTable {
+  id                String             @id @default(uuid(7)) @db.Uuid
+  tenantId          String             @map("tenant_id") @db.Uuid
+  tenant            Tenant             @relation(fields: [tenantId], references: [id])
+  outletId          String             @map("outlet_id") @db.Uuid
+  outlet            Outlet             @relation(fields: [outletId], references: [id])
+  floorPlanId       String?            @map("floor_plan_id") @db.Uuid
+  floorPlan         FloorPlan?         @relation(fields: [floorPlanId], references: [id])
+  number            String
+  zone              String?
+  capacity          Int
+  posX              Int?               @map("pos_x")
+  posY              Int?               @map("pos_y")
+  shape             String?
+  status            DiningTableStatus  @default(AVAILABLE)
+  isActive          Boolean            @default(true) @map("is_active")
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  orders            Order[]
+  tableReservations TableReservation[]
+
+  @@unique([outletId, number])
+  @@index([tenantId])
+  @@index([floorPlanId])
+  @@map("dining_tables")
+}
+
+model MenuCategory {
+  id        String     @id @default(uuid(7)) @db.Uuid
+  tenantId  String     @map("tenant_id") @db.Uuid
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  outletId  String     @map("outlet_id") @db.Uuid
+  outlet    Outlet     @relation(fields: [outletId], references: [id])
+  nameI18n  Json       @map("name_i18n")
+  sort      Int        @default(0)
+  isActive  Boolean    @default(true) @map("is_active")
+  deletedAt DateTime?  @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  menuItems MenuItem[]
+
+  @@index([tenantId])
+  @@index([outletId])
+  @@map("menu_categories")
+}
+
+model MenuItem {
+  id              String         @id @default(uuid(7)) @db.Uuid
+  tenantId        String         @map("tenant_id") @db.Uuid
+  tenant          Tenant         @relation(fields: [tenantId], references: [id])
+  outletId        String         @map("outlet_id") @db.Uuid
+  outlet          Outlet         @relation(fields: [outletId], references: [id])
+  categoryId      String?        @map("category_id") @db.Uuid
+  category        MenuCategory?  @relation(fields: [categoryId], references: [id])
+  taxId           String?        @map("tax_id") @db.Uuid
+  tax             Tax?           @relation(fields: [taxId], references: [id])
+  recipeId        String?        @map("recipe_id") @db.Uuid
+  recipe          Recipe?        @relation(fields: [recipeId], references: [id])
+  nameI18n        Json           @map("name_i18n")
+  descriptionI18n Json?          @map("description_i18n")
+  currency        String         @default("XOF") @db.Char(3)
+  price           BigInt
+  departmentCode  String?        @map("department_code")
+  dietaryTags     String[]       @map("dietary_tags")
+  allergens       String[]
+  photoFileId     String?        @map("photo_file_id") @db.Uuid
+  isAvailable     Boolean        @default(true) @map("is_available")
+  deletedAt       DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  dailySpecials   DailySpecial[]
+  orderItems      OrderItem[]
+
+  @@index([tenantId])
+  @@index([outletId])
+  @@index([categoryId])
+  @@index([taxId])
+  @@index([recipeId])
+  @@map("menu_items")
+}
+
+model DailySpecial {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  outletId     String   @map("outlet_id") @db.Uuid
+  outlet       Outlet   @relation(fields: [outletId], references: [id])
+  menuItemId   String   @map("menu_item_id") @db.Uuid
+  menuItem     MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  fromDate     DateTime @map("from_date") @db.Date
+  toDate       DateTime @map("to_date") @db.Date
+  currency     String   @default("XOF") @db.Char(3)
+  specialPrice BigInt   @map("special_price")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tenantId])
+  @@index([outletId])
+  @@index([menuItemId])
+  @@map("daily_specials")
+}
+
+model Order {
+  id            String         @id @default(uuid(7)) @db.Uuid
+  tenantId      String         @map("tenant_id") @db.Uuid
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  propertyId    String         @map("property_id") @db.Uuid
+  property      Property       @relation(fields: [propertyId], references: [id])
+  outletId      String         @map("outlet_id") @db.Uuid
+  outlet        Outlet         @relation(fields: [outletId], references: [id])
+  tableId       String?        @map("table_id") @db.Uuid
+  table         DiningTable?   @relation(fields: [tableId], references: [id])
+  roomId        String?        @map("room_id") @db.Uuid
+  room          Room?          @relation(fields: [roomId], references: [id])
+  stayId        String?        @map("stay_id") @db.Uuid
+  stay          Stay?          @relation(fields: [stayId], references: [id])
+  folioId       String?        @map("folio_id") @db.Uuid
+  folio         Folio?         @relation(fields: [folioId], references: [id])
+  waiterId      String?        @map("waiter_id") @db.Uuid
+  waiter        User?          @relation(fields: [waiterId], references: [id])
+  number        String
+  type          OrderType
+  status        OrderStatus    @default(OPEN)
+  covers        Int?
+  currency      String         @default("XOF") @db.Char(3)
+  subtotal      BigInt         @default(0)
+  taxTotal      BigInt         @default(0) @map("tax_total")
+  total         BigInt         @default(0)
+  notes         String?
+  closedAt      DateTime?      @map("closed_at") @db.Timestamptz(6)
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy     String?        @map("created_by") @db.Uuid
+  folioLines    FolioLine[]
+  guestRequests GuestRequest[]
+  orderItems    OrderItem[]
+
+  @@unique([tenantId, propertyId, number])
+  @@index([tenantId, outletId, status])
+  @@index([propertyId])
+  @@index([outletId])
+  @@index([tableId])
+  @@index([roomId])
+  @@index([stayId])
+  @@index([folioId])
+  @@index([waiterId])
+  @@map("orders")
+}
+
+model OrderItem {
+  id         String          @id @default(uuid(7)) @db.Uuid
+  tenantId   String          @map("tenant_id") @db.Uuid
+  tenant     Tenant          @relation(fields: [tenantId], references: [id])
+  orderId    String          @map("order_id") @db.Uuid
+  order      Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId String?         @map("menu_item_id") @db.Uuid
+  menuItem   MenuItem?       @relation(fields: [menuItemId], references: [id])
+  productId  String?         @map("product_id") @db.Uuid
+  product    Product?        @relation(fields: [productId], references: [id])
+  label      String
+  qty        Int
+  currency   String          @default("XOF") @db.Char(3)
+  unitPrice  BigInt          @map("unit_price")
+  modifiers  Json?
+  status     OrderItemStatus @default(PENDING)
+  voidReason String?         @map("void_reason")
+  sentAt     DateTime?       @map("sent_at") @db.Timestamptz(6)
+  createdAt  DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tenantId])
+  @@index([orderId])
+  @@index([menuItemId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+model TableReservation {
+  id            String                 @id @default(uuid(7)) @db.Uuid
+  tenantId      String                 @map("tenant_id") @db.Uuid
+  tenant        Tenant                 @relation(fields: [tenantId], references: [id])
+  outletId      String                 @map("outlet_id") @db.Uuid
+  outlet        Outlet                 @relation(fields: [outletId], references: [id])
+  reservationId String?                @map("reservation_id") @db.Uuid
+  reservation   Reservation?           @relation(fields: [reservationId], references: [id])
+  guestId       String?                @map("guest_id") @db.Uuid
+  guest         Guest?                 @relation(fields: [guestId], references: [id])
+  tableId       String?                @map("table_id") @db.Uuid
+  table         DiningTable?           @relation(fields: [tableId], references: [id])
+  guestName     String?                @map("guest_name")
+  partySize     Int                    @map("party_size")
+  startAt       DateTime               @map("start_at") @db.Timestamptz(6)
+  endAt         DateTime               @map("end_at") @db.Timestamptz(6)
+  isResident    Boolean                @default(false) @map("is_resident")
+  status        TableReservationStatus @default(BOOKED)
+  notes         String?
+  createdAt     DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy     String?                @map("created_by") @db.Uuid
+
+  @@index([tenantId, guestId])
+  @@index([outletId])
+  @@index([reservationId])
+  @@index([guestId])
+  @@index([tableId])
+  @@map("table_reservations")
+}
+
+model SpaService {
+  id               String        @id @default(uuid(7)) @db.Uuid
+  tenantId         String        @map("tenant_id") @db.Uuid
+  tenant           Tenant        @relation(fields: [tenantId], references: [id])
+  propertyId       String        @map("property_id") @db.Uuid
+  property         Property      @relation(fields: [propertyId], references: [id])
+  taxId            String?       @map("tax_id") @db.Uuid
+  tax              Tax?          @relation(fields: [taxId], references: [id])
+  recipeId         String?       @map("recipe_id") @db.Uuid
+  recipe           Recipe?       @relation(fields: [recipeId], references: [id])
+  nameI18n         Json          @map("name_i18n")
+  category         String?
+  durationMin      Int           @map("duration_min")
+  bufferMin        Int           @default(0) @map("buffer_min")
+  currency         String        @default("XOF") @db.Char(3)
+  price            BigInt
+  requiredSkill    String?       @map("required_skill")
+  roomTypeRequired String?       @map("room_type_required")
+  isActive         Boolean       @default(true) @map("is_active")
+  deletedAt        DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  appointments     Appointment[]
+
+  @@index([tenantId])
+  @@index([propertyId])
+  @@index([taxId])
+  @@index([recipeId])
+  @@map("spa_services")
+}
+
+model Therapist {
+  id           String        @id @default(uuid(7)) @db.Uuid
+  tenantId     String        @map("tenant_id") @db.Uuid
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  employeeId   String        @unique @map("employee_id") @db.Uuid
+  employee     Employee      @relation(fields: [employeeId], references: [id])
+  skills       String[]
+  gender       String?
+  isActive     Boolean       @default(true) @map("is_active")
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  appointments Appointment[]
+
+  @@index([tenantId])
+  @@map("therapists")
+}
+
+model TreatmentRoom {
+  id           String        @id @default(uuid(7)) @db.Uuid
+  tenantId     String        @map("tenant_id") @db.Uuid
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  propertyId   String        @map("property_id") @db.Uuid
+  property     Property      @relation(fields: [propertyId], references: [id])
+  name         String
+  capabilities String[]
+  isActive     Boolean       @default(true) @map("is_active")
+  deletedAt    DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  appointments Appointment[]
+
+  @@index([tenantId])
+  @@index([propertyId])
+  @@map("treatment_rooms")
+}
+
+model Appointment {
+  id              String            @id @default(uuid(7)) @db.Uuid
+  tenantId        String            @map("tenant_id") @db.Uuid
+  tenant          Tenant            @relation(fields: [tenantId], references: [id])
+  propertyId      String            @map("property_id") @db.Uuid
+  property        Property          @relation(fields: [propertyId], references: [id])
+  reservationId   String?           @map("reservation_id") @db.Uuid
+  reservation     Reservation?      @relation(fields: [reservationId], references: [id])
+  guestId         String            @map("guest_id") @db.Uuid
+  guest           Guest             @relation(fields: [guestId], references: [id])
+  spaServiceId    String            @map("spa_service_id") @db.Uuid
+  spaService      SpaService        @relation(fields: [spaServiceId], references: [id])
+  therapistId     String            @map("therapist_id") @db.Uuid
+  therapist       Therapist         @relation(fields: [therapistId], references: [id])
+  treatmentRoomId String?           @map("treatment_room_id") @db.Uuid
+  treatmentRoom   TreatmentRoom?    @relation(fields: [treatmentRoomId], references: [id])
+  folioId         String?           @map("folio_id") @db.Uuid
+  folio           Folio?            @relation(fields: [folioId], references: [id])
+  startAt         DateTime          @map("start_at") @db.Timestamptz(6)
+  endAt           DateTime          @map("end_at") @db.Timestamptz(6)
+  status          AppointmentStatus @default(BOOKED)
+  preferences     Json?
+  currency        String            @default("XOF") @db.Char(3)
+  price           BigInt?
+  notes           String?
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy       String?           @map("created_by") @db.Uuid
+  treatmentRecord TreatmentRecord?
+
+  @@index([tenantId, guestId])
+  @@index([tenantId, propertyId, startAt])
+  @@index([propertyId])
+  @@index([reservationId])
+  @@index([guestId])
+  @@index([spaServiceId])
+  @@index([therapistId])
+  @@index([treatmentRoomId])
+  @@index([folioId])
+  @@map("appointments")
+}
+
+model TreatmentRecord {
+  id                String      @id @default(uuid(7)) @db.Uuid
+  tenantId          String      @map("tenant_id") @db.Uuid
+  tenant            Tenant      @relation(fields: [tenantId], references: [id])
+  appointmentId     String      @unique @map("appointment_id") @db.Uuid
+  appointment       Appointment @relation(fields: [appointmentId], references: [id])
+  guestId           String      @map("guest_id") @db.Uuid
+  guest             Guest       @relation(fields: [guestId], references: [id])
+  therapistNotes    String?     @map("therapist_notes")
+  contraindications String?
+  createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy         String?     @map("created_by") @db.Uuid
+
+  @@index([tenantId, guestId])
+  @@index([guestId])
+  @@map("treatment_records")
+}
+
+model Package {
+  id                String             @id @default(uuid(7)) @db.Uuid
+  tenantId          String             @map("tenant_id") @db.Uuid
+  tenant            Tenant             @relation(fields: [tenantId], references: [id])
+  propertyId        String             @map("property_id") @db.Uuid
+  property          Property           @relation(fields: [propertyId], references: [id])
+  nameI18n          Json               @map("name_i18n")
+  descriptionI18n   Json?              @map("description_i18n")
+  currency          String             @default("XOF") @db.Char(3)
+  price             BigInt
+  validFrom         DateTime?          @map("valid_from") @db.Date
+  validTo           DateTime?          @map("valid_to") @db.Date
+  isActive          Boolean            @default(true) @map("is_active")
+  deletedAt         DateTime?          @map("deleted_at") @db.Timestamptz(6)
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  packageComponents PackageComponent[]
+
+  @@index([tenantId])
+  @@index([propertyId])
+  @@map("packages")
+}
+
+model PackageComponent {
+  id           String               @id @default(uuid(7)) @db.Uuid
+  tenantId     String               @map("tenant_id") @db.Uuid
+  tenant       Tenant               @relation(fields: [tenantId], references: [id])
+  packageId    String               @map("package_id") @db.Uuid
+  package      Package              @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  type         PackageComponentType
+  refId        String?              @map("ref_id") @db.Uuid
+  qty          Int                  @default(1)
+  revenueShare Decimal              @map("revenue_share") @db.Decimal(7, 4)
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tenantId])
+  @@index([packageId])
+  @@map("package_components")
+}
+
+model Activity {
+  id              String         @id @default(uuid(7)) @db.Uuid
+  tenantId        String         @map("tenant_id") @db.Uuid
+  tenant          Tenant         @relation(fields: [tenantId], references: [id])
+  propertyId      String         @map("property_id") @db.Uuid
+  property        Property       @relation(fields: [propertyId], references: [id])
+  guideEmployeeId String?        @map("guide_employee_id") @db.Uuid
+  guideEmployee   Employee?      @relation(fields: [guideEmployeeId], references: [id])
+  nameI18n        Json           @map("name_i18n")
+  descriptionI18n Json?          @map("description_i18n")
+  currency        String         @default("XOF") @db.Char(3)
+  pricePerPerson  BigInt         @map("price_per_person")
+  capacity        Int
+  durationMin     Int?           @map("duration_min")
+  isActive        Boolean        @default(true) @map("is_active")
+  deletedAt       DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  activitySlots   ActivitySlot[]
+
+  @@index([tenantId])
+  @@index([propertyId])
+  @@index([guideEmployeeId])
+  @@map("activities")
+}
+
+model ActivitySlot {
+  id               String            @id @default(uuid(7)) @db.Uuid
+  tenantId         String            @map("tenant_id") @db.Uuid
+  tenant           Tenant            @relation(fields: [tenantId], references: [id])
+  activityId       String            @map("activity_id") @db.Uuid
+  activity         Activity          @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  startAt          DateTime          @map("start_at") @db.Timestamptz(6)
+  endAt            DateTime          @map("end_at") @db.Timestamptz(6)
+  capacity         Int
+  booked           Int               @default(0)
+  isCancelled      Boolean           @default(false) @map("is_cancelled")
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  activityBookings ActivityBooking[]
+
+  @@index([activityId, startAt])
+  @@index([tenantId])
+  @@map("activity_slots")
+}
+
+model ActivityBooking {
+  id            String                @id @default(uuid(7)) @db.Uuid
+  tenantId      String                @map("tenant_id") @db.Uuid
+  tenant        Tenant                @relation(fields: [tenantId], references: [id])
+  slotId        String                @map("slot_id") @db.Uuid
+  slot          ActivitySlot          @relation(fields: [slotId], references: [id])
+  guestId       String                @map("guest_id") @db.Uuid
+  guest         Guest                 @relation(fields: [guestId], references: [id])
+  reservationId String?               @map("reservation_id") @db.Uuid
+  reservation   Reservation?          @relation(fields: [reservationId], references: [id])
+  folioId       String?               @map("folio_id") @db.Uuid
+  folio         Folio?                @relation(fields: [folioId], references: [id])
+  participants  Int
+  status        ActivityBookingStatus @default(BOOKED)
+  currency      String                @default("XOF") @db.Char(3)
+  amount        BigInt?
+  createdAt     DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy     String?               @map("created_by") @db.Uuid
+
+  @@index([tenantId, guestId])
+  @@index([slotId])
+  @@index([guestId])
+  @@index([reservationId])
+  @@index([folioId])
+  @@map("activity_bookings")
+}
+
+model InventoryItem {
+  id                 String              @id @default(uuid(7)) @db.Uuid
+  tenantId           String              @map("tenant_id") @db.Uuid
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  supplierId         String?             @map("supplier_id") @db.Uuid
+  supplier           Supplier?           @relation(fields: [supplierId], references: [id])
+  sku                String
+  name               String
+  unit               String
+  category           String?
+  minQty             Decimal             @default(0) @map("min_qty") @db.Decimal(14, 3)
+  reorderQty         Decimal             @default(0) @map("reorder_qty") @db.Decimal(14, 3)
+  currency           String              @default("XOF") @db.Char(3)
+  avgCost            BigInt              @default(0) @map("avg_cost")
+  leadTimeDays       Int?                @map("lead_time_days")
+  isActive           Boolean             @default(true) @map("is_active")
+  customFields       Json                @default("{}") @map("custom_fields")
+  deletedAt          DateTime?           @map("deleted_at") @db.Timestamptz(6)
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  products           Product[]
+  stockMovements     StockMovement[]
+  stockCountLines    StockCountLine[]
+  stockLevels        StockLevel[]
+  recipeLines        RecipeLine[]
+  purchaseOrderLines PurchaseOrderLine[]
+  goodsReceiptLines  GoodsReceiptLine[]
+  reorderSuggestions ReorderSuggestion[]
+
+  @@unique([tenantId, sku])
+  @@index([supplierId])
+  @@map("inventory_items")
+}
+
+model StockLevel {
+  id          String        @id @default(uuid(7)) @db.Uuid
+  tenantId    String        @map("tenant_id") @db.Uuid
+  tenant      Tenant        @relation(fields: [tenantId], references: [id])
+  itemId      String        @map("item_id") @db.Uuid
+  item        InventoryItem @relation(fields: [itemId], references: [id])
+  warehouseId String        @map("warehouse_id") @db.Uuid
+  warehouse   Warehouse     @relation(fields: [warehouseId], references: [id])
+  qty         Decimal       @default(0) @db.Decimal(14, 3)
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([itemId, warehouseId])
+  @@index([tenantId])
+  @@index([warehouseId])
+  @@map("stock_levels")
+}
+
+model Recipe {
+  id          String       @id @default(uuid(7)) @db.Uuid
+  tenantId    String       @map("tenant_id") @db.Uuid
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  name        String
+  kind        RecipeKind
+  yieldQty    Decimal      @default(1) @map("yield_qty") @db.Decimal(14, 3)
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  menuItems   MenuItem[]
+  spaServices SpaService[]
+  recipeLines RecipeLine[]
+
+  @@index([tenantId])
+  @@map("recipes")
+}
+
+model RecipeLine {
+  id        String        @id @default(uuid(7)) @db.Uuid
+  tenantId  String        @map("tenant_id") @db.Uuid
+  tenant    Tenant        @relation(fields: [tenantId], references: [id])
+  recipeId  String        @map("recipe_id") @db.Uuid
+  recipe    Recipe        @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  itemId    String        @map("item_id") @db.Uuid
+  item      InventoryItem @relation(fields: [itemId], references: [id])
+  qty       Decimal       @db.Decimal(14, 3)
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([recipeId, itemId])
+  @@index([tenantId])
+  @@index([itemId])
+  @@map("recipe_lines")
+}
+
+model PurchaseOrderLine {
+  id                String             @id @default(uuid(7)) @db.Uuid
+  tenantId          String             @map("tenant_id") @db.Uuid
+  tenant            Tenant             @relation(fields: [tenantId], references: [id])
+  purchaseOrderId   String             @map("purchase_order_id") @db.Uuid
+  purchaseOrder     PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  itemId            String             @map("item_id") @db.Uuid
+  item              InventoryItem      @relation(fields: [itemId], references: [id])
+  qty               Decimal            @db.Decimal(14, 3)
+  receivedQty       Decimal            @default(0) @map("received_qty") @db.Decimal(14, 3)
+  currency          String             @default("XOF") @db.Char(3)
+  unitCost          BigInt             @map("unit_cost")
+  amount            BigInt
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  goodsReceiptLines GoodsReceiptLine[]
+
+  @@index([tenantId])
+  @@index([purchaseOrderId])
+  @@index([itemId])
+  @@map("purchase_order_lines")
+}
+
+model GoodsReceipt {
+  id                String             @id @default(uuid(7)) @db.Uuid
+  tenantId          String             @map("tenant_id") @db.Uuid
+  tenant            Tenant             @relation(fields: [tenantId], references: [id])
+  purchaseOrderId   String             @map("purchase_order_id") @db.Uuid
+  purchaseOrder     PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id])
+  warehouseId       String             @map("warehouse_id") @db.Uuid
+  warehouse         Warehouse          @relation(fields: [warehouseId], references: [id])
+  receivedAt        DateTime           @default(now()) @map("received_at") @db.Timestamptz(6)
+  notes             String?
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy         String?            @map("created_by") @db.Uuid
+  goodsReceiptLines GoodsReceiptLine[]
+
+  @@index([tenantId])
+  @@index([purchaseOrderId])
+  @@index([warehouseId])
+  @@map("goods_receipts")
+}
+
+model GoodsReceiptLine {
+  id                  String             @id @default(uuid(7)) @db.Uuid
+  tenantId            String             @map("tenant_id") @db.Uuid
+  tenant              Tenant             @relation(fields: [tenantId], references: [id])
+  goodsReceiptId      String             @map("goods_receipt_id") @db.Uuid
+  goodsReceipt        GoodsReceipt       @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  purchaseOrderLineId String?            @map("purchase_order_line_id") @db.Uuid
+  purchaseOrderLine   PurchaseOrderLine? @relation(fields: [purchaseOrderLineId], references: [id])
+  itemId              String             @map("item_id") @db.Uuid
+  item                InventoryItem      @relation(fields: [itemId], references: [id])
+  qty                 Decimal            @db.Decimal(14, 3)
+  currency            String             @default("XOF") @db.Char(3)
+  unitCost            BigInt             @map("unit_cost")
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([tenantId])
+  @@index([goodsReceiptId])
+  @@index([purchaseOrderLineId])
+  @@index([itemId])
+  @@map("goods_receipt_lines")
+}
+
+model ReorderSuggestion {
+  id              String                  @id @default(uuid(7)) @db.Uuid
+  tenantId        String                  @map("tenant_id") @db.Uuid
+  tenant          Tenant                  @relation(fields: [tenantId], references: [id])
+  itemId          String                  @map("item_id") @db.Uuid
+  item            InventoryItem           @relation(fields: [itemId], references: [id])
+  warehouseId     String                  @map("warehouse_id") @db.Uuid
+  warehouse       Warehouse               @relation(fields: [warehouseId], references: [id])
+  purchaseOrderId String?                 @map("purchase_order_id") @db.Uuid
+  purchaseOrder   PurchaseOrder?          @relation(fields: [purchaseOrderId], references: [id])
+  suggestedQty    Decimal                 @map("suggested_qty") @db.Decimal(14, 3)
+  reason          String?
+  generatedAt     DateTime                @default(now()) @map("generated_at") @db.Timestamptz(6)
+  status          ReorderSuggestionStatus @default(OPEN)
+  createdAt       DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tenantId])
+  @@index([itemId])
+  @@index([warehouseId])
+  @@index([purchaseOrderId])
+  @@map("reorder_suggestions")
+}
+
+model Asset {
+  id                  String               @id @default(uuid(7)) @db.Uuid
+  tenantId            String               @map("tenant_id") @db.Uuid
+  tenant              Tenant               @relation(fields: [tenantId], references: [id])
+  propertyId          String               @map("property_id") @db.Uuid
+  property            Property             @relation(fields: [propertyId], references: [id])
+  roomId              String?              @map("room_id") @db.Uuid
+  room                Room?                @relation(fields: [roomId], references: [id])
+  name                String
+  category            String?
+  serial              String?
+  installDate         DateTime?            @map("install_date") @db.Date
+  deletedAt           DateTime?            @map("deleted_at") @db.Timestamptz(6)
+  createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  maintenanceRequests MaintenanceRequest[]
+  preventivePlans     PreventivePlan[]
+
+  @@index([tenantId])
+  @@index([propertyId])
+  @@index([roomId])
+  @@map("assets")
+}
+
+model MaintenanceRequest {
+  id               String            @id @default(uuid(7)) @db.Uuid
+  tenantId         String            @map("tenant_id") @db.Uuid
+  tenant           Tenant            @relation(fields: [tenantId], references: [id])
+  propertyId       String            @map("property_id") @db.Uuid
+  property         Property          @relation(fields: [propertyId], references: [id])
+  roomId           String?           @map("room_id") @db.Uuid
+  room             Room?             @relation(fields: [roomId], references: [id])
+  assetId          String?           @map("asset_id") @db.Uuid
+  asset            Asset?            @relation(fields: [assetId], references: [id])
+  assignedToId     String?           @map("assigned_to_id") @db.Uuid
+  assignedTo       User?             @relation(fields: [assignedToId], references: [id])
+  preventivePlanId String?           @map("preventive_plan_id") @db.Uuid
+  preventivePlan   PreventivePlan?   @relation(fields: [preventivePlanId], references: [id])
+  source           MaintenanceSource
+  title            String
+  description      String?
+  priority         Priority          @default(NORMAL)
+  status           MaintenanceStatus @default(OPEN)
+  photos           String[]          @db.Uuid
+  blocksRoom       Boolean           @default(false) @map("blocks_room")
+  resolvedAt       DateTime?         @map("resolved_at") @db.Timestamptz(6)
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy        String?           @map("created_by") @db.Uuid
+  roomBlocks       RoomBlock[]
+  guestRequests    GuestRequest[]
+  workOrders       WorkOrder[]
+
+  @@index([tenantId, status, priority])
+  @@index([propertyId])
+  @@index([roomId])
+  @@index([assetId])
+  @@index([assignedToId])
+  @@index([preventivePlanId])
+  @@map("maintenance_requests")
+}
+
+model WorkOrder {
+  id           String             @id @default(uuid(7)) @db.Uuid
+  tenantId     String             @map("tenant_id") @db.Uuid
+  tenant       Tenant             @relation(fields: [tenantId], references: [id])
+  requestId    String             @map("request_id") @db.Uuid
+  request      MaintenanceRequest @relation(fields: [requestId], references: [id])
+  assignedToId String?            @map("assigned_to_id") @db.Uuid
+  assignedTo   User?              @relation(fields: [assignedToId], references: [id])
+  status       WorkOrderStatus    @default(OPEN)
+  startedAt    DateTime?          @map("started_at") @db.Timestamptz(6)
+  completedAt  DateTime?          @map("completed_at") @db.Timestamptz(6)
+  laborMinutes Int?               @map("labor_minutes")
+  resolution   String?
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tenantId])
+  @@index([requestId])
+  @@index([assignedToId])
+  @@map("work_orders")
+}
+
+model PreventivePlan {
+  id                  String               @id @default(uuid(7)) @db.Uuid
+  tenantId            String               @map("tenant_id") @db.Uuid
+  tenant              Tenant               @relation(fields: [tenantId], references: [id])
+  propertyId          String               @map("property_id") @db.Uuid
+  property            Property             @relation(fields: [propertyId], references: [id])
+  assetId             String?              @map("asset_id") @db.Uuid
+  asset               Asset?               @relation(fields: [assetId], references: [id])
+  roomId              String?              @map("room_id") @db.Uuid
+  room                Room?                @relation(fields: [roomId], references: [id])
+  title               String
+  description         String?
+  frequencyType       PreventiveFrequency  @map("frequency_type")
+  frequencyValue      Int                  @map("frequency_value")
+  lastGeneratedAt     DateTime?            @map("last_generated_at") @db.Timestamptz(6)
+  nextDueAt           DateTime?            @map("next_due_at") @db.Timestamptz(6)
+  isActive            Boolean              @default(true) @map("is_active")
+  createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  maintenanceRequests MaintenanceRequest[]
+
+  @@index([tenantId])
+  @@index([propertyId])
+  @@index([assetId])
+  @@index([roomId])
+  @@map("preventive_plans")
+}
+
+model RoomStatusHistory {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  tenant     Tenant    @relation(fields: [tenantId], references: [id])
+  roomId     String    @map("room_id") @db.Uuid
+  room       Room      @relation(fields: [roomId], references: [id])
+  fromStatus HkStatus? @map("from_status")
+  toStatus   HkStatus  @map("to_status")
+  at         DateTime  @default(now()) @db.Timestamptz(6)
+  userId     String?   @map("user_id") @db.Uuid
+  reason     String?
+
+  @@index([roomId, at])
+  @@index([tenantId])
+  @@map("room_status_history")
+}
+
+// ======================================================================
+// §3 ter — Extensibilité et compléments (RLS)
+// ======================================================================
+
+model Setting {
+  id        String       @id @default(uuid(7)) @db.Uuid
+  tenantId  String?      @map("tenant_id") @db.Uuid
+  tenant    Tenant?      @relation(fields: [tenantId], references: [id])
+  scope     SettingScope
+  scopeId   String?      @map("scope_id") @db.Uuid
+  key       String
+  value     Json
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([scope, scopeId, key])
+  @@index([tenantId])
+  @@map("settings")
+}
+
+model CustomFieldDefinition {
+  id        String          @id @default(uuid(7)) @db.Uuid
+  tenantId  String          @map("tenant_id") @db.Uuid
+  tenant    Tenant          @relation(fields: [tenantId], references: [id])
+  entity    String
+  key       String
+  labelI18n Json            @map("label_i18n")
+  type      CustomFieldType
+  options   Json?
+  required  Boolean         @default(false)
+  sort      Int             @default(0)
+  isActive  Boolean         @default(true) @map("is_active")
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, entity, key])
+  @@map("custom_field_definitions")
+}
+
+model LookupValue {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  listKey   String    @map("list_key")
+  code      String
+  labelI18n Json      @map("label_i18n")
+  sort      Int       @default(0)
+  isSystem  Boolean   @default(false) @map("is_system")
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  products  Product[]
+
+  @@unique([tenantId, listKey, code])
+  @@map("lookup_values")
+}
+
+model FiscalDocument {
+  id           String               @id @default(uuid(7)) @db.Uuid
+  tenantId     String               @map("tenant_id") @db.Uuid
+  tenant       Tenant               @relation(fields: [tenantId], references: [id])
+  invoiceId    String               @map("invoice_id") @db.Uuid
+  invoice      Invoice              @relation(fields: [invoiceId], references: [id])
+  provider     String
+  status       FiscalDocumentStatus @default(PENDING)
+  fiscalNumber String?              @map("fiscal_number")
+  qrCode       String?              @map("qr_code")
+  payload      Json?
+  error        String?
+  submittedAt  DateTime?            @map("submitted_at") @db.Timestamptz(6)
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tenantId])
+  @@index([invoiceId])
+  @@map("fiscal_documents")
+}
+
+model ExchangeRate {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  base      String   @db.Char(3)
+  quote     String   @db.Char(3)
+  rate      Decimal  @db.Decimal(18, 8)
+  validOn   DateTime @map("valid_on") @db.Date
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String?  @map("created_by") @db.Uuid
+
+  @@unique([tenantId, base, quote, validOn])
+  @@map("exchange_rates")
+}
+
+model ImportJob {
+  id          String          @id @default(uuid(7)) @db.Uuid
+  tenantId    String          @map("tenant_id") @db.Uuid
+  tenant      Tenant          @relation(fields: [tenantId], references: [id])
+  entity      String
+  fileId      String?         @map("file_id") @db.Uuid
+  mapping     Json?
+  status      ImportJobStatus @default(PENDING)
+  totals      Json?
+  startedAt   DateTime?       @map("started_at") @db.Timestamptz(6)
+  completedAt DateTime?       @map("completed_at") @db.Timestamptz(6)
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy   String?         @map("created_by") @db.Uuid
+  importRows  ImportRow[]
+
+  @@index([tenantId])
+  @@map("import_jobs")
+}
+
+model ImportRow {
+  id              String          @id @default(uuid(7)) @db.Uuid
+  tenantId        String          @map("tenant_id") @db.Uuid
+  tenant          Tenant          @relation(fields: [tenantId], references: [id])
+  jobId           String          @map("job_id") @db.Uuid
+  job             ImportJob       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  rowNumber       Int             @map("row_number")
+  payload         Json
+  errors          Json?
+  status          ImportRowStatus @default(PENDING)
+  createdEntityId String?         @map("created_entity_id") @db.Uuid
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([jobId, rowNumber])
+  @@index([tenantId])
+  @@map("import_rows")
+}
+
+model LedgerAccount {
+  id              String           @id @default(uuid(7)) @db.Uuid
+  tenantId        String           @map("tenant_id") @db.Uuid
+  tenant          Tenant           @relation(fields: [tenantId], references: [id])
+  code            String
+  name            String
+  accountClass    String?          @map("account_class")
+  parentCode      String?          @map("parent_code")
+  isActive        Boolean          @default(true) @map("is_active")
+  deletedAt       DateTime?        @map("deleted_at") @db.Timestamptz(6)
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  accountMappings AccountMapping[]
+
+  @@unique([tenantId, code])
+  @@map("ledger_accounts")
+}
+
+model AccountMapping {
+  id              String             @id @default(uuid(7)) @db.Uuid
+  tenantId        String             @map("tenant_id") @db.Uuid
+  tenant          Tenant             @relation(fields: [tenantId], references: [id])
+  propertyId      String?            @map("property_id") @db.Uuid
+  property        Property?          @relation(fields: [propertyId], references: [id])
+  ledgerAccountId String             @map("ledger_account_id") @db.Uuid
+  ledgerAccount   LedgerAccount      @relation(fields: [ledgerAccountId], references: [id])
+  kind            AccountMappingKind
+  key             String
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, propertyId, kind, key])
+  @@index([propertyId])
+  @@index([ledgerAccountId])
+  @@map("account_mappings")
+}
+
+model AccountingExport {
+  id          String                 @id @default(uuid(7)) @db.Uuid
+  tenantId    String                 @map("tenant_id") @db.Uuid
+  tenant      Tenant                 @relation(fields: [tenantId], references: [id])
+  propertyId  String?                @map("property_id") @db.Uuid
+  property    Property?              @relation(fields: [propertyId], references: [id])
+  periodStart DateTime               @map("period_start") @db.Date
+  periodEnd   DateTime               @map("period_end") @db.Date
+  format      String
+  fileId      String?                @map("file_id") @db.Uuid
+  status      AccountingExportStatus @default(PENDING)
+  error       String?
+  createdAt   DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy   String?                @map("created_by") @db.Uuid
+
+  @@index([tenantId])
+  @@index([propertyId])
+  @@map("accounting_exports")
+}
+
+model PeriodClosing {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  propertyId  String   @map("property_id") @db.Uuid
+  property    Property @relation(fields: [propertyId], references: [id])
+  periodStart DateTime @map("period_start") @db.Date
+  periodEnd   DateTime @map("period_end") @db.Date
+  closedAt    DateTime @default(now()) @map("closed_at") @db.Timestamptz(6)
+  isLocked    Boolean  @default(true) @map("is_locked")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy   String?  @map("created_by") @db.Uuid
+
+  @@unique([propertyId, periodStart])
+  @@index([tenantId])
+  @@map("period_closings")
+}
+
+model MinibarTemplate {
+  id            String         @id @default(uuid(7)) @db.Uuid
+  tenantId      String         @map("tenant_id") @db.Uuid
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  propertyId    String         @map("property_id") @db.Uuid
+  property      Property       @relation(fields: [propertyId], references: [id])
+  roomTypeId    String?        @map("room_type_id") @db.Uuid
+  roomType      RoomType?      @relation(fields: [roomTypeId], references: [id])
+  name          String
+  items         Json
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  minibarCounts MinibarCount[]
+
+  @@index([tenantId])
+  @@index([propertyId])
+  @@index([roomTypeId])
+  @@map("minibar_templates")
+}
+
+model MinibarCount {
+  id         String           @id @default(uuid(7)) @db.Uuid
+  tenantId   String           @map("tenant_id") @db.Uuid
+  tenant     Tenant           @relation(fields: [tenantId], references: [id])
+  roomId     String           @map("room_id") @db.Uuid
+  room       Room             @relation(fields: [roomId], references: [id])
+  stayId     String?          @map("stay_id") @db.Uuid
+  stay       Stay?            @relation(fields: [stayId], references: [id])
+  templateId String?          @map("template_id") @db.Uuid
+  template   MinibarTemplate? @relation(fields: [templateId], references: [id])
+  folioId    String?          @map("folio_id") @db.Uuid
+  folio      Folio?           @relation(fields: [folioId], references: [id])
+  countedAt  DateTime         @default(now()) @map("counted_at") @db.Timestamptz(6)
+  lines      Json
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy  String?          @map("created_by") @db.Uuid
+
+  @@index([tenantId])
+  @@index([roomId])
+  @@index([stayId])
+  @@index([templateId])
+  @@index([folioId])
+  @@map("minibar_counts")
+}
+
+model LostFoundItem {
+  id           String          @id @default(uuid(7)) @db.Uuid
+  tenantId     String          @map("tenant_id") @db.Uuid
+  tenant       Tenant          @relation(fields: [tenantId], references: [id])
+  propertyId   String          @map("property_id") @db.Uuid
+  property     Property        @relation(fields: [propertyId], references: [id])
+  roomId       String?         @map("room_id") @db.Uuid
+  room         Room?           @relation(fields: [roomId], references: [id])
+  guestId      String?         @map("guest_id") @db.Uuid
+  guest        Guest?          @relation(fields: [guestId], references: [id])
+  description  String
+  foundAt      DateTime        @map("found_at") @db.Timestamptz(6)
+  location     String?
+  status       LostFoundStatus @default(FOUND)
+  returnedAt   DateTime?       @map("returned_at") @db.Timestamptz(6)
+  photoFileIds String[]        @map("photo_file_ids") @db.Uuid
+  notes        String?
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy    String?         @map("created_by") @db.Uuid
+
+  @@index([tenantId, guestId])
+  @@index([propertyId])
+  @@index([roomId])
+  @@index([guestId])
+  @@map("lost_found_items")
+}
+
+model ApiKey {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  tenant     Tenant    @relation(fields: [tenantId], references: [id])
+  name       String
+  prefix     String
+  hash       String    @unique
+  scopes     String[]
+  lastUsedAt DateTime? @map("last_used_at") @db.Timestamptz(6)
+  expiresAt  DateTime? @map("expires_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy  String?   @map("created_by") @db.Uuid
+
+  @@index([tenantId])
+  @@map("api_keys")
+}
+
+model WebhookSubscription {
+  id                String            @id @default(uuid(7)) @db.Uuid
+  tenantId          String            @map("tenant_id") @db.Uuid
+  tenant            Tenant            @relation(fields: [tenantId], references: [id])
+  url               String
+  events            String[]
+  secretEnc         String            @map("secret_enc")
+  description       String?
+  isActive          Boolean           @default(true) @map("is_active")
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy         String?           @map("created_by") @db.Uuid
+  webhookDeliveries WebhookDelivery[]
+
+  @@index([tenantId])
+  @@map("webhook_subscriptions")
+}
+
+model WebhookDelivery {
+  id             String                @id @default(uuid(7)) @db.Uuid
+  tenantId       String                @map("tenant_id") @db.Uuid
+  tenant         Tenant                @relation(fields: [tenantId], references: [id])
+  subscriptionId String                @map("subscription_id") @db.Uuid
+  subscription   WebhookSubscription   @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  outboxEventId  String?               @map("outbox_event_id") @db.Uuid
+  outboxEvent    OutboxEvent?          @relation(fields: [outboxEventId], references: [id])
+  eventType      String                @map("event_type")
+  payload        Json
+  status         WebhookDeliveryStatus @default(PENDING)
+  attempts       Int                   @default(0)
+  responseCode   Int?                  @map("response_code")
+  responseBody   String?               @map("response_body")
+  nextAttemptAt  DateTime?             @map("next_attempt_at") @db.Timestamptz(6)
+  deliveredAt    DateTime?             @map("delivered_at") @db.Timestamptz(6)
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tenantId])
+  @@index([subscriptionId])
+  @@index([outboxEventId])
+  @@map("webhook_deliveries")
+}
+
+model DailyStatsProperty {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  propertyId    String   @map("property_id") @db.Uuid
+  property      Property @relation(fields: [propertyId], references: [id])
+  businessDate  DateTime @map("business_date") @db.Date
+  currency      String   @default("XOF") @db.Char(3)
+  occupied      Int      @default(0)
+  available     Int      @default(0)
+  revenueRoom   BigInt   @default(0) @map("revenue_room")
+  revenueByDept Json     @default("{}") @map("revenue_by_dept")
+  adr           BigInt   @default(0)
+  revpar        BigInt   @default(0)
+  covers        Int      @default(0)
+  appointments  Int      @default(0)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([propertyId, businessDate])
+  @@index([tenantId])
+  @@map("daily_stats_property")
+}
+
+model DailyStatsDepartment {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  propertyId     String   @map("property_id") @db.Uuid
+  property       Property @relation(fields: [propertyId], references: [id])
+  businessDate   DateTime @map("business_date") @db.Date
+  departmentCode String   @map("department_code")
+  currency       String   @default("XOF") @db.Char(3)
+  revenue        BigInt   @default(0)
+  covers         Int?
+  appointments   Int?
+  metrics        Json?
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([propertyId, businessDate, departmentCode])
+  @@index([tenantId])
+  @@map("daily_stats_department")
+}
+
+enum PlatformRole {
+  SUPER_ADMIN
+  FINANCE
+  SUPPORT
+  READ_ONLY
+
+  @@map("platform_role")
+}
+
+enum BillingCycle {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+
+  @@map("billing_cycle")
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+
+  @@map("tenant_status")
+}
+
+enum DomainType {
+  SUBDOMAIN
+  CUSTOM
+
+  @@map("domain_type")
+}
+
+enum TlsStatus {
+  PENDING
+  ACTIVE
+  FAILED
+
+  @@map("tls_status")
+}
+
+enum OverrideKind {
+  FEATURE
+  QUOTA
+  DISCOUNT
+
+  @@map("override_kind")
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+  CANCELLED
+
+  @@map("subscription_status")
+}
+
+enum PlatformInvoiceStatus {
+  DRAFT
+  ISSUED
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  VOID
+
+  @@map("platform_invoice_status")
+}
+
+enum PaymentMethod {
+  MIXX
+  MOOV_MONEY
+  CASH
+  CARD
+
+  @@map("payment_method")
+}
+
+enum PaymentStatus {
+  PENDING_VALIDATION
+  CONFIRMED
+  REVERSED
+
+  @@map("payment_status")
+}
+
+enum DeclarationStatus {
+  SUBMITTED
+  APPROVED
+  REJECTED
+
+  @@map("declaration_status")
+}
+
+enum SupportTicketStatus {
+  OPEN
+  PENDING
+  RESOLVED
+  CLOSED
+
+  @@map("support_ticket_status")
+}
+
+enum SupportAuthorType {
+  TENANT_USER
+  PLATFORM_USER
+
+  @@map("support_author_type")
+}
+
+enum TenantAddonStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+
+  @@map("tenant_addon_status")
+}
+
+enum CouponType {
+  PERCENT
+  AMOUNT
+  FREE_MONTHS
+
+  @@map("coupon_type")
+}
+
+enum FeatureRolloutStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+
+  @@map("feature_rollout_status")
+}
+
+enum LegalDocType {
+  TOS
+  DPA
+  PRIVACY
+
+  @@map("legal_doc_type")
+}
+
+enum UserStatus {
+  INVITED
+  ACTIVE
+  DISABLED
+
+  @@map("user_status")
+}
+
+enum MfaMode {
+  OFF
+  OPTIONAL
+  REQUIRED_FOR_ROLES
+  REQUIRED_ALL
+
+  @@map("mfa_mode")
+}
+
+enum CommunicationChannel {
+  EMAIL
+  SMS
+  WHATSAPP
+  PHONE
+  NOTE
+
+  @@map("communication_channel")
+}
+
+enum CommunicationDirection {
+  INBOUND
+  OUTBOUND
+
+  @@map("communication_direction")
+}
+
+enum HkStatus {
+  CLEAN
+  DIRTY
+  IN_PROGRESS
+  INSPECTED
+  OUT_OF_ORDER
+  OUT_OF_SERVICE
+
+  @@map("hk_status")
+}
+
+enum RoomBlockReason {
+  MAINTENANCE
+  OUT_OF_SERVICE
+
+  @@map("room_block_reason")
+}
+
+enum TaxType {
+  PERCENT
+  FIXED_PER_PERSON_NIGHT
+  FIXED_PER_NIGHT
+
+  @@map("tax_type")
+}
+
+enum MealPlan {
+  RO
+  BB
+  HB
+  FB
+
+  @@map("meal_plan")
+}
+
+enum PolicyKind {
+  CANCELLATION
+  DEPOSIT
+
+  @@map("policy_kind")
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  CHECKED_IN
+  CHECKED_OUT
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+
+  @@map("reservation_status")
+}
+
+enum ReservationChannel {
+  FRONT_DESK
+  PORTAL
+  PHONE
+  AGENCY
+
+  @@map("reservation_channel")
+}
+
+enum WaitlistStatus {
+  WAITING
+  OFFERED
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+
+  @@map("waitlist_status")
+}
+
+enum FolioStatus {
+  OPEN
+  CLOSED
+
+  @@map("folio_status")
+}
+
+enum FolioLineType {
+  ROOM
+  EXTRA
+  POS
+  TAX
+  DISCOUNT
+  ADJUSTMENT
+  SPA
+  ACTIVITY
+  PACKAGE
+  MINIBAR
+  PENALTY
+
+  @@map("folio_line_type")
+}
+
+enum InvoiceStatus {
+  ISSUED
+  PARTIALLY_PAID
+  PAID
+  CREDITED
+
+  @@map("invoice_status")
+}
+
+enum FolioPaymentMethod {
+  MIXX
+  MOOV_MONEY
+  CASH
+  CARD
+  BANK_TRANSFER
+  CITY_LEDGER
+  LOYALTY_POINTS
+
+  @@map("folio_payment_method")
+}
+
+enum DepositMethod {
+  MIXX
+  MOOV_MONEY
+  BANK_TRANSFER
+
+  @@map("deposit_method")
+}
+
+enum CashMovementType {
+  IN
+  OUT
+
+  @@map("cash_movement_type")
+}
+
+enum NightAuditStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+
+  @@map("night_audit_status")
+}
+
+enum HkTaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  INSPECTED
+  CANCELLED
+
+  @@map("hk_task_status")
+}
+
+enum OutletType {
+  RESTAURANT
+  BAR
+  ROOM_SERVICE
+  SHOP
+
+  @@map("outlet_type")
+}
+
+enum StockMovementType {
+  IN
+  OUT
+  TRANSFER
+  LOSS
+  CONSUMPTION
+  ADJUST
+
+  @@map("stock_movement_type")
+}
+
+enum StockCountStatus {
+  DRAFT
+  IN_PROGRESS
+  VALIDATED
+  CANCELLED
+
+  @@map("stock_count_status")
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  PARTIAL
+  RECEIVED
+  CANCELLED
+
+  @@map("purchase_order_status")
+}
+
+enum FileScanStatus {
+  PENDING
+  CLEAN
+  INFECTED
+  ERROR
+
+  @@map("file_scan_status")
+}
+
+enum GuestRequestType {
+  ROOM_SERVICE
+  AMENITY
+  MAINTENANCE
+  OTHER
+
+  @@map("guest_request_type")
+}
+
+enum GuestRequestStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  CANCELLED
+
+  @@map("guest_request_status")
+}
+
+enum ConsentPurpose {
+  MARKETING
+  PROFILING
+
+  @@map("consent_purpose")
+}
+
+enum LoyaltyTxType {
+  EARN
+  REDEEM
+  EXPIRE
+  ADJUST
+  REVERSAL
+
+  @@map("loyalty_tx_type")
+}
+
+enum ScheduleStatus {
+  DRAFT
+  PUBLISHED
+
+  @@map("schedule_status")
+}
+
+enum TimeEntrySource {
+  WEB
+  KIOSK
+
+  @@map("time_entry_source")
+}
+
+enum LeaveStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  CANCELLED
+
+  @@map("leave_status")
+}
+
+enum Priority {
+  URGENT
+  HIGH
+  NORMAL
+  LOW
+
+  @@map("priority")
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  CANCELLED
+
+  @@map("task_status")
+}
+
+enum ConversationType {
+  DIRECT
+  DEPARTMENT
+
+  @@map("conversation_type")
+}
+
+enum DiningTableStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+  OUT_OF_SERVICE
+
+  @@map("dining_table_status")
+}
+
+enum OrderType {
+  DINE_IN
+  ROOM
+  TAKEAWAY
+
+  @@map("order_type")
+}
+
+enum OrderStatus {
+  OPEN
+  SENT
+  SERVED
+  PAID
+  CHARGED_TO_ROOM
+  VOID
+
+  @@map("order_status")
+}
+
+enum OrderItemStatus {
+  PENDING
+  SENT
+  SERVED
+  VOID
+
+  @@map("order_item_status")
+}
+
+enum TableReservationStatus {
+  BOOKED
+  SEATED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+
+  @@map("table_reservation_status")
+}
+
+enum AppointmentStatus {
+  BOOKED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+
+  @@map("appointment_status")
+}
+
+enum PackageComponentType {
+  ROOM_NIGHT
+  SPA
+  MEAL
+  ACTIVITY
+
+  @@map("package_component_type")
+}
+
+enum ActivityBookingStatus {
+  BOOKED
+  ATTENDED
+  CANCELLED
+  NO_SHOW
+
+  @@map("activity_booking_status")
+}
+
+enum RecipeKind {
+  MENU_ITEM
+  SPA_SERVICE
+
+  @@map("recipe_kind")
+}
+
+enum ReorderSuggestionStatus {
+  OPEN
+  ORDERED
+  DISMISSED
+
+  @@map("reorder_suggestion_status")
+}
+
+enum MaintenanceSource {
+  STAFF
+  GUEST
+  AUTO
+  PREVENTIVE
+
+  @@map("maintenance_source")
+}
+
+enum MaintenanceStatus {
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  ON_HOLD
+  RESOLVED
+  CLOSED
+  CANCELLED
+
+  @@map("maintenance_status")
+}
+
+enum WorkOrderStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  CANCELLED
+
+  @@map("work_order_status")
+}
+
+enum PreventiveFrequency {
+  DAYS
+  MONTHS
+  OCCUPIED_NIGHTS
+
+  @@map("preventive_frequency")
+}
+
+enum SettingScope {
+  PLATFORM
+  TENANT
+  PROPERTY
+  USER
+
+  @@map("setting_scope")
+}
+
+enum CustomFieldType {
+  TEXT
+  NUMBER
+  DATE
+  BOOLEAN
+  SELECT
+  MULTI_SELECT
+
+  @@map("custom_field_type")
+}
+
+enum FiscalDocumentStatus {
+  PENDING
+  SUBMITTED
+  ACCEPTED
+  REJECTED
+  ERROR
+
+  @@map("fiscal_document_status")
+}
+
+enum ImportJobStatus {
+  PENDING
+  VALIDATING
+  READY
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+
+  @@map("import_job_status")
+}
+
+enum ImportRowStatus {
+  PENDING
+  VALID
+  INVALID
+  IMPORTED
+  FAILED
+
+  @@map("import_row_status")
+}
+
+enum AccountMappingKind {
+  DEPARTMENT
+  PAYMENT_METHOD
+  TAX
+  OTHER
+
+  @@map("account_mapping_kind")
+}
+
+enum AccountingExportStatus {
+  PENDING
+  GENERATED
+  FAILED
+
+  @@map("accounting_export_status")
+}
+
+enum LostFoundStatus {
+  FOUND
+  CLAIMED
+  RETURNED
+  DISPOSED
+
+  @@map("lost_found_status")
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  RETRYING
+
+  @@map("webhook_delivery_status")
+}
