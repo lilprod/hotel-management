@@ -1,0 +1,21 @@
+{
+  "main": "Navigation principale",
+  "dashboard": "Tableau de bord",
+  "reservations": "Réservations",
+  "calendar": "Calendrier",
+  "frontDesk": "Réception",
+  "guests": "Clients",
+  "billing": "Facturation",
+  "restaurant": "Restaurant",
+  "spa": "Spa",
+  "activities": "Activités",
+  "inventory": "Stocks",
+  "maintenance": "Maintenance",
+  "housekeeping": "Ménage",
+  "staff": "Personnel",
+  "messages": "Messages",
+  "reports": "Rapports",
+  "settings": "Paramètres",
+  "security": "Sécurité",
+  "branding": "Image de marque"
+}

@@ -1,0 +1,35 @@
+{
+  "appName": "Hotel Management",
+  "skipToContent": "Aller au contenu",
+  "notifications": "Notifications",
+  "language": "Langue",
+  "toggleTheme": "Basculer le mode clair / sombre",
+  "userMenu": "Menu utilisateur",
+  "profile": "Mon profil",
+  "logout": "Se déconnecter",
+  "quickActions": "Actions rapides",
+  "newBooking": "Nouvelle réservation",
+  "checkIn": "Check-in",
+  "checkOut": "Check-out",
+  "placeholder": {
+    "title": "Module en construction",
+    "description": "Cette page sera livrée dans un lot ultérieur."
+  },
+  "forbidden": {
+    "title": "Module indisponible",
+    "description": "Ce module n'est pas inclus dans votre offre ou vos droits."
+  },
+  "notFound": "Page introuvable",
+  "login": {
+    "title": "Connexion",
+    "subtitle": "Espace du personnel",
+    "email": "Adresse e-mail",
+    "password": "Mot de passe",
+    "submit": "Se connecter",
+    "placeholderNotice": "Maquette : aucun appel API n'est effectué."
+  },
+  "validation": {
+    "emailInvalid": "Saisissez une adresse e-mail valide.",
+    "passwordRequired": "Le mot de passe est obligatoire."
+  }
+}

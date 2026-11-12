@@ -1,0 +1,15 @@
+{
+  "skipToContent": "Skip to main content",
+  "openMenu": "Open menu",
+  "closeMenu": "Close menu",
+  "language": "Language",
+  "french": "Français",
+  "english": "English",
+  "loading": "Loading…",
+  "footer": "All rights reserved.",
+  "notFound": {
+    "title": "Page not found",
+    "body": "The page you requested does not exist or has moved.",
+    "home": "Back to home"
+  }
+}

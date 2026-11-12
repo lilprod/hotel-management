@@ -1,0 +1,40 @@
+{
+  "home": {
+    "title": "Bienvenue",
+    "lead": "Un séjour calme et raffiné, au cœur du Togo.",
+    "cta": "Vérifier les disponibilités",
+    "discover": "Découvrir"
+  },
+  "sections": {
+    "accommodations": {
+      "title": "Hébergements",
+      "lead": "Chambres, suites et villas pensées pour votre confort."
+    },
+    "spa": { "title": "Spa", "lead": "Soins et moments de détente." },
+    "restaurant": { "title": "Restaurant", "lead": "Une cuisine de saison, locale et généreuse." },
+    "activities": { "title": "Activités", "lead": "Excursions et expériences à partager." },
+    "comingSoon": "Le contenu de cet établissement sera affiché ici."
+  },
+  "booking": {
+    "title": "Rechercher un séjour",
+    "lead": "Choisissez vos dates et le nombre de voyageurs.",
+    "checkIn": "Arrivée",
+    "checkOut": "Départ",
+    "adults": "Adultes",
+    "children": "Enfants",
+    "submit": "Rechercher",
+    "nights_one": "{{count}} nuit",
+    "nights_other": "{{count}} nuits",
+    "summary": "Recherche du {{checkIn}} au {{checkOut}} ({{nights}}), {{adults}} adulte(s), {{children}} enfant(s). Maquette : aucune disponibilité n'est interrogée.",
+    "validation": {
+      "dateRequired": "Indiquez une date.",
+      "checkoutAfterCheckin": "Le départ doit être après l'arrivée.",
+      "adultsInvalid": "Indiquez entre 1 et 10 adultes.",
+      "childrenInvalid": "Indiquez entre 0 et 10 enfants."
+    }
+  },
+  "account": {
+    "title": "Mon compte",
+    "lead": "La connexion et le suivi de vos réservations seront disponibles prochainement."
+  }
+}
