@@ -14,7 +14,7 @@
   "scripts": {
     "dev": "tsc -p tsconfig.build.json --watch",
     "build": "prisma generate && tsc -p tsconfig.build.json",
-    "lint": "eslint src test",
+    "lint": "eslint src test seeds",
     "typecheck": "prisma generate && tsc --noEmit",
     "test": "prisma generate && vitest run",
     "postinstall": "prisma generate",
@@ -22,16 +22,23 @@
     "db:validate": "prisma validate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
-    "db:status": "prisma migrate status"
+    "db:status": "prisma migrate status",
+    "prelint": "pnpm --filter @hm/shared build",
+    "pretypecheck": "pnpm --filter @hm/shared build",
+    "pretest": "pnpm --filter @hm/shared build",
+    "db:seed": "tsx seeds/index.ts"
   },
   "devDependencies": {
     "@hm/config": "workspace:*",
     "@types/node": "^26.6.6",
     "eslint": "^9.39.0",
+    "tsx": "^4.20.6",
     "typescript": "~6.0.3",
     "vitest": "^5.1.0"
   },
   "dependencies": {
+    "@hm/shared": "workspace:*",
+    "@node-rs/argon2": "^2.0.2",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
     "pg": "^8.23.1",
