@@ -1,0 +1,14 @@
+{
+  "main": "Main navigation",
+  "dashboard": "Dashboard",
+  "tenants": "Tenants",
+  "plans": "Plans",
+  "invoices": "Invoices",
+  "payments": "Payments",
+  "paymentDeclarations": "Payment declarations",
+  "reports": "Reports",
+  "announcements": "Announcements",
+  "support": "Support",
+  "platformUsers": "Platform users",
+  "settings": "Settings"
+}

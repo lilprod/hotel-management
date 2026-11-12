@@ -1,0 +1,40 @@
+{
+  "home": {
+    "title": "Welcome",
+    "lead": "A calm, refined stay in the heart of Togo.",
+    "cta": "Check availability",
+    "discover": "Discover"
+  },
+  "sections": {
+    "accommodations": {
+      "title": "Accommodations",
+      "lead": "Rooms, suites and villas designed for your comfort."
+    },
+    "spa": { "title": "Spa", "lead": "Treatments and moments of relaxation." },
+    "restaurant": { "title": "Restaurant", "lead": "Seasonal, local and generous cuisine." },
+    "activities": { "title": "Activities", "lead": "Excursions and experiences to share." },
+    "comingSoon": "This property's content will appear here."
+  },
+  "booking": {
+    "title": "Find a stay",
+    "lead": "Choose your dates and number of guests.",
+    "checkIn": "Check-in",
+    "checkOut": "Check-out",
+    "adults": "Adults",
+    "children": "Children",
+    "submit": "Search",
+    "nights_one": "{{count}} night",
+    "nights_other": "{{count}} nights",
+    "summary": "Searching {{checkIn}} to {{checkOut}} ({{nights}}), {{adults}} adult(s), {{children}} child(ren). Mock-up: no availability is queried.",
+    "validation": {
+      "dateRequired": "Enter a date.",
+      "checkoutAfterCheckin": "Check-out must be after check-in.",
+      "adultsInvalid": "Enter between 1 and 10 adults.",
+      "childrenInvalid": "Enter between 0 and 10 children."
+    }
+  },
+  "account": {
+    "title": "My account",
+    "lead": "Sign-in and booking follow-up will be available soon."
+  }
+}

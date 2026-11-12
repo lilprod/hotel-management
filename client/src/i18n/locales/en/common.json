@@ -1,0 +1,35 @@
+{
+  "appName": "Hotel Management",
+  "skipToContent": "Skip to content",
+  "notifications": "Notifications",
+  "language": "Language",
+  "toggleTheme": "Toggle light / dark mode",
+  "userMenu": "User menu",
+  "profile": "My profile",
+  "logout": "Sign out",
+  "quickActions": "Quick actions",
+  "newBooking": "New booking",
+  "checkIn": "Check-in",
+  "checkOut": "Check-out",
+  "placeholder": {
+    "title": "Module under construction",
+    "description": "This page will be delivered in a later work package."
+  },
+  "forbidden": {
+    "title": "Module unavailable",
+    "description": "This module is not included in your plan or permissions."
+  },
+  "notFound": "Page not found",
+  "login": {
+    "title": "Sign in",
+    "subtitle": "Staff area",
+    "email": "Email address",
+    "password": "Password",
+    "submit": "Sign in",
+    "placeholderNotice": "Mock-up: no API call is made."
+  },
+  "validation": {
+    "emailInvalid": "Enter a valid email address.",
+    "passwordRequired": "Password is required."
+  }
+}

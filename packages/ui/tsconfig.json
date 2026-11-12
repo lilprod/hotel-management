@@ -1,5 +1,5 @@
 {
-  "extends": "../config/tsconfig.node.json",
-  "compilerOptions": { "outDir": "dist", "rootDir": "src" },
-  "include": ["src"]
+  "extends": "../config/tsconfig.react.json",
+  "compilerOptions": { "rootDir": ".", "types": ["node"] },
+  "include": ["src", "vitest.config.ts"]
 }

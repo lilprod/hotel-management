@@ -1,0 +1,14 @@
+{
+  "main": "Navigation principale",
+  "dashboard": "Tableau de bord",
+  "tenants": "Établissements",
+  "plans": "Offres",
+  "invoices": "Factures",
+  "payments": "Paiements",
+  "paymentDeclarations": "Déclarations de paiement",
+  "reports": "Rapports",
+  "announcements": "Annonces",
+  "support": "Support",
+  "platformUsers": "Utilisateurs plateforme",
+  "settings": "Paramètres"
+}
