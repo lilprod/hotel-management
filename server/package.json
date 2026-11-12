@@ -14,15 +14,47 @@
   "scripts": {
     "dev": "tsc -p tsconfig.build.json --watch",
     "build": "tsc -p tsconfig.build.json",
-    "lint": "eslint src",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "start": "node dist/index.js",
+    "start:worker": "node dist/worker.js",
+    "lint": "eslint src test",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@hm/config": "workspace:*",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.25",
+    "@types/multer": "^2.3.0",
     "@types/node": "^26.6.6",
+    "@types/nodemailer": "^8.0.2",
+    "@types/supertest": "^7.2.1",
+    "@types/swagger-ui-express": "^4.1.8",
     "eslint": "^9.39.0",
+    "socket.io-client": "^4.8.4",
+    "supertest": "^7.3.2",
     "typescript": "~6.0.3",
     "vitest": "^5.1.0"
+  },
+  "dependencies": {
+    "@asteasolutions/zod-to-openapi": "^9.1.0",
+    "@aws-sdk/client-s3": "^3.1167.0",
+    "@aws-sdk/s3-request-presigner": "^3.1167.0",
+    "@hm/database": "workspace:*",
+    "@hm/shared": "workspace:*",
+    "@socket.io/redis-adapter": "^8.3.0",
+    "bullmq": "^6.7.5",
+    "cors": "^2.8.6",
+    "express": "^4.22.3",
+    "express-rate-limit": "^8.7.4",
+    "helmet": "^8.3.0",
+    "ioredis": "^6.0.0",
+    "jose": "^6.2.17",
+    "multer": "^2.5.0",
+    "nodemailer": "^10.5.0",
+    "rate-limit-redis": "^6.0.2",
+    "socket.io": "^4.8.4",
+    "swagger-ui-express": "^5.0.1",
+    "winston": "^3.19.0",
+    "zod": "^4.6.7"
   }
 }
