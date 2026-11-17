@@ -38,7 +38,7 @@ export async function issueAccessToken(
   const accessToken = await signAccessToken(
     clean,
     { secret: config.JWT_ACCESS_SECRET, issuer: config.JWT_ISSUER, audience: config.JWT_AUDIENCE },
-    ttlS,
+    `${ttlS}s`,
   );
   return { accessToken, tokenType: 'Bearer' as const, expiresIn: ttlS };
 }

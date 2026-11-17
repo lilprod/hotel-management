@@ -41,23 +41,19 @@ describe('upload helper', () => {
   const app = miniApp({}, upload({ mimeTypes: ['image/*', 'application/pdf'], maxBytes: 1024 }));
 
   it('accepts allowed types within the size limit (memory storage)', async () => {
-    const res = await request(app)
-      .post('/x')
-      .attach('file', Buffer.from('%PDF-1.4'), {
-        filename: 'a.pdf',
-        contentType: 'application/pdf',
-      });
+    const res = await request(app).post('/x').attach('file', Buffer.from('%PDF-1.4'), {
+      filename: 'a.pdf',
+      contentType: 'application/pdf',
+    });
     expect(res.status).toBe(200);
     expect(res.body.file).toEqual({ size: 8, mime: 'application/pdf' });
   });
 
   it('rejects other MIME types with VALIDATION_ERROR', async () => {
-    const res = await request(app)
-      .post('/x')
-      .attach('file', Buffer.from('x'), {
-        filename: 'a.exe',
-        contentType: 'application/x-msdownload',
-      });
+    const res = await request(app).post('/x').attach('file', Buffer.from('x'), {
+      filename: 'a.exe',
+      contentType: 'application/x-msdownload',
+    });
     expect(res.status).toBe(422);
     expect(res.body.code).toBe('VALIDATION_ERROR');
   });
