@@ -82,11 +82,26 @@
     "hostname": "Domain name",
     "add": "Add domain",
     "status": "Status",
-    "statuses": { "PENDING_VERIFICATION": "Pending verification", "VERIFIED": "Verified" },
+    "statuses": {
+      "PENDING_VERIFICATION": "Pending verification",
+      "VERIFIED": "Verified"
+    },
     "txt": "TXT record to publish",
     "verify": "Check DNS",
     "notFound": "TXT record not found yet. DNS propagation can take a while.",
     "remove": "Remove domain",
     "confirmRemove": "Remove this custom domain?"
-  }
+  },
+  "channels": {
+    "EMAIL": "Email",
+    "SMS": "SMS",
+    "WHATSAPP": "WhatsApp"
+  },
+  "contrastMessages": {
+    "PRIMARY_LOW_CONTRAST_WHITE": "White text on the primary color only reaches {{ratio}}:1 (WCAG AA requires 4.5:1): black text will be used.",
+    "PRIMARY_LOW_CONTRAST_BLACK": "Black text on the primary color only reaches {{ratio}}:1 (WCAG AA requires 4.5:1): white text will be used.",
+    "PRIMARY_NO_READABLE_TEXT": "The primary color only reaches {{ratio}}:1 against both white and black text (WCAG AA requires 4.5:1).",
+    "SECONDARY_LOW_CONTRAST_WHITE": "White text on the secondary color only reaches {{ratio}}:1 (WCAG AA requires 4.5:1)."
+  },
+  "contrastUnknown": "Insufficient contrast ({{ratio}}:1, WCAG AA requires 4.5:1)."
 }

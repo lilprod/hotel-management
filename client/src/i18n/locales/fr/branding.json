@@ -82,11 +82,26 @@
     "hostname": "Nom de domaine",
     "add": "Ajouter le domaine",
     "status": "Statut",
-    "statuses": { "PENDING_VERIFICATION": "En attente de vérification", "VERIFIED": "Vérifié" },
+    "statuses": {
+      "PENDING_VERIFICATION": "En attente de vérification",
+      "VERIFIED": "Vérifié"
+    },
     "txt": "Enregistrement TXT à publier",
     "verify": "Vérifier le DNS",
     "notFound": "Enregistrement TXT introuvable pour le moment. La propagation DNS peut prendre du temps.",
     "remove": "Supprimer le domaine",
     "confirmRemove": "Supprimer ce domaine personnalisé ?"
-  }
+  },
+  "channels": {
+    "EMAIL": "E-mail",
+    "SMS": "SMS",
+    "WHATSAPP": "WhatsApp"
+  },
+  "contrastMessages": {
+    "PRIMARY_LOW_CONTRAST_WHITE": "Le texte blanc sur la couleur principale n'atteint que {{ratio}}:1 (WCAG AA exige 4,5:1) : le texte noir sera utilisé.",
+    "PRIMARY_LOW_CONTRAST_BLACK": "Le texte noir sur la couleur principale n'atteint que {{ratio}}:1 (WCAG AA exige 4,5:1) : le texte blanc sera utilisé.",
+    "PRIMARY_NO_READABLE_TEXT": "La couleur principale n'atteint que {{ratio}}:1 face au texte blanc comme au texte noir (WCAG AA exige 4,5:1).",
+    "SECONDARY_LOW_CONTRAST_WHITE": "Le texte blanc sur la couleur secondaire n'atteint que {{ratio}}:1 (WCAG AA exige 4,5:1)."
+  },
+  "contrastUnknown": "Contraste insuffisant ({{ratio}}:1, WCAG AA exige 4,5:1)."
 }

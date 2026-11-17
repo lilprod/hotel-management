@@ -45,7 +45,7 @@ const HEX = /^#[0-9a-fA-F]{6}$/;
 
 /** Colours, document header/footer, legal mentions, sender name and login message. */
 export function BrandingFormPanel() {
-  const { t } = useTranslation('branding');
+  const { t, i18n } = useTranslation('branding');
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -85,6 +85,18 @@ export function BrandingFormPanel() {
   const onPrimary = readableTextColor(validPrimary);
   const ratio = contrastRatio(validPrimary, '#ffffff');
   const serverWarnings = query.data?.contrast.warnings ?? [];
+  /** Builds the message from i18n keys + the numeric ratio; the server's English text is ignored. */
+  const contrastMessage = (w?: { code: string; ratio: number }) => {
+    if (!w) return undefined;
+    const r = w.ratio.toLocaleString(i18n.language, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    return t(`contrastMessages.${w.code}`, {
+      ratio: r,
+      defaultValue: t('contrastUnknown', { ratio: r }),
+    });
+  };
 
   const text = (name: Exclude<keyof BrandingForm, 'legal'>, area = false) => (
     <Form.Item
@@ -138,7 +150,7 @@ export function BrandingFormPanel() {
               type="warning"
               showIcon
               style={{ marginBottom: 12 }}
-              message={serverWarnings[0]?.message}
+              message={contrastMessage(serverWarnings[0])}
             />
           )}
           {text('emailSenderName')}

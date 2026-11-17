@@ -127,7 +127,11 @@ export function TemplatesEditor() {
         pagination={false}
         columns={[
           { title: t('templates.code'), dataIndex: 'code' },
-          { title: t('templates.channel'), dataIndex: 'channel' },
+          {
+            title: t('templates.channel'),
+            dataIndex: 'channel',
+            render: (v: string) => t(`channels.${v}`, { defaultValue: v }),
+          },
           { title: t('templates.locale'), dataIndex: 'locale' },
           {
             key: 'a',

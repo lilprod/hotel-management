@@ -3,6 +3,8 @@ import { Space } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 
+import { StatusTag } from '@hm/ui';
+
 import { api, type Items, type RoomType } from '../api';
 import { usePropertyId } from '../PropertyContext';
 import { ResourceManager } from '../ResourceManager';
@@ -90,7 +92,16 @@ export function RoomsPage() {
             { title: t('rooms.number'), dataIndex: 'number' },
             { title: t('rooms.type'), dataIndex: 'roomTypeId', render: (id: string) => label(id) },
             { title: t('f.floor'), dataIndex: 'floor' },
-            { title: t('rooms.hk'), dataIndex: 'hkStatus' },
+            {
+              title: t('rooms.hk'),
+              dataIndex: 'hkStatus',
+              render: (v: string) => (
+                <StatusTag
+                  status={v.toLowerCase()}
+                  label={t(`rooms.hkStatus.${v}`, { defaultValue: v })}
+                />
+              ),
+            },
           ]}
           fields={[
             { name: 'roomTypeId', label: 'rooms.type', type: 'select', options },

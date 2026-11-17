@@ -51,7 +51,15 @@
     "bulkCreate": "Create",
     "prefix": "Prefix",
     "from": "From",
-    "to": "To"
+    "to": "To",
+    "hkStatus": {
+      "CLEAN": "Clean",
+      "DIRTY": "Dirty",
+      "IN_PROGRESS": "In progress",
+      "INSPECTED": "Inspected",
+      "OUT_OF_ORDER": "Out of order",
+      "OUT_OF_SERVICE": "Out of service"
+    }
   },
   "rates": {
     "plans": "Rate plans",
@@ -69,7 +77,18 @@
     "public": "Public",
     "from": "From",
     "to": "To",
-    "priority": "Priority"
+    "priority": "Priority",
+    "mealPlans": {
+      "RO": "Room only",
+      "BB": "Bed & breakfast",
+      "HB": "Half board",
+      "FB": "Full board"
+    },
+    "empty": {
+      "title": "No rate plan",
+      "description": "Create a rate plan to fill in the price grid.",
+      "cta": "Create a rate plan"
+    }
   },
   "taxes": {
     "type": "Type",

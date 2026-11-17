@@ -51,7 +51,15 @@
     "bulkCreate": "Créer",
     "prefix": "Préfixe",
     "from": "De",
-    "to": "À"
+    "to": "À",
+    "hkStatus": {
+      "CLEAN": "Propre",
+      "DIRTY": "Sale",
+      "IN_PROGRESS": "En cours",
+      "INSPECTED": "Inspectée",
+      "OUT_OF_ORDER": "Hors d'usage",
+      "OUT_OF_SERVICE": "Hors service"
+    }
   },
   "rates": {
     "plans": "Plans tarifaires",
@@ -69,7 +77,18 @@
     "public": "Public",
     "from": "Du",
     "to": "Au",
-    "priority": "Priorité"
+    "priority": "Priorité",
+    "mealPlans": {
+      "RO": "Chambre seule",
+      "BB": "Petit-déjeuner",
+      "HB": "Demi-pension",
+      "FB": "Pension complète"
+    },
+    "empty": {
+      "title": "Aucun plan tarifaire",
+      "description": "Créez un plan tarifaire pour renseigner la grille des prix.",
+      "cta": "Créer un plan tarifaire"
+    }
   },
   "taxes": {
     "type": "Type",
