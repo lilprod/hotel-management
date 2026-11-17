@@ -8,9 +8,7 @@ function channel(value: number): number {
 export function luminance(hex: string): number {
   const n = parseInt(hex.replace('#', '').slice(0, 6), 16);
   return (
-    0.2126 * channel((n >> 16) & 255) +
-    0.7152 * channel((n >> 8) & 255) +
-    0.0722 * channel(n & 255)
+    0.2126 * channel((n >> 16) & 255) + 0.7152 * channel((n >> 8) & 255) + 0.0722 * channel(n & 255)
   );
 }
 

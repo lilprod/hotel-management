@@ -56,11 +56,21 @@ export const TEMPLATE_CATALOG: Readonly<Record<string, TemplateCatalogEntry>> = 
   },
   'payment.receipt': {
     channels: ['EMAIL', 'SMS'],
-    variables: { ...HOTEL, ...GUEST, 'payment.amount': '50 000 XOF', 'payment.method': 'Mobile Money' },
+    variables: {
+      ...HOTEL,
+      ...GUEST,
+      'payment.amount': '50 000 XOF',
+      'payment.method': 'Mobile Money',
+    },
   },
   'portal.password_reset': {
     channels: ['EMAIL'],
-    variables: { ...HOTEL, ...GUEST, 'reset.link': 'https://hotel.example/reset/abc', 'reset.expiresIn': '30 min' },
+    variables: {
+      ...HOTEL,
+      ...GUEST,
+      'reset.link': 'https://hotel.example/reset/abc',
+      'reset.expiresIn': '30 min',
+    },
   },
 };
 
@@ -88,7 +98,11 @@ function checkPath(
   used: Set<string>,
 ): void {
   if (expr.type !== 'PathExpression') {
-    issues.push({ path: where, message: 'Only plain variables are allowed', code: 'template_syntax' });
+    issues.push({
+      path: where,
+      message: 'Only plain variables are allowed',
+      code: 'template_syntax',
+    });
     return;
   }
   const p = expr as hbs.AST.PathExpression;
@@ -118,7 +132,11 @@ function walk(
       case 'MustacheStatement': {
         const m = s as hbs.AST.MustacheStatement;
         if (!m.escaped)
-          issues.push({ path: where, message: 'Unescaped output ({{{ }}}) is forbidden', code: 'template_syntax' });
+          issues.push({
+            path: where,
+            message: 'Unescaped output ({{{ }}}) is forbidden',
+            code: 'template_syntax',
+          });
         else if ((m.params?.length ?? 0) > 0 || m.hash)
           issues.push({ path: where, message: 'Helpers are not allowed', code: 'template_syntax' });
         else checkPath(m.path, allowed, where, issues, used);
@@ -126,7 +144,8 @@ function walk(
       }
       case 'BlockStatement': {
         const b = s as hbs.AST.BlockStatement;
-        const name = b.path.type === 'PathExpression' ? (b.path as hbs.AST.PathExpression).original : '';
+        const name =
+          b.path.type === 'PathExpression' ? (b.path as hbs.AST.PathExpression).original : '';
         const [param] = b.params;
         if (!BLOCK_HELPERS.has(name) || b.params.length !== 1 || b.hash || !param) {
           issues.push({

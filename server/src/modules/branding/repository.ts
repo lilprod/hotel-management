@@ -3,11 +3,7 @@ import { requireTenantId, type AppClient, type Prisma } from '@hm/database';
 export type BrandingRow = NonNullable<Awaited<ReturnType<AppClient['branding']['findFirst']>>>;
 
 type AssetColumn =
-  | 'logoFileId'
-  | 'logoDarkFileId'
-  | 'faviconFileId'
-  | 'loginBgFileId'
-  | 'signatureFileId';
+  'logoFileId' | 'logoDarkFileId' | 'faviconFileId' | 'loginBgFileId' | 'signatureFileId';
 
 const ASSET_COLUMNS: AssetColumn[] = [
   'logoFileId',
@@ -28,7 +24,7 @@ export class BrandingRepository {
   upsert(tenantId: string, data: Prisma.BrandingUncheckedUpdateInput) {
     return this.db.branding.upsert({
       where: { tenantId },
-      create: { tenantId, ...(data as Prisma.BrandingUncheckedCreateInput) },
+      create: { ...(data as Prisma.BrandingUncheckedCreateInput), tenantId },
       update: data,
     });
   }

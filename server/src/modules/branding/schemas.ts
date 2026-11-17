@@ -2,7 +2,13 @@ import { z } from 'zod';
 import { defineSetting } from '../../core/settings.js';
 import { TEMPLATE_CHANNELS } from './template-engine.js';
 
-export const ASSET_KINDS = ['logo', 'logo-dark', 'favicon', 'login-background', 'signature'] as const;
+export const ASSET_KINDS = [
+  'logo',
+  'logo-dark',
+  'favicon',
+  'login-background',
+  'signature',
+] as const;
 export type AssetKind = (typeof ASSET_KINDS)[number];
 
 /** Assets served by the public portal endpoint (the signature / stamp stays staff only). */

@@ -45,7 +45,11 @@ function jpeg(buf: Buffer): ImageInfo | null {
     const isSof =
       marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
     if (isSof)
-      return { mime: 'image/jpeg', height: buf.readUInt16BE(i + 5), width: buf.readUInt16BE(i + 7) };
+      return {
+        mime: 'image/jpeg',
+        height: buf.readUInt16BE(i + 5),
+        width: buf.readUInt16BE(i + 7),
+      };
     i += 2 + buf.readUInt16BE(i + 2);
   }
   return null;

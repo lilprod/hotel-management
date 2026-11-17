@@ -2,11 +2,7 @@ import { requireTenantId, type AppClient, type CommunicationChannel } from '@hm/
 import type { Request } from 'express';
 import { AppError, notFound } from '../../lib/errors.js';
 import { recordAudit } from '../../middleware/audit.js';
-import type {
-  TemplateInput,
-  TemplatePreviewInput,
-  TemplateView,
-} from './schemas.js';
+import type { TemplateInput, TemplatePreviewInput, TemplateView } from './schemas.js';
 import {
   buildContext,
   catalogEntry,
@@ -52,13 +48,25 @@ export function checkTemplate(
 ): string[] {
   const entry = catalogEntry(code);
   if (!entry)
-    return fail([{ path: 'code', message: `Unknown template code "${code}"`, code: 'template_code' }]);
+    return fail([
+      { path: 'code', message: `Unknown template code "${code}"`, code: 'template_code' },
+    ]);
   if (!entry.channels.includes(channel as never))
     return fail([
-      { path: 'channel', message: `Code "${code}" is not available on ${channel}`, code: 'template_channel' },
+      {
+        path: 'channel',
+        message: `Code "${code}" is not available on ${channel}`,
+        code: 'template_channel',
+      },
     ]);
   if (subject && channel !== 'EMAIL')
-    return fail([{ path: 'subject', message: 'Only e-mail templates have a subject', code: 'template_subject' }]);
+    return fail([
+      {
+        path: 'subject',
+        message: 'Only e-mail templates have a subject',
+        code: 'template_subject',
+      },
+    ]);
   const allowed = new Set(Object.keys(entry.variables));
   const used = new Set<string>();
   const issues = [

@@ -90,14 +90,24 @@ export class DomainService {
       hostname,
       action,
     });
-    recordAudit(req, { action: `branding.domain.${action}`, entity: 'tenant_domain', after: { hostname } });
+    recordAudit(req, {
+      action: `branding.domain.${action}`,
+      entity: 'tenant_domain',
+      after: { hostname },
+    });
   }
 
   async add(req: Request, tenantId: string, rawHostname: string): Promise<DomainView> {
     const hostname = parseHostname(rawHostname);
     if (this.isReserved(hostname))
       throw new AppError('VALIDATION_ERROR', undefined, {
-        errors: [{ path: 'hostname', message: 'This domain is reserved by the platform', code: 'reserved_hostname' }],
+        errors: [
+          {
+            path: 'hostname',
+            message: 'This domain is reserved by the platform',
+            code: 'reserved_hostname',
+          },
+        ],
       });
     const { custom } = await this.load(tenantId);
     if (custom)
