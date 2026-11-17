@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, InputNumber, Select, Table } from 'antd';
+import { Alert, Button, InputNumber, Select, Table } from 'antd';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
+import { EmptyState } from '@hm/ui';
 
 import { api, ApiError, type Items, type RoomType } from '../api';
 import { usePropertyId } from '../PropertyContext';
@@ -34,17 +36,20 @@ interface GridRow {
 }
 
 /** Rate grid editor: room type × season rows; price, weekend price, extras and min stay columns. */
-export function RateGrid() {
+export function RateGrid({ onCreatePlan }: { onCreatePlan?: () => void }) {
   const { t } = useTranslation('settings');
   const propertyId = usePropertyId();
   const qc = useQueryClient();
-  const [planId, setPlanId] = useState<string>();
+  const [chosenPlan, setChosenPlan] = useState<string>();
   const [error, setError] = useState<string | null>(null);
   const plans = useQuery({
     queryKey: ['rate-plans', 'grid', propertyId],
     queryFn: () => api<Items<Plan>>('GET', `/pricing/rate-plans?propertyId=${propertyId}`),
     enabled: !!propertyId,
   });
+  // Preselect the first rate plan until the user picks another one (or it disappears).
+  const planList = plans.data?.items ?? [];
+  const planId = planList.some((p) => p.id === chosenPlan) ? chosenPlan : planList[0]?.id;
   const types = useQuery({
     queryKey: ['rooms', 'grid-types', propertyId],
     queryFn: () => api<Items<RoomType>>('GET', `/lodging/room-types?propertyId=${propertyId}`),
@@ -122,17 +127,31 @@ export function RateGrid() {
   return (
     <section aria-label={t('rates.grid')}>
       <h2>{t('rates.grid')}</h2>
-      <Select
-        aria-label={t('rates.plan')}
-        placeholder={t('rates.plan')}
-        style={{ minWidth: 260, marginBottom: 12 }}
-        value={planId}
-        onChange={setPlanId}
-        options={(plans.data?.items ?? []).map((p) => ({
-          value: p.id,
-          label: `${p.code} — ${p.name}`,
-        }))}
-      />
+      {plans.isSuccess && planList.length === 0 ? (
+        <EmptyState
+          title={t('rates.empty.title')}
+          description={t('rates.empty.description')}
+          action={
+            onCreatePlan ? (
+              <Button type="primary" onClick={onCreatePlan}>
+                {t('rates.empty.cta')}
+              </Button>
+            ) : undefined
+          }
+        />
+      ) : (
+        <Select
+          aria-label={t('rates.plan')}
+          placeholder={t('rates.plan')}
+          style={{ minWidth: 260, marginBottom: 12 }}
+          value={planId}
+          onChange={setChosenPlan}
+          options={(plans.data?.items ?? []).map((p) => ({
+            value: p.id,
+            label: `${p.code} — ${p.name}`,
+          }))}
+        />
+      )}
       {error && (
         <Alert
           type="error"

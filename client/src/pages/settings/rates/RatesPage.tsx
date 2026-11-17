@@ -1,4 +1,5 @@
 import { Space } from 'antd';
+import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 
@@ -26,11 +27,13 @@ const seasonSchema = z
 export function RatesPage() {
   const { t } = useTranslation('settings');
   const propertyId = usePropertyId();
+  const addPlan = useRef<(() => void) | null>(null);
   if (!propertyId) return null;
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
       <ResourceManager<{ id: string; code: string; name: string; mealPlan: string }>
         name="rate-plans"
+        addRef={addPlan}
         title={t('rates.plans')}
         listPath={`/pricing/rate-plans?propertyId=${propertyId}`}
         basePath="/pricing/rate-plans"
@@ -44,7 +47,11 @@ export function RatesPage() {
         columns={[
           { title: t('f.code'), dataIndex: 'code' },
           { title: t('f.name'), dataIndex: 'name' },
-          { title: t('rates.meal'), dataIndex: 'mealPlan' },
+          {
+            title: t('rates.meal'),
+            dataIndex: 'mealPlan',
+            render: (v: string) => t(`rates.mealPlans.${v}`, { defaultValue: v }),
+          },
         ]}
         fields={[
           { name: 'code', label: 'f.code', type: 'text', createOnly: true },
@@ -53,7 +60,10 @@ export function RatesPage() {
             name: 'mealPlan',
             label: 'rates.meal',
             type: 'select',
-            options: ['RO', 'BB', 'HB', 'FB'].map((v) => ({ value: v, label: v })),
+            options: ['RO', 'BB', 'HB', 'FB'].map((v) => ({
+              value: v,
+              label: `${v} — ${t(`rates.mealPlans.${v}`)}`,
+            })),
           },
           { name: 'isPublic', label: 'rates.public', type: 'switch' },
         ]}
@@ -85,7 +95,7 @@ export function RatesPage() {
           { name: 'priority', label: 'rates.priority', type: 'number' },
         ]}
       />
-      <RateGrid />
+      <RateGrid onCreatePlan={() => addPlan.current?.()} />
     </Space>
   );
 }

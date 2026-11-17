@@ -50,6 +50,8 @@ export interface ResourceManagerProps<Row extends { id: string }> {
   /** Maps a form value to the API payload (e.g. string → array). */
   toPayload?: (v: FieldValues, editing: boolean) => unknown;
   fromRow?: (r: Row) => FieldValues;
+  /** Receives a function opening the creation modal (lets a sibling widget offer a CTA). */
+  addRef?: { current: (() => void) | null };
 }
 
 /** Generic CRUD table + RHF/Zod modal form used by the settings pages. */
@@ -93,6 +95,7 @@ export function ResourceManager<Row extends { id: string }>(p: ResourceManagerPr
     );
     setEditing(row);
   };
+  if (p.addRef) p.addRef.current = () => open('new');
   const columns: ColumnsType<Row> = [
     ...p.columns,
     {
