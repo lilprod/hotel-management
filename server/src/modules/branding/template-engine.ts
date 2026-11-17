@@ -1,3 +1,4 @@
+import { templateCatalog } from '@hm/templates';
 import Handlebars from 'handlebars';
 
 /** Communication channels that can carry a template (PHONE / NOTE are not message channels). */
@@ -10,69 +11,19 @@ export interface TemplateCatalogEntry {
   variables: Readonly<Record<string, string>>;
 }
 
-const HOTEL = {
-  'hotel.name': 'Hôtel du Lac',
-  'hotel.phone': '+228 90 00 00 00',
-  'hotel.email': 'contact@hotel.example',
-};
-const GUEST = { 'guest.firstName': 'Kossi', 'guest.lastName': 'Mensah' };
-const STAY = {
-  'reservation.number': 'RES-2026-0001',
-  'reservation.checkIn': '2026-12-01',
-  'reservation.checkOut': '2026-12-04',
-  'reservation.nights': '3',
-};
-
 /**
  * Message codes and the variables each one may use (value = sample used by the preview).
- * Codes are a closed list: later modules (reservations, billing, portal) send the templates.
+ * Single source of truth: the default templates of @hm/templates (the notifications module
+ * renders the same codes, so a tenant override can only use what the defaults can).
  */
-export const TEMPLATE_CATALOG: Readonly<Record<string, TemplateCatalogEntry>> = {
-  'reservation.confirmation': {
-    channels: ['EMAIL', 'SMS', 'WHATSAPP'],
-    variables: { ...HOTEL, ...GUEST, ...STAY, 'reservation.total': '135 000 XOF' },
-  },
-  'reservation.reminder': {
-    channels: ['EMAIL', 'SMS', 'WHATSAPP'],
-    variables: { ...HOTEL, ...GUEST, ...STAY },
-  },
-  'reservation.cancellation': {
-    channels: ['EMAIL', 'SMS'],
-    variables: { ...HOTEL, ...GUEST, 'reservation.number': 'RES-2026-0001' },
-  },
-  'stay.thank_you': {
-    channels: ['EMAIL', 'SMS', 'WHATSAPP'],
-    variables: { ...HOTEL, ...GUEST, 'review.link': 'https://hotel.example/avis' },
-  },
-  'invoice.issued': {
-    channels: ['EMAIL'],
-    variables: {
-      ...HOTEL,
-      ...GUEST,
-      'invoice.number': 'FAC-2026-0042',
-      'invoice.total': '135 000 XOF',
-      'invoice.link': 'https://hotel.example/factures/42',
-    },
-  },
-  'payment.receipt': {
-    channels: ['EMAIL', 'SMS'],
-    variables: {
-      ...HOTEL,
-      ...GUEST,
-      'payment.amount': '50 000 XOF',
-      'payment.method': 'Mobile Money',
-    },
-  },
-  'portal.password_reset': {
-    channels: ['EMAIL'],
-    variables: {
-      ...HOTEL,
-      ...GUEST,
-      'reset.link': 'https://hotel.example/reset/abc',
-      'reset.expiresIn': '30 min',
-    },
-  },
-};
+export const TEMPLATE_CATALOG: Readonly<Record<string, TemplateCatalogEntry>> = Object.freeze(
+  Object.fromEntries(
+    Object.entries(templateCatalog()).map(([code, e]) => [
+      code,
+      { channels: e.channels as readonly TemplateChannel[], variables: e.variables },
+    ]),
+  ),
+);
 
 export function catalogEntry(code: string): TemplateCatalogEntry | undefined {
   return Object.prototype.hasOwnProperty.call(TEMPLATE_CATALOG, code)

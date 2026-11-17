@@ -5,6 +5,7 @@ export const VARIABLE_SAMPLES: Readonly<Record<string, string>> = {
   'hotel.address': 'Boulevard du Mono, Lomé',
   'hotel.supportEmail': 'support@hotel.example',
   'guest.firstName': 'Kossi',
+  'guest.lastName': 'Mensah',
   'owner.name': 'Ama Kodjo',
   'user.name': 'Yao Agbo',
   'invitee.name': 'Afi Dossou',

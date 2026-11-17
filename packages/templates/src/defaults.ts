@@ -23,7 +23,7 @@ export interface DefaultTemplateDef {
   content: Record<Locale, LocaleContent>;
 }
 
-const G = ['guest.firstName', 'hotel.name', 'hotel.phone'] as const;
+const G = ['guest.firstName', 'guest.lastName', 'hotel.name', 'hotel.phone'] as const;
 const O = ['owner.name', 'hotel.name'] as const;
 
 /**

@@ -173,7 +173,7 @@ describe('message templates', () => {
   it('creates, lists, updates and deletes a template', async () => {
     const c = await call('post', A, tokA, `${P}/templates`).send({
       channel: 'EMAIL',
-      code: 'reservation.confirmation',
+      code: 'booking_confirmation',
       locale: 'fr',
       subject: 'Confirmation {{reservation.number}}',
       body: 'Bonjour {{guest.firstName}}, merci de votre réservation.',
@@ -192,7 +192,7 @@ describe('message templates', () => {
   });
 
   it('refuses variables outside the whitelist, helpers and raw output', async () => {
-    const base = { channel: 'EMAIL', code: 'reservation.confirmation', locale: 'fr' };
+    const base = { channel: 'EMAIL', code: 'booking_confirmation', locale: 'fr' };
     for (const body of [
       'Hello {{secret.token}}',
       '{{{guest.firstName}}}',
@@ -216,7 +216,7 @@ describe('message templates', () => {
   it('previews with escaped output', async () => {
     const r = await call('post', A, tokA, `${P}/templates/preview`).send({
       channel: 'EMAIL',
-      code: 'reservation.confirmation',
+      code: 'booking_confirmation',
       body: 'Bonjour {{guest.firstName}}',
       data: { 'guest.firstName': '<script>alert(1)</script>' },
     });
@@ -225,7 +225,7 @@ describe('message templates', () => {
     expect(r.body.body).toContain('&lt;script&gt;');
     const bad = await call('post', A, tokA, `${P}/templates/preview`).send({
       channel: 'EMAIL',
-      code: 'reservation.confirmation',
+      code: 'booking_confirmation',
       body: 'x',
       data: { 'hack.var': 'y' },
     });

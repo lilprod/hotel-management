@@ -9,6 +9,7 @@ export default defineConfig({
     alias: {
       '@hm/database': src('../database/src/index.ts'),
       '@hm/shared': src('../packages/shared/src/index.ts'),
+      '@hm/templates': src('../packages/templates/src/index.ts'),
     },
   },
   test: {
