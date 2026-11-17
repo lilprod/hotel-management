@@ -1,19 +1,43 @@
 {
-  "home": {
-    "title": "Bienvenue",
-    "lead": "Un séjour calme et raffiné, au cœur du Togo.",
-    "cta": "Vérifier les disponibilités",
-    "discover": "Découvrir"
-  },
   "sections": {
     "accommodations": {
       "title": "Hébergements",
-      "lead": "Chambres, suites et villas pensées pour votre confort."
+      "lead": "Chambres, suites et villas pensées pour votre confort.",
+      "intro": "Chaque hébergement donne sur le jardin ou la piscine, avec une literie soignée, la climatisation et le Wi-Fi inclus.",
+      "offersTitle": "Types de chambres",
+      "galleryTitle": "En images"
     },
-    "spa": { "title": "Spa", "lead": "Soins et moments de détente." },
-    "restaurant": { "title": "Restaurant", "lead": "Une cuisine de saison, locale et généreuse." },
-    "activities": { "title": "Activités", "lead": "Excursions et expériences à partager." },
-    "comingSoon": "Le contenu de cet établissement sera affiché ici."
+    "spa": {
+      "title": "Spa",
+      "lead": "Soins et moments de détente.",
+      "intro": "Cabines individuelles et double, hammam et jardin de repos. Réservez votre soin à l'avance ou à la réception.",
+      "offersTitle": "Soins",
+      "galleryTitle": "En images"
+    },
+    "restaurant": {
+      "title": "Restaurant",
+      "lead": "Une cuisine de saison, locale et généreuse.",
+      "intro": "Une carte courte qui change avec le marché, servie en salle, en terrasse ou au bord de la piscine.",
+      "offersTitle": "À la carte",
+      "galleryTitle": "En images"
+    },
+    "activities": {
+      "title": "Activités",
+      "lead": "Excursions et expériences à partager.",
+      "intro": "Des sorties encadrées par l'équipe, adaptées aux familles comme aux voyageurs seuls.",
+      "offersTitle": "Nos sorties",
+      "galleryTitle": "En images"
+    },
+    "from": "dès",
+    "photoOpen": "Agrandir la photo : {{alt}}",
+    "bookCta": "Réserver un séjour"
+  },
+  "lightbox": {
+    "label": "Galerie photo",
+    "close": "Fermer la galerie",
+    "prev": "Photo précédente",
+    "next": "Photo suivante",
+    "counter": "Photo {{n}} sur {{total}}"
   },
   "booking": {
     "title": "Rechercher un séjour",
@@ -26,6 +50,8 @@
     "nights_one": "{{count}} nuit",
     "nights_other": "{{count}} nuits",
     "summary": "Recherche du {{checkIn}} au {{checkOut}} ({{nights}}), {{adults}} adulte(s), {{children}} enfant(s). Maquette : aucune disponibilité n'est interrogée.",
+    "asideTitle": "Réservation simple",
+    "aside": "Choisissez vos dates, puis votre chambre et vos services. Vous pouvez payer à l'hôtel ou déclarer un acompte Mixx ou Moov Money.",
     "validation": {
       "dateRequired": "Indiquez une date.",
       "checkoutAfterCheckin": "Le départ doit être après l'arrivée.",
@@ -35,6 +61,13 @@
   },
   "account": {
     "title": "Mon compte",
-    "lead": "La connexion et le suivi de vos réservations seront disponibles prochainement."
+    "lead": "La connexion et le suivi de vos réservations seront disponibles prochainement.",
+    "soonTitle": "Bientôt disponible",
+    "features": {
+      "stays": "Vos séjours à venir et passés",
+      "invoices": "Vos factures et paiements",
+      "loyalty": "Vos points de fidélité"
+    },
+    "cta": "Réserver un séjour"
   }
 }

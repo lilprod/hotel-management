@@ -1,0 +1,78 @@
+{
+  "hero": {
+    "tagline": "A calm, refined stay between water, garden and generous cooking.",
+    "cta": "Book now",
+    "discover": "Discover the hotel"
+  },
+  "search": {
+    "label": "Check availability",
+    "checkIn": "Arrival",
+    "checkOut": "Departure",
+    "adults": "Adults",
+    "children": "Children",
+    "submit": "Search",
+    "checkoutAfterCheckin": "Departure must be after arrival."
+  },
+  "highlights": {
+    "label": "Hotel highlights",
+    "pool": "Swimming pool",
+    "wifi": "Free Wi-Fi",
+    "shuttle": "Airport shuttle",
+    "restaurant": "Restaurant",
+    "spa": "Spa"
+  },
+  "accommodations": {
+    "title": "Our accommodations",
+    "lead": "Bright, quiet rooms and suites designed for a good night's sleep.",
+    "from": "from",
+    "perNight": "/ night",
+    "sleeps_one": "{{count}} guest",
+    "sleeps_other": "{{count}} guests",
+    "surface": "{{n}} m²",
+    "seeAll": "See all accommodations",
+    "book": "Book this room type"
+  },
+  "amenities": {
+    "ac": "Air conditioning",
+    "wifi": "Wi-Fi",
+    "tv": "Television",
+    "coffee": "Coffee and tea",
+    "balcony": "Terrace",
+    "bath": "Bathtub",
+    "pool": "Pool access"
+  },
+  "spa": {
+    "title": "Spa",
+    "text": "A hushed space, warm oils and time for yourself. Our therapists adapt every massage to your pace.",
+    "cta": "Discover the spa"
+  },
+  "restaurant": {
+    "title": "Restaurant",
+    "text": "Catch of the day, market vegetables and local spices. Served on the terrace facing the water, from breakfast to dinner.",
+    "cta": "See the restaurant"
+  },
+  "activities": {
+    "title": "Activities",
+    "text": "Canoe at sunrise, snorkeling, a walk through the garden: simple outings led by our team.",
+    "cta": "See the activities"
+  },
+  "testimonials": {
+    "title": "What our guests say",
+    "region": "Guest testimonials",
+    "prev": "Previous testimonial",
+    "next": "Next testimonial",
+    "goTo": "Testimonial {{n}} of {{total}}",
+    "pause": "Pause the carousel",
+    "play": "Resume the carousel"
+  },
+  "contact": {
+    "title": "Find us",
+    "lead": "A question before booking? The front desk team answers every day.",
+    "address": "Address",
+    "phone": "Phone",
+    "email": "Email",
+    "hours": "Front desk",
+    "map": "Schematic map showing how to reach the hotel",
+    "pin": "Hotel"
+  }
+}

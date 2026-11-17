@@ -37,7 +37,9 @@ describe('portal', () => {
     expect(screen.getByRole('contentinfo')).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Navigation principale' });
     expect(within(nav).getAllByRole('link')).toHaveLength(portalRoutes.length);
-    expect(await screen.findByRole('heading', { level: 1, name: 'Bienvenue' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: tenantBranding.name }),
+    ).toBeInTheDocument();
   });
 
   it('switches language and updates the document language', async () => {
@@ -47,7 +49,7 @@ describe('portal', () => {
     const nav = await screen.findByRole('navigation', { name: 'Main navigation' });
     expect(within(nav).getByText('Accommodations')).toBeInTheDocument();
     expect(document.documentElement.lang).toBe('en');
-    expect(await screen.findByRole('heading', { level: 1, name: 'Welcome' })).toBeInTheDocument();
+    expect(await screen.findByText(/A calm, refined stay/)).toBeInTheDocument();
   });
 
   it('lazy-loads section pages', async () => {

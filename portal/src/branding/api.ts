@@ -25,6 +25,9 @@ export interface PublicBranding {
 /** Resolved theme the portal applies: the `Branding` base plus the portal-only fields. */
 export interface PortalBranding extends Branding {
   onPrimaryColor: string;
+  onSecondaryColor: string;
+  /** Hotel hero photo (branding asset), takes precedence over the demo hero photo. */
+  heroUrl: string | null;
   faviconUrl: string | null;
   loginMessage: string | null;
   languages: string[];
@@ -36,6 +39,8 @@ const HEX = /^#[0-9a-fA-F]{6}$/;
 export const defaultPortalBranding: PortalBranding = {
   ...tenantBranding,
   onPrimaryColor: readableTextColor(tenantBranding.primaryColor),
+  onSecondaryColor: readableTextColor(tenantBranding.secondaryColor),
+  heroUrl: null,
   faviconUrl: null,
   loginMessage: null,
   languages: ['fr', 'en'],
@@ -62,10 +67,12 @@ export function toPortalBranding(p: PublicBranding): PortalBranding {
     primaryColor: primary,
     secondaryColor: secondary,
     onPrimaryColor: readableTextColor(primary),
-    logoUrl: p.logoUrl,
-    faviconUrl: p.faviconUrl,
-    loginMessage: p.loginMessage,
-    languages: p.languages.length ? p.languages : defaultPortalBranding.languages,
-    contact: p.contact,
+    onSecondaryColor: readableTextColor(secondary),
+    heroUrl: p.loginBackgroundUrl ?? null,
+    logoUrl: p.logoUrl ?? null,
+    faviconUrl: p.faviconUrl ?? null,
+    loginMessage: p.loginMessage ?? null,
+    languages: p.languages?.length ? p.languages : defaultPortalBranding.languages,
+    contact: p.contact ?? null,
   };
 }

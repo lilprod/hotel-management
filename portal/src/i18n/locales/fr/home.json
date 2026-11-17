@@ -1,0 +1,78 @@
+{
+  "hero": {
+    "tagline": "Un séjour calme et raffiné, entre eau, jardin et cuisine généreuse.",
+    "cta": "Réserver",
+    "discover": "Découvrir l'hôtel"
+  },
+  "search": {
+    "label": "Vérifier les disponibilités",
+    "checkIn": "Arrivée",
+    "checkOut": "Départ",
+    "adults": "Adultes",
+    "children": "Enfants",
+    "submit": "Rechercher",
+    "checkoutAfterCheckin": "Le départ doit être après l'arrivée."
+  },
+  "highlights": {
+    "label": "Les atouts de l'hôtel",
+    "pool": "Piscine",
+    "wifi": "Wi-Fi gratuit",
+    "shuttle": "Navette aéroport",
+    "restaurant": "Restaurant",
+    "spa": "Spa"
+  },
+  "accommodations": {
+    "title": "Nos hébergements",
+    "lead": "Chambres et suites claires, silencieuses, pensées pour bien dormir.",
+    "from": "à partir de",
+    "perNight": "/ nuit",
+    "sleeps_one": "{{count}} voyageur",
+    "sleeps_other": "{{count}} voyageurs",
+    "surface": "{{n}} m²",
+    "seeAll": "Voir tous les hébergements",
+    "book": "Réserver ce type de chambre"
+  },
+  "amenities": {
+    "ac": "Climatisation",
+    "wifi": "Wi-Fi",
+    "tv": "Télévision",
+    "coffee": "Café et thé",
+    "balcony": "Terrasse",
+    "bath": "Baignoire",
+    "pool": "Accès piscine"
+  },
+  "spa": {
+    "title": "Spa",
+    "text": "Un espace feutré, des huiles tièdes et du temps pour soi. Nos soignants adaptent chaque massage à votre rythme.",
+    "cta": "Découvrir le spa"
+  },
+  "restaurant": {
+    "title": "Restaurant",
+    "text": "Poisson du jour, légumes du marché et épices locales. Servi en terrasse, face à l'eau, du petit déjeuner au dîner.",
+    "cta": "Voir le restaurant"
+  },
+  "activities": {
+    "title": "Activités",
+    "text": "Pirogue au lever du soleil, snorkeling, promenade dans le jardin : des sorties simples, encadrées par l'équipe.",
+    "cta": "Voir les activités"
+  },
+  "testimonials": {
+    "title": "Ce que disent nos hôtes",
+    "region": "Témoignages de clients",
+    "prev": "Témoignage précédent",
+    "next": "Témoignage suivant",
+    "goTo": "Témoignage {{n}} sur {{total}}",
+    "pause": "Mettre le défilement en pause",
+    "play": "Reprendre le défilement"
+  },
+  "contact": {
+    "title": "Nous trouver",
+    "lead": "Une question avant de réserver ? L'équipe de la réception vous répond tous les jours.",
+    "address": "Adresse",
+    "phone": "Téléphone",
+    "email": "E-mail",
+    "hours": "Réception",
+    "map": "Plan schématique de l'accès à l'hôtel",
+    "pin": "Hôtel"
+  }
+}

@@ -1,40 +1,73 @@
 {
-  "home": {
-    "title": "Welcome",
-    "lead": "A calm, refined stay in the heart of Togo.",
-    "cta": "Check availability",
-    "discover": "Discover"
-  },
   "sections": {
     "accommodations": {
       "title": "Accommodations",
-      "lead": "Rooms, suites and villas designed for your comfort."
+      "lead": "Rooms, suites and villas designed for your comfort.",
+      "intro": "Every accommodation looks onto the garden or the pool, with fine linen, air conditioning and Wi-Fi included.",
+      "offersTitle": "Room types",
+      "galleryTitle": "In pictures"
     },
-    "spa": { "title": "Spa", "lead": "Treatments and moments of relaxation." },
-    "restaurant": { "title": "Restaurant", "lead": "Seasonal, local and generous cuisine." },
-    "activities": { "title": "Activities", "lead": "Excursions and experiences to share." },
-    "comingSoon": "This property's content will appear here."
+    "spa": {
+      "title": "Spa",
+      "lead": "Treatments and moments of relaxation.",
+      "intro": "Single and double treatment rooms, a steam room and a rest garden. Book your treatment ahead or at the front desk.",
+      "offersTitle": "Treatments",
+      "galleryTitle": "In pictures"
+    },
+    "restaurant": {
+      "title": "Restaurant",
+      "lead": "Seasonal, local and generous cooking.",
+      "intro": "A short menu that follows the market, served indoors, on the terrace or by the pool.",
+      "offersTitle": "On the menu",
+      "galleryTitle": "In pictures"
+    },
+    "activities": {
+      "title": "Activities",
+      "lead": "Excursions and experiences to share.",
+      "intro": "Outings led by our team, suited to families and solo travelers alike.",
+      "offersTitle": "Our outings",
+      "galleryTitle": "In pictures"
+    },
+    "from": "from",
+    "photoOpen": "Enlarge photo: {{alt}}",
+    "bookCta": "Book a stay"
+  },
+  "lightbox": {
+    "label": "Photo gallery",
+    "close": "Close the gallery",
+    "prev": "Previous photo",
+    "next": "Next photo",
+    "counter": "Photo {{n}} of {{total}}"
   },
   "booking": {
-    "title": "Find a stay",
-    "lead": "Choose your dates and number of guests.",
-    "checkIn": "Check-in",
-    "checkOut": "Check-out",
+    "title": "Search for a stay",
+    "lead": "Choose your dates and the number of guests.",
+    "checkIn": "Arrival",
+    "checkOut": "Departure",
     "adults": "Adults",
     "children": "Children",
     "submit": "Search",
     "nights_one": "{{count}} night",
     "nights_other": "{{count}} nights",
-    "summary": "Searching {{checkIn}} to {{checkOut}} ({{nights}}), {{adults}} adult(s), {{children}} child(ren). Mock-up: no availability is queried.",
+    "summary": "Search from {{checkIn}} to {{checkOut}} ({{nights}}), {{adults}} adult(s), {{children}} child(ren). Mock-up: no availability is queried.",
+    "asideTitle": "Simple booking",
+    "aside": "Pick your dates, then your room and services. You can pay at the hotel or declare a Mixx or Moov Money deposit.",
     "validation": {
       "dateRequired": "Enter a date.",
-      "checkoutAfterCheckin": "Check-out must be after check-in.",
+      "checkoutAfterCheckin": "Departure must be after arrival.",
       "adultsInvalid": "Enter between 1 and 10 adults.",
       "childrenInvalid": "Enter between 0 and 10 children."
     }
   },
   "account": {
     "title": "My account",
-    "lead": "Sign-in and booking follow-up will be available soon."
+    "lead": "Sign-in and booking follow-up will be available soon.",
+    "soonTitle": "Coming soon",
+    "features": {
+      "stays": "Your upcoming and past stays",
+      "invoices": "Your invoices and payments",
+      "loyalty": "Your loyalty points"
+    },
+    "cta": "Book a stay"
   }
 }

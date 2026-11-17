@@ -1,15 +1,23 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
+import { PageHero } from '../components/PageHero';
+import './sections.css';
+
 export default function NotFoundPage() {
   const { t } = useTranslation();
   return (
-    <section aria-labelledby="nf-title">
-      <h1 id="nf-title">{t('notFound.title')}</h1>
-      <p className="lead">{t('notFound.body')}</p>
-      <Link className="button" to="/">
-        {t('notFound.home')}
-      </Link>
-    </section>
+    <PageHero
+      titleId="nf-title"
+      title={t('notFound.title')}
+      lead={t('notFound.body')}
+      photo="lagoon"
+    >
+      <p className="page-hero-actions">
+        <Link className="button button-light" to="/">
+          {t('notFound.home')}
+        </Link>
+      </p>
+    </PageHero>
   );
 }

@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 
 import { defaultPortalBranding, fetchPublicBranding, toPortalBranding } from './api';
 import type { PortalBranding } from './api';
+import { buildPalette } from './colors';
 
 const BrandingContext = createContext<PortalBranding>(defaultPortalBranding);
 
@@ -18,6 +19,13 @@ export function applyBranding(b: PortalBranding): void {
   root.style.setProperty('--hm-primary', b.primaryColor);
   root.style.setProperty('--hm-on-primary', b.onPrimaryColor);
   root.style.setProperty('--hm-secondary', b.secondaryColor);
+  root.style.setProperty('--hm-on-secondary', b.onSecondaryColor);
+  const palette = buildPalette(b.primaryColor, b.secondaryColor);
+  root.style.setProperty('--hm-primary-ink', palette.primaryInk);
+  root.style.setProperty('--hm-primary-glow', palette.primaryGlow);
+  root.style.setProperty('--hm-secondary-ink', palette.secondaryInk);
+  root.style.setProperty('--hm-secondary-glow', palette.secondaryGlow);
+  root.style.setProperty('--hm-deep', palette.deep);
   if (b.faviconUrl) {
     let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
     if (!link) {
