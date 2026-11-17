@@ -102,3 +102,14 @@ export function refreshReq(
     .set('Cookie', `hm_rt=${refresh}; hm_prt=${refresh}; hm_art=${refresh}; hm_csrf=${csrf}`)
     .set('X-CSRF-Token', csrf);
 }
+
+/** Polls until `fn` returns a truthy value (audit entries are written after the response). */
+export async function eventually<T>(fn: () => Promise<T | null | undefined>, timeoutMs = 3000) {
+  const end = Date.now() + timeoutMs;
+  for (;;) {
+    const v = await fn();
+    if (v && (!Array.isArray(v) || v.length)) return v;
+    if (Date.now() > end) throw new Error('condition not met in time');
+    await new Promise((r) => setTimeout(r, 25));
+  }
+}

@@ -4,6 +4,7 @@ import { authModule } from './auth/index.js';
 import { brandingModule, brandingPublicModule } from './branding/index.js';
 import { catalogModule } from './catalog/index.js';
 import { customFieldsModule } from './custom-fields/index.js';
+import { iamModule } from './iam/index.js';
 import { legalModule } from './legal/index.js';
 import { lookupsModule } from './lookups/index.js';
 import { notificationsModule } from './notifications/index.js';
@@ -18,6 +19,7 @@ export const MODULES: readonly ModuleDefinition[] = [
   systemModule,
   authModule,
   legalModule,
+  iamModule,
   brandingModule,
   brandingPublicModule,
   propertyModule,
