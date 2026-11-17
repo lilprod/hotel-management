@@ -6,6 +6,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { HmThemeProvider, useUiStore } from '@hm/ui';
 
 import './i18n';
+import { SettingsPage } from './pages/settings/SettingsPage';
 import { ModulePage } from './pages/ModulePage';
 import { LoginPage } from './pages/LoginPage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -35,7 +36,11 @@ export function App() {
           <Route element={<ShellLayout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             {modules.map((m) => (
-              <Route key={m.key} path={m.path} element={<ModulePage module={m} />} />
+              <Route
+                key={m.key}
+                path={m.path}
+                element={m.key === 'settings' ? <SettingsPage /> : <ModulePage module={m} />}
+              />
             ))}
             <Route path="*" element={<NotFoundPage />} />
           </Route>
