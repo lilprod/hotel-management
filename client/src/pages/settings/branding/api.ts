@@ -1,3 +1,4 @@
+import { apiClient } from '../../../auth/session';
 import { ApiError, api } from '../api';
 
 export const ASSET_KINDS = [
@@ -68,21 +69,19 @@ export interface DomainView {
 export async function uploadAsset(kind: AssetKind, file: File) {
   const body = new FormData();
   body.append('file', file);
-  const res = await fetch(`/api/v1/t/branding/assets/${kind}`, {
-    method: 'POST',
-    credentials: 'include',
-    body,
-  });
-  const data: unknown = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const p = data as {
-      detail?: string;
-      title?: string;
-      errors?: { path: string; message: string }[];
-    };
-    throw new ApiError(res.status, p.errors?.[0]?.message ?? p.detail ?? p.title ?? res.statusText);
+  try {
+    return await apiClient.post<{
+      kind: AssetKind;
+      asset: AssetRef;
+      width: number;
+      height: number;
+    }>(`/branding/assets/${kind}`, body);
+  } catch (e) {
+    // surface the first field message (size, MIME type…) rather than the generic title
+    if (e instanceof ApiError && e.errors[0])
+      throw new ApiError(e.status, e.errors[0].message, e.code, e.reason, e.errors);
+    throw e;
   }
-  return data as { kind: AssetKind; asset: AssetRef; width: number; height: number };
 }
 
 export { api, ApiError };

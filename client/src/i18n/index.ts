@@ -1,26 +1,46 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
-import { useUiStore } from '@hm/ui';
+import { errorMessages, useUiStore } from '@hm/ui';
 
+import enAuth from './locales/en/auth.json';
 import enBranding from './locales/en/branding.json';
 import enCommon from './locales/en/common.json';
 import enNav from './locales/en/nav.json';
+import enSecurity from './locales/en/security.json';
 import enSettings from './locales/en/settings.json';
+import frAuth from './locales/fr/auth.json';
 import frBranding from './locales/fr/branding.json';
 import frCommon from './locales/fr/common.json';
 import frNav from './locales/fr/nav.json';
+import frSecurity from './locales/fr/security.json';
 import frSettings from './locales/fr/settings.json';
 
 void i18n.use(initReactI18next).init({
   resources: {
-    fr: { branding: frBranding, common: frCommon, nav: frNav, settings: frSettings },
-    en: { branding: enBranding, common: enCommon, nav: enNav, settings: enSettings },
+    fr: {
+      auth: frAuth,
+      branding: frBranding,
+      common: frCommon,
+      errors: errorMessages.fr,
+      nav: frNav,
+      security: frSecurity,
+      settings: frSettings,
+    },
+    en: {
+      auth: enAuth,
+      branding: enBranding,
+      common: enCommon,
+      errors: errorMessages.en,
+      nav: enNav,
+      security: enSecurity,
+      settings: enSettings,
+    },
   },
   lng: useUiStore.getState().language,
   fallbackLng: 'fr',
   supportedLngs: ['fr', 'en'],
-  ns: ['branding', 'common', 'nav', 'settings'],
+  ns: ['auth', 'branding', 'common', 'errors', 'nav', 'security', 'settings'],
   defaultNS: 'common',
   interpolation: { escapeValue: false },
   react: { useSuspense: false },

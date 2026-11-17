@@ -238,3 +238,8 @@ export function apiErrorKeys(err: unknown): string[] {
   }
   return ['errors:network', 'errors:generic'];
 }
+
+/** Messages of the field issues of a 422 (password rules carry a `code`), translated by the app. */
+export function fieldIssueKeys(issue: FieldIssue): string[] {
+  return [...(issue.code ? [`errors:password.${issue.code}`] : []), 'errors:code.VALIDATION_ERROR'];
+}

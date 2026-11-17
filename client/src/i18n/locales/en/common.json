@@ -20,16 +20,15 @@
     "description": "This module is not included in your plan or permissions."
   },
   "notFound": "Page not found",
-  "login": {
-    "title": "Sign in",
-    "subtitle": "Staff area",
-    "email": "Email address",
-    "password": "Password",
-    "submit": "Sign in",
-    "placeholderNotice": "Mock-up: no API call is made."
-  },
   "validation": {
     "emailInvalid": "Enter a valid email address.",
-    "passwordRequired": "Password is required."
-  }
+    "passwordRequired": "Password is required.",
+    "passwordMin": "At least 8 characters.",
+    "passwordMismatch": "Passwords do not match.",
+    "codeInvalid": "Enter the code (6 characters minimum).",
+    "required": "This field is required.",
+    "range": "Value out of range.",
+    "ipInvalid": "Invalid IP address or CIDR range."
+  },
+  "account": "My account"
 }

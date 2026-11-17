@@ -5,6 +5,7 @@ import { AppShell, filterModules, readableTextColor, useSessionStore } from '@hm
 
 import { modules } from '../modules';
 import { HeaderBar } from './HeaderBar';
+import { ImpersonationBanner } from './ImpersonationBanner';
 import { useTenantBranding } from './TenantTheme';
 
 export function ShellLayout() {
@@ -37,6 +38,7 @@ export function ShellLayout() {
       navLabel={t('nav:main')}
       skipLabel={t('skipToContent')}
     >
+      <ImpersonationBanner />
       <Outlet />
     </AppShell>
   );

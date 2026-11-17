@@ -1,32 +1,15 @@
-/** Minimal staff API client (`/api/v1/t`); errors follow RFC 7807. */
-export class ApiError extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-    readonly errors: { path: string; message: string }[] = [],
-  ) {
-    super(message);
-  }
-}
+import { ApiError } from '@hm/ui';
 
-export async function api<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`/api/v1/t${path}`, {
-    method,
-    credentials: 'include',
-    headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  });
-  if (res.status === 204) return undefined as T;
-  const data: unknown = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const p = data as {
-      detail?: string;
-      title?: string;
-      errors?: { path: string; message: string }[];
-    };
-    throw new ApiError(res.status, p.detail ?? p.title ?? res.statusText, p.errors);
-  }
-  return data as T;
+import { apiClient } from '../../auth/session';
+
+/**
+ * Staff API (`/api/v1/t`) through the shared client: in-memory bearer token, single-flight
+ * refresh on 401, RFC 7807 errors. Kept as `api(method, path, body)` for the settings pages.
+ */
+export { ApiError };
+
+export function api<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
+  return apiClient.request<T>(method, path, body);
 }
 
 export interface Property {

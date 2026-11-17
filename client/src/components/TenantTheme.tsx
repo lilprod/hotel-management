@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import type { ReactNode } from 'react';
 
-import { HmThemeProvider, defaultBranding, useUiStore } from '@hm/ui';
+import { HmThemeProvider, defaultBranding, useSessionStore, useUiStore } from '@hm/ui';
 import type { Branding } from '@hm/ui';
 
 import { api, type Items, type Property } from '../pages/settings/api';
@@ -21,17 +21,20 @@ interface StaffBranding {
  */
 export function useTenantBranding(): Branding {
   const mode = useUiStore((s) => s.mode);
+  const signedIn = useSessionStore((s) => s.status === 'authenticated');
   const branding = useQuery({
     queryKey: ['tenant-branding'],
     queryFn: () => api<StaffBranding>('GET', '/branding'),
     retry: false,
     staleTime: 5 * 60_000,
+    enabled: signedIn,
   });
   const properties = useQuery({
     queryKey: ['properties'],
     queryFn: () => api<Items<Property>>('GET', '/lodging/properties'),
     retry: false,
     staleTime: 5 * 60_000,
+    enabled: signedIn,
   });
   const data = branding.data;
   const name = properties.data?.items[0]?.name;

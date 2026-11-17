@@ -3,16 +3,27 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, Route, Routes } from 'react-router-dom';
 
-import { useUiStore } from '@hm/ui';
+import { useSessionStore, useUiStore } from '@hm/ui';
 
 import './i18n';
-import { SettingsPage } from './pages/settings/SettingsPage';
-import { ModulePage } from './pages/ModulePage';
-import { LoginPage } from './pages/LoginPage';
-import { NotFoundPage } from './pages/NotFoundPage';
+import { Guard } from './auth/guards';
+import { bootstrapSession } from './auth/session';
 import { ShellLayout } from './components/ShellLayout';
 import { TenantThemeProvider } from './components/TenantTheme';
 import { modules } from './modules';
+import { AccountPage } from './pages/account/AccountPage';
+import { LegalPage } from './pages/auth/LegalPage';
+import { LoginPage } from './pages/auth/LoginPage';
+import {
+  AcceptInvitePage,
+  ChangePasswordPage,
+  ForgotPasswordPage,
+  ResetPasswordPage,
+} from './pages/auth/PasswordForms';
+import { ModulePage } from './pages/ModulePage';
+import { NotFoundPage } from './pages/NotFoundPage';
+import { SecurityPage } from './pages/security/SecurityPage';
+import { SettingsPage } from './pages/settings/SettingsPage';
 
 /** Keeps i18next in sync with the persisted UI language. */
 function useI18nSync() {
@@ -23,24 +34,72 @@ function useI18nSync() {
   }, [language, i18n]);
 }
 
+function moduleElement(m: (typeof modules)[number]) {
+  const guard = { permission: m.requiredPermission, feature: m.requiredFeature };
+  if (m.key === 'settings')
+    return (
+      <Guard {...guard}>
+        <SettingsPage />
+      </Guard>
+    );
+  if (m.key === 'security')
+    return (
+      <Guard {...guard}>
+        <SecurityPage />
+      </Guard>
+    );
+  return <ModulePage module={m} />;
+}
+
 export function App() {
   const [queryClient] = useState(
     () => new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: 1 } } }),
   );
   useI18nSync();
 
+  // First load: silent refresh from the cookie (or support hand-off), then /auth/me.
+  useEffect(() => {
+    if (useSessionStore.getState().status === 'unknown') void bootstrapSession();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TenantThemeProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route element={<ShellLayout />}>
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/accept-invite" element={<AcceptInvitePage />} />
+          <Route
+            path="/change-password"
+            element={
+              <Guard allowWhilePending>
+                <ChangePasswordPage />
+              </Guard>
+            }
+          />
+          <Route
+            path="/legal"
+            element={
+              <Guard allowWhilePending>
+                <LegalPage />
+              </Guard>
+            }
+          />
+          <Route
+            element={
+              <Guard>
+                <ShellLayout />
+              </Guard>
+            }
+          >
             <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="/account" element={<AccountPage />} />
             {modules.map((m) => (
               <Route
                 key={m.key}
-                path={m.path}
-                element={m.key === 'settings' ? <SettingsPage /> : <ModulePage module={m} />}
+                path={m.key === 'security' ? `${m.path}/:tab?` : m.path}
+                element={moduleElement(m)}
               />
             ))}
             <Route path="*" element={<NotFoundPage />} />

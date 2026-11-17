@@ -26,6 +26,14 @@ const fr = {
     INTERNAL_ERROR: 'Erreur interne du serveur.',
     SERVICE_UNAVAILABLE: 'Service momentanément indisponible.',
   },
+  password: {
+    PASSWORD_TOO_SHORT: 'Mot de passe trop court.',
+    PASSWORD_TOO_LONG: 'Mot de passe trop long.',
+    PASSWORD_CLASSES: 'Mélangez majuscules, minuscules, chiffres et symboles.',
+    PASSWORD_COMMON: 'Mot de passe trop courant.',
+    PASSWORD_CONTAINS_EMAIL: 'Le mot de passe ne doit pas contenir votre e-mail.',
+    PASSWORD_REUSED: 'Mot de passe déjà utilisé récemment.',
+  },
   reason: {
     LEGAL_ACCEPTANCE_REQUIRED:
       'Les conditions générales doivent être acceptées par le propriétaire.',
@@ -63,6 +71,14 @@ const en: typeof fr = {
     ACCOUNT_LOCKED: 'Account temporarily locked after too many attempts.',
     INTERNAL_ERROR: 'Internal server error.',
     SERVICE_UNAVAILABLE: 'Service temporarily unavailable.',
+  },
+  password: {
+    PASSWORD_TOO_SHORT: 'Password is too short.',
+    PASSWORD_TOO_LONG: 'Password is too long.',
+    PASSWORD_CLASSES: 'Mix upper case, lower case, digits and symbols.',
+    PASSWORD_COMMON: 'Password is too common.',
+    PASSWORD_CONTAINS_EMAIL: 'The password must not contain your e-mail.',
+    PASSWORD_REUSED: 'Password was used recently.',
   },
   reason: {
     LEGAL_ACCEPTANCE_REQUIRED: 'The latest terms must be accepted by the account owner.',

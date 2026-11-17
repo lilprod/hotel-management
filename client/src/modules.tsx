@@ -47,7 +47,7 @@ export const modules: readonly ModuleDef[] = [
     labelKey: 'nav:frontDesk',
     icon: <KeyOutlined />,
     path: '/front-desk',
-    requiredPermission: 'frontdesk.read',
+    requiredPermission: 'front_desk.read',
   },
   {
     key: 'guests',
@@ -61,8 +61,8 @@ export const modules: readonly ModuleDef[] = [
     labelKey: 'nav:billing',
     icon: <FileTextOutlined />,
     path: '/billing',
-    requiredFeature: 'billing',
-    requiredPermission: 'billing.read',
+    requiredFeature: 'billing.core',
+    requiredPermission: 'invoices.read',
   },
   {
     key: 'restaurant',
@@ -70,7 +70,7 @@ export const modules: readonly ModuleDef[] = [
     icon: <CoffeeOutlined />,
     path: '/restaurant',
     requiredFeature: 'restaurant',
-    requiredPermission: 'restaurant.read',
+    requiredPermission: 'restaurant.orders.read',
   },
   {
     key: 'spa',
@@ -78,7 +78,7 @@ export const modules: readonly ModuleDef[] = [
     icon: <ExperimentOutlined />,
     path: '/spa',
     requiredFeature: 'spa',
-    requiredPermission: 'spa.read',
+    requiredPermission: 'spa.appointments.read',
   },
   {
     key: 'activities',
@@ -101,7 +101,6 @@ export const modules: readonly ModuleDef[] = [
     labelKey: 'nav:maintenance',
     icon: <ToolOutlined />,
     path: '/maintenance',
-    requiredFeature: 'maintenance',
     requiredPermission: 'maintenance.read',
   },
   {
@@ -117,23 +116,20 @@ export const modules: readonly ModuleDef[] = [
     labelKey: 'nav:staff',
     icon: <TeamOutlined />,
     path: '/staff',
-    requiredFeature: 'staff',
-    requiredPermission: 'staff.read',
+    requiredPermission: 'hr.read',
   },
   {
     key: 'messages',
     labelKey: 'nav:messages',
     icon: <MessageOutlined />,
     path: '/messages',
-    requiredFeature: 'messages',
-    requiredPermission: 'messages.read',
+    requiredPermission: 'messaging.read',
   },
   {
     key: 'reports',
     labelKey: 'nav:reports',
     icon: <BarChartOutlined />,
     path: '/reports',
-    requiredFeature: 'reports',
     requiredPermission: 'reports.read',
   },
   {

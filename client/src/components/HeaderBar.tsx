@@ -11,6 +11,8 @@ import { useNavigate } from 'react-router-dom';
 
 import { LanguageSwitch, ThemeToggle, useSessionStore } from '@hm/ui';
 
+import { logout } from '../auth/session';
+
 export function HeaderBar() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -72,7 +74,8 @@ export function HeaderBar() {
             { key: 'logout', label: t('logout'), icon: <LogoutOutlined /> },
           ],
           onClick: ({ key }) => {
-            if (key === 'logout') navigate('/login');
+            if (key === 'profile') navigate('/account');
+            if (key === 'logout') void logout().then(() => navigate('/login'));
           },
         }}
       >
