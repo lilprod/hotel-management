@@ -16,7 +16,9 @@ import {
 import { auditHook } from './middleware/audit.js';
 import { authenticate } from './middleware/authenticate.js';
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
+import { platformGuard } from './middleware/platform-guard.js';
 import { requestId, requestLogger } from './middleware/request-id.js';
+import { staffGates } from './middleware/security-gates.js';
 import { corsAllowlist, rateLimiter } from './middleware/security.js';
 import { subscriptionGuard } from './middleware/subscription-guard.js';
 import { tenantResolver } from './middleware/tenant-resolver.js';
@@ -69,6 +71,8 @@ export function createApp(services: Services): AppBundle {
   app.use(express.json({ limit: '1mb' }));
   app.use(tenantResolver());
   app.use(authenticate());
+  app.use(platformGuard());
+  app.use(staffGates());
   app.use(subscriptionGuard());
   app.use(auditHook());
 

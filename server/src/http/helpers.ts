@@ -110,7 +110,9 @@ export async function loadGrants(req: Request) {
   if (req.grants) return req.grants;
   const auth = req.auth;
   if (!auth?.tenantId) throw unauthenticated();
-  const grants = await req.services.permissions.load(auth.tenantId, auth.userId, auth.permVer);
+  // The current tenant perm_ver (not the token's) keys the cache: a role change applies at once.
+  const permVer = await req.services.permVersions.current(auth.tenantId);
+  const grants = await req.services.permissions.load(auth.tenantId, auth.userId, permVer);
   // Unknown / disabled user in this tenant (RLS-scoped lookup): the token is not usable.
   if (!grants) throw unauthenticated('User not found or inactive');
   req.grants = grants;

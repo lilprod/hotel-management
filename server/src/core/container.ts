@@ -5,8 +5,10 @@ import { createRedis, JsonCache, type Redis } from '../lib/redis.js';
 import type { RealtimeEmitter } from '../realtime/socket.js';
 import { EntitlementsService } from './entitlements.js';
 import { ModuleRegistry, type ModuleDefinition } from './module.js';
+import { PermVersionService } from './perm-versions.js';
 import { PermissionService } from './permissions.js';
 import { SessionRevocations } from './revocations.js';
+import { SecurityPolicyService } from './security-policy.js';
 import { SettingsService } from './settings.js';
 import { TenantDirectory } from './tenants.js';
 
@@ -24,6 +26,10 @@ export interface Services {
   entitlements: EntitlementsService;
   permissions: PermissionService;
   revocations: SessionRevocations;
+  /** Tenant permission version (`perm_ver`), bumped on every role / assignment change. */
+  permVersions: PermVersionService;
+  /** Effective `security_policies` of a tenant (cached). */
+  securityPolicies: SecurityPolicyService;
   settings: SettingsService;
   modules: ModuleRegistry;
   /** Set once Socket.io is created (HTTP process) or the emit-only instance (worker). */
@@ -62,6 +68,8 @@ export function createServices(config: Config, opts: CreateServicesOptions): Ser
     entitlements: new EntitlementsService(admin, cache, config.ENTITLEMENTS_CACHE_TTL_S),
     permissions: new PermissionService(db, cache, config.PERMISSIONS_CACHE_TTL_S),
     revocations: new SessionRevocations(redis),
+    permVersions: new PermVersionService(db, redis),
+    securityPolicies: new SecurityPolicyService(db, cache),
     settings: new SettingsService(db, modules.settings, logger),
   };
 }

@@ -12,7 +12,21 @@ export interface AuthContext {
   tenantId?: string;
   sessionId: string;
   permVer: number;
+  /** Platform user id when a support agent impersonates the tenant. */
+  impersonatedBy?: string;
+  /** Second factor verified for this session. */
+  mfa: boolean;
+  /** Password expired / reset by an admin: only /auth and /legal are usable. */
+  mustChangePassword: boolean;
   claims: AccessClaims;
+}
+
+/** Platform user loaded by the platform guard on /api/v1/admin. */
+export interface PlatformPrincipal {
+  id: string;
+  email: string;
+  name: string;
+  role: 'SUPER_ADMIN' | 'FINANCE' | 'SUPPORT' | 'READ_ONLY';
 }
 
 export interface ValidatedInput {
@@ -33,6 +47,8 @@ declare global {
       /** Tenant resolved from the Host header (server side only). */
       tenant?: ResolvedTenant;
       auth?: AuthContext;
+      /** Set by the platform guard for platform tokens. */
+      platformUser?: PlatformPrincipal;
       /** Staff grants, loaded lazily by can() and cached per perm_ver. */
       grants?: UserGrants;
       /** Zod-parsed request parts (set by validate()). */

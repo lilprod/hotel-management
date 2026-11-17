@@ -13,6 +13,14 @@ export const accessClaimsSchema = z
     sid: z.string().min(1),
     perm_ver: z.number().int().min(0).default(0),
     scope: z.enum(TOKEN_SCOPES),
+    /** Platform user acting "as" the tenant (support impersonation, doc 05 §4). */
+    impersonated_by: z.string().uuid().optional(),
+    /** Second factor verified for this session (mandatory on the platform scope). */
+    mfa: z.boolean().optional(),
+    /** The password must be changed before using anything but /auth and /legal (expiry). */
+    mcp: z.boolean().optional(),
+    /** Idle timeout of the session in minutes (tracked in Redis by `authenticate`). */
+    idle: z.number().int().positive().optional(),
   })
   .refine((c) => (c.scope === 'platform' ? c.tid === undefined : c.tid !== undefined), {
     message: 'tid is required for staff/portal tokens and forbidden for platform tokens',

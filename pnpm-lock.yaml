@@ -467,6 +467,9 @@ importers:
       '@hm/templates':
         specifier: workspace:*
         version: link:../packages/templates
+      '@node-rs/argon2':
+        specifier: ^2.2.2
+        version: 2.2.2
       '@socket.io/redis-adapter':
         specifier: ^8.3.0
         version: 8.3.0(socket.io-adapter@2.5.8)

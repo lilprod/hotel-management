@@ -48,6 +48,12 @@ export function authenticate(): RequestHandler {
       });
     if (await revocations.isRevoked(claims.sid))
       throw new AppError('UNAUTHENTICATED', undefined, { detail: 'Session revoked' });
+    // Idle timeout (security policy): sessions issued by the auth modules carry `idle`.
+    if (claims.idle && !(await revocations.touch(claims.sid, claims.idle)))
+      throw new AppError('UNAUTHENTICATED', undefined, {
+        detail: 'Session expired after inactivity',
+        meta: { reason: 'SESSION_IDLE' },
+      });
 
     req.auth = {
       scope: claims.scope,
@@ -55,6 +61,9 @@ export function authenticate(): RequestHandler {
       ...(claims.tid ? { tenantId: claims.tid } : {}),
       sessionId: claims.sid,
       permVer: claims.perm_ver,
+      ...(claims.impersonated_by ? { impersonatedBy: claims.impersonated_by } : {}),
+      mfa: claims.mfa === true,
+      mustChangePassword: claims.mcp === true,
       claims,
     };
     const ctx = getRequestContext();
