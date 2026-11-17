@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, Route, Routes } from 'react-router-dom';
 
-import { HmThemeProvider, useUiStore } from '@hm/ui';
+import { useUiStore } from '@hm/ui';
 
 import './i18n';
 import { SettingsPage } from './pages/settings/SettingsPage';
@@ -11,6 +11,7 @@ import { ModulePage } from './pages/ModulePage';
 import { LoginPage } from './pages/LoginPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { ShellLayout } from './components/ShellLayout';
+import { TenantThemeProvider } from './components/TenantTheme';
 import { modules } from './modules';
 
 /** Keeps i18next in sync with the persisted UI language. */
@@ -30,7 +31,7 @@ export function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <HmThemeProvider>
+      <TenantThemeProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route element={<ShellLayout />}>
@@ -45,7 +46,7 @@ export function App() {
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>
-      </HmThemeProvider>
+      </TenantThemeProvider>
     </QueryClientProvider>
   );
 }

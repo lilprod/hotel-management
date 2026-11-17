@@ -1,13 +1,15 @@
 import { useTranslation } from 'react-i18next';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
-import { AppShell, defaultBranding, filterModules, useSessionStore } from '@hm/ui';
+import { AppShell, filterModules, readableTextColor, useSessionStore } from '@hm/ui';
 
 import { modules } from '../modules';
 import { HeaderBar } from './HeaderBar';
+import { useTenantBranding } from './TenantTheme';
 
 export function ShellLayout() {
   const { t } = useTranslation();
+  const branding = useTenantBranding();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const features = useSessionStore((s) => s.features);
@@ -20,8 +22,9 @@ export function ShellLayout() {
 
   return (
     <AppShell
-      brandName={defaultBranding.name}
-      logoUrl={defaultBranding.logoUrl}
+      brandName={branding.name}
+      logoUrl={branding.logoUrl}
+      siderTextColor={readableTextColor(branding.secondaryColor)}
       items={visible.map((m) => ({
         key: m.key,
         label: t(m.labelKey),
