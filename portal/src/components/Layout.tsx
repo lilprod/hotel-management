@@ -3,9 +3,9 @@ import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 
-import { readableTextColor, useUiStore } from '@hm/ui/core';
+import { useUiStore } from '@hm/ui/core';
 
-import { tenantBranding } from '../branding';
+import { useTenantBranding } from '../branding';
 import { portalRoutes } from '../routes';
 
 function LanguageSwitch() {
@@ -43,9 +43,10 @@ export function Layout() {
   const mainRef = useRef<HTMLElement>(null);
   const firstRender = useRef(true);
 
+  const tenantBranding = useTenantBranding();
   const style = {
     '--hm-primary': tenantBranding.primaryColor,
-    '--hm-on-primary': readableTextColor(tenantBranding.primaryColor),
+    '--hm-on-primary': tenantBranding.onPrimaryColor,
     '--hm-secondary': tenantBranding.secondaryColor,
   } as CSSProperties;
 
@@ -59,7 +60,7 @@ export function Layout() {
       return;
     }
     mainRef.current?.focus();
-  }, [pathname, t]);
+  }, [pathname, t, tenantBranding.name]);
 
   return (
     <div className="site" style={style}>
@@ -69,9 +70,13 @@ export function Layout() {
       <header className="site-header">
         <div className="container bar">
           <NavLink to="/" className="brand">
-            <span className="brand-mark" aria-hidden="true">
-              {tenantBranding.name.charAt(0)}
-            </span>
+            {tenantBranding.logoUrl ? (
+              <img className="brand-logo" src={tenantBranding.logoUrl} alt="" height={36} />
+            ) : (
+              <span className="brand-mark" aria-hidden="true">
+                {tenantBranding.name.charAt(0)}
+              </span>
+            )}
             <span>{tenantBranding.name}</span>
           </NavLink>
           <LanguageSwitch />

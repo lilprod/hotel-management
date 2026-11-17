@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
-import { tenantBranding } from '../branding';
+import { useTenantBranding } from '../branding';
 import { portalRoutes } from '../routes';
 
 const highlights = portalRoutes.filter((r) =>
@@ -10,6 +10,7 @@ const highlights = portalRoutes.filter((r) =>
 
 export default function HomePage() {
   const { t } = useTranslation();
+  const tenantBranding = useTenantBranding();
   return (
     <>
       <section className="hero" aria-labelledby="home-title">

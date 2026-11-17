@@ -6,6 +6,7 @@ import { Route, Routes } from 'react-router-dom';
 import { useUiStore } from '@hm/ui/core';
 
 import './i18n';
+import { BrandingProvider } from './branding';
 import { Layout } from './components/Layout';
 
 const HomePage = lazy(() => import('./pages/HomePage'));
@@ -30,18 +31,20 @@ export function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route index element={<HomePage />} />
-          <Route path="accommodations" element={<SectionPage section="accommodations" />} />
-          <Route path="spa" element={<SectionPage section="spa" />} />
-          <Route path="restaurant" element={<SectionPage section="restaurant" />} />
-          <Route path="activities" element={<SectionPage section="activities" />} />
-          <Route path="booking" element={<BookingSearchPage />} />
-          <Route path="account" element={<AccountPage />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Route>
-      </Routes>
+      <BrandingProvider>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route index element={<HomePage />} />
+            <Route path="accommodations" element={<SectionPage section="accommodations" />} />
+            <Route path="spa" element={<SectionPage section="spa" />} />
+            <Route path="restaurant" element={<SectionPage section="restaurant" />} />
+            <Route path="activities" element={<SectionPage section="activities" />} />
+            <Route path="booking" element={<BookingSearchPage />} />
+            <Route path="account" element={<AccountPage />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
+        </Routes>
+      </BrandingProvider>
     </QueryClientProvider>
   );
 }
