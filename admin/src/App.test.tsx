@@ -71,3 +71,13 @@ describe('admin shell', () => {
     expect(await screen.findByText('Saisissez une adresse e-mail valide.')).toBeInTheDocument();
   });
 });
+
+describe('admin brand block', () => {
+  it('splits the product name and the Super Admin badge instead of one truncated title', () => {
+    renderApp();
+    const block = screen.getByTestId('brand-block');
+    expect(within(block).getByText('Hotel Management')).toBeInTheDocument();
+    expect(within(block).getByText('Super Admin')).toBeInTheDocument();
+    expect(block).not.toHaveTextContent('Hotel Management - Super Admin');
+  });
+});

@@ -52,3 +52,28 @@ export function readableTextColor(background: string): '#000000' | '#ffffff' {
     ? '#ffffff'
     : '#000000';
 }
+
+function toHex(rgb: [number, number, number]): string {
+  return `#${rgb.map((c) => Math.round(c).toString(16).padStart(2, '0')).join('')}`;
+}
+
+/**
+ * Lightens (or darkens when `direction` is -1) `color` step by step until it reaches `minRatio`
+ * against `background`; returns it unchanged when it already does or when it is not a hex color.
+ */
+export function ensureContrast(
+  color: string,
+  background: string,
+  minRatio = 3,
+  direction: 1 | -1 = 1,
+): string {
+  const rgb = parseHex(color);
+  if (!rgb || contrastRatio(color, background) >= minRatio) return color;
+  const target = direction === 1 ? 255 : 0;
+  for (let step = 1; step <= 20; step++) {
+    const t = step / 20;
+    const mixed = toHex(rgb.map((c) => c + (target - c) * t) as [number, number, number]);
+    if (contrastRatio(mixed, background) >= minRatio) return mixed;
+  }
+  return toHex([target, target, target]);
+}

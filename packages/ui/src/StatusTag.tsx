@@ -17,7 +17,9 @@ export const defaultStatusColors: Record<string, string> = {
   suspended: 'orange',
   clean: 'green',
   dirty: 'orange',
+  in_progress: 'blue',
   inspected: 'cyan',
+  out_of_order: 'red',
   out_of_service: 'default',
 };
 

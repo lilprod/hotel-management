@@ -20,7 +20,8 @@ export function ShellLayout() {
 
   return (
     <AppShell
-      brandName={`${defaultBranding.name} - ${t('appName')}`}
+      brandName={defaultBranding.name}
+      brandBadge={t('appName')}
       logoUrl={defaultBranding.logoUrl}
       items={visible.map((m) => ({
         key: m.key,

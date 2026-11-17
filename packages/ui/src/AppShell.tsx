@@ -1,4 +1,4 @@
-import { Layout, Menu, theme as antTheme } from 'antd';
+import { Layout, Menu, Tag, theme as antTheme } from 'antd';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 
@@ -12,6 +12,10 @@ export interface ShellNavItem {
 export interface AppShellProps {
   brandName: string;
   logoUrl?: string | null;
+  /** Small badge under the brand name (e.g. "Super Admin"). */
+  brandBadge?: string;
+  /** Text color on the sidebar background; defaults to white. */
+  siderTextColor?: string;
   items: ShellNavItem[];
   selectedKey?: string | undefined;
   onNavigate: (path: string) => void;
@@ -31,6 +35,8 @@ const skipLinkCss = `
 export function AppShell({
   brandName,
   logoUrl,
+  brandBadge,
+  siderTextColor = '#ffffff',
   items,
   selectedKey,
   onNavigate,
@@ -61,20 +67,64 @@ export function AppShell({
         style={{ position: 'sticky', top: 0, height: '100vh', overflow: 'auto' }}
       >
         <div
+          data-testid="brand-block"
+          title={collapsed ? brandName : undefined}
           style={{
-            height: 56,
+            minHeight: 56,
             display: 'flex',
             alignItems: 'center',
-            gap: 8,
-            padding: '0 16px',
-            color: '#fff',
-            fontWeight: 600,
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            gap: 10,
+            padding: collapsed ? '8px 0' : '8px 16px',
+            color: siderTextColor,
             overflow: 'hidden',
-            whiteSpace: 'nowrap',
           }}
         >
-          {logoUrl ? <img src={logoUrl} alt="" height={28} /> : null}
-          {collapsed ? null : <span>{brandName}</span>}
+          {logoUrl ? (
+            <img src={logoUrl} alt="" height={28} style={{ maxWidth: 40, objectFit: 'contain' }} />
+          ) : (
+            <span
+              aria-hidden="true"
+              style={{
+                flex: '0 0 32px',
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                display: 'grid',
+                placeItems: 'center',
+                fontWeight: 700,
+                background: token.colorPrimary,
+                color: token.colorTextLightSolid,
+              }}
+            >
+              {brandName.trim().charAt(0).toUpperCase()}
+            </span>
+          )}
+          {collapsed ? null : (
+            <span
+              style={{ display: 'flex', flexDirection: 'column', minWidth: 0, lineHeight: 1.25 }}
+            >
+              <span
+                title={brandName}
+                style={{
+                  fontWeight: 600,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {brandName}
+              </span>
+              {brandBadge ? (
+                <Tag
+                  bordered={false}
+                  style={{ alignSelf: 'flex-start', marginInlineEnd: 0, fontSize: 11 }}
+                >
+                  {brandBadge}
+                </Tag>
+              ) : null}
+            </span>
+          )}
         </div>
         <nav aria-label={navLabel}>
           <Menu

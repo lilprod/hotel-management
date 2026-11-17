@@ -5,17 +5,28 @@ import frFR from 'antd/locale/fr_FR';
 import { useEffect } from 'react';
 import type { ReactNode } from 'react';
 
-import { defaultBranding } from './branding';
+import { defaultBranding, ensureContrast, readableTextColor } from './branding';
 import type { Branding } from './branding';
 import { useUiStore } from './store';
 import type { Language, ThemeMode } from './store';
 
+const DARK_SURFACE = '#141414';
+
 export function buildThemeConfig(branding: Branding, mode: ThemeMode): ThemeConfig {
+  // On dark surfaces a very dark brand color would vanish: lighten it until it reads (3:1).
+  const primary =
+    mode === 'dark'
+      ? ensureContrast(branding.primaryColor, DARK_SURFACE, 3, 1)
+      : branding.primaryColor;
+  const onPrimary = readableTextColor(primary);
+  const onSecondary = readableTextColor(branding.secondaryColor);
   return {
     algorithm: mode === 'dark' ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
     token: {
-      colorPrimary: branding.primaryColor,
-      colorLink: branding.primaryColor,
+      colorPrimary: primary,
+      colorLink: primary,
+      // Text drawn on primary surfaces (buttons, selected items) keeps WCAG AA.
+      colorTextLightSolid: onPrimary,
       borderRadius: 6,
     },
     components: {
@@ -23,7 +34,11 @@ export function buildThemeConfig(branding: Branding, mode: ThemeMode): ThemeConf
       Menu: {
         darkItemBg: branding.secondaryColor,
         darkSubMenuItemBg: branding.secondaryColor,
-        darkItemSelectedBg: branding.primaryColor,
+        darkItemColor: onSecondary,
+        darkItemHoverColor: onSecondary,
+        darkItemHoverBg: 'transparent',
+        darkItemSelectedBg: primary,
+        darkItemSelectedColor: onPrimary,
       },
     },
   };

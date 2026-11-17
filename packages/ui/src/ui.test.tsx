@@ -10,7 +10,9 @@ import {
   PageHeader,
   StatusTag,
   ThemeToggle,
+  buildThemeConfig,
   contrastRatio,
+  ensureContrast,
   filterModules,
   defaultBranding,
   readableTextColor,
@@ -143,5 +145,57 @@ describe('filterModules', () => {
     expect(keys(['spa'], [])).toEqual(['a', 'b']);
     expect(keys(['spa'], ['c.read'])).toEqual(['a', 'b', 'c']);
     expect(keys(['*'], ['*'])).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('tenant theming', () => {
+  it('keeps WCAG AA text on primary surfaces', () => {
+    for (const primary of ['#7a5a14', '#f5d000', '#0a1a3a']) {
+      const cfg = buildThemeConfig({ ...defaultBranding, primaryColor: primary }, 'light');
+      const text = cfg.token?.colorTextLightSolid as string;
+      expect(contrastRatio(primary, text)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('lightens a too-dark primary in dark mode only', () => {
+    const dark = buildThemeConfig({ ...defaultBranding, primaryColor: '#0a1a3a' }, 'dark');
+    const light = buildThemeConfig({ ...defaultBranding, primaryColor: '#0a1a3a' }, 'light');
+    expect(light.token?.colorPrimary).toBe('#0a1a3a');
+    expect(contrastRatio(dark.token?.colorPrimary as string, '#141414')).toBeGreaterThanOrEqual(3);
+  });
+
+  it('ensureContrast leaves valid colors untouched', () => {
+    expect(ensureContrast('#ffffff', '#000000')).toBe('#ffffff');
+    expect(ensureContrast('not-a-color', '#000000')).toBe('not-a-color');
+  });
+});
+
+describe('AppShell brand block', () => {
+  it('shows name, badge and a title tooltip, and keeps only the mark when collapsed', async () => {
+    const user = userEvent.setup();
+    render(
+      <HmThemeProvider>
+        <AppShell
+          brandName="Grand Hôtel de la Plage et des Cocotiers"
+          brandBadge="Super Admin"
+          items={[]}
+          onNavigate={() => undefined}
+          header={null}
+          navLabel="nav"
+          skipLabel="skip"
+        >
+          x
+        </AppShell>
+      </HmThemeProvider>,
+    );
+    const name = screen.getByText('Grand Hôtel de la Plage et des Cocotiers');
+    expect(name).toHaveAttribute('title', 'Grand Hôtel de la Plage et des Cocotiers');
+    expect(screen.getByText('Super Admin')).toBeInTheDocument();
+    await user.click(document.querySelector('.ant-layout-sider-trigger') as HTMLElement);
+    expect(screen.queryByText('Super Admin')).not.toBeInTheDocument();
+    expect(screen.getByTestId('brand-block')).toHaveAttribute(
+      'title',
+      'Grand Hôtel de la Plage et des Cocotiers',
+    );
   });
 });
