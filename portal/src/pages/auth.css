@@ -1,7 +1,8 @@
 /* Account pages (login, register, verification, reset, profile): same premium language as the site. */
 .auth {
   display: grid;
-  min-height: calc(100vh - var(--header-h));
+  min-height: 100vh;
+  padding-top: 64px;
 }
 
 .auth-aside {
@@ -222,4 +223,13 @@
   .auth-card-inline {
     width: 100%;
   }
+}
+
+.auth-card .field,
+.field-row > * {
+  min-width: 0;
+}
+
+.auth-card .field input {
+  width: 100%;
 }

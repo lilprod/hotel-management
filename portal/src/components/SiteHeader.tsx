@@ -52,7 +52,9 @@ export function SiteHeader() {
   const { t } = useTranslation();
   const { pathname } = useLocation();
   const branding = useTenantBranding();
-  const scrolled = useScrolled();
+  const scrolledPage = useScrolled();
+  // Account pages have no hero banner under the header: it stays in its solid state.
+  const scrolled = scrolledPage || /^\/(account\/|verify-email)/.test(pathname);
   const [open, setOpen] = useState(false);
   const navRef = useRef<HTMLElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);

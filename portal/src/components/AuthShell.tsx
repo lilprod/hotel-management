@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 
 import { useTenantBranding } from '../branding';
 import { Photo } from './Photo';
+import '../pages/sections.css';
 import '../pages/auth.css';
 
 interface AuthShellProps {
