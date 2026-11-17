@@ -17,7 +17,8 @@ export class TemplateError extends Error {
 export const ALLOWED_HELPERS = ['money', 'date', 'if', 'unless'] as const;
 const BLOCK_HELPERS = new Set(['if', 'unless']);
 
-type TemplateValue = string | number | boolean | null | undefined | TemplateValue[] | TemplateObject;
+type TemplateValue =
+  string | number | boolean | null | undefined | TemplateValue[] | TemplateObject;
 export interface TemplateObject {
   [key: string]: TemplateValue;
 }
@@ -71,8 +72,7 @@ export function inspectTemplate(source: string, variables: readonly string[]): s
     if (p.type !== 'PathExpression') return; // literals
     const path = p as hbs.AST.PathExpression;
     if (path.data) issues.push(`data variable @${path.original.replace(/^@/, '')} is not allowed`);
-    const root = path.parts[0];
-    if (typeof root === 'string' && !allowed.has(root)) issues.push(`unknown variable "${root}"`);
+    if (!allowed.has(path.original)) issues.push(`unknown variable "${path.original}"`);
   };
 
   const checkCall = (n: {
@@ -151,20 +151,51 @@ function compile(source: string, escape: boolean): HandlebarsTemplateDelegate {
 export function pickVariables(
   data: Record<string, unknown>,
   variables: readonly string[],
+  opts: { flattenMoney?: boolean } = {},
 ): TemplateObject {
   const out: TemplateObject = {};
   for (const key of variables) {
-    const v = data[key];
-    if (v === undefined || v === null) continue;
-    if (/url$/i.test(key)) {
-      const url = safeHttpUrl(v);
-      if (url) out[key] = url;
-      continue;
+    const parts = key.split('.');
+    let v: unknown = data;
+    for (const p of parts) {
+      v =
+        typeof v === 'object' && v !== null && Object.prototype.hasOwnProperty.call(v, p)
+          ? (v as Record<string, unknown>)[p]
+          : undefined;
     }
-    if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') out[key] = v;
-    else if (typeof v === 'object') out[key] = JSON.parse(JSON.stringify(v)) as TemplateObject;
+    if (v === undefined || v === null) continue;
+    let value: TemplateValue;
+    if (/(url|link)$/i.test(parts[parts.length - 1] ?? '')) {
+      const url = safeHttpUrl(v);
+      if (!url) continue;
+      value = url;
+    } else if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') value = v;
+    else if (typeof v === 'object') {
+      value = JSON.parse(JSON.stringify(v)) as TemplateObject;
+      if (opts.flattenMoney) value = moneyToString(value);
+    } else continue;
+    let cur = out;
+    parts.forEach((p, i) => {
+      if (i === parts.length - 1) cur[p] = value;
+      else cur = (cur[p] ??= {}) as TemplateObject;
+    });
   }
   return out;
+}
+
+/** `{ amount, currency }` -> "135 000 XOF" (tenant overrides cannot call the money helper). */
+function moneyToString(v: TemplateValue): TemplateValue {
+  if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
+    const { amount, currency } = v as { amount?: unknown; currency?: unknown };
+    if (typeof amount === 'number' && typeof currency === 'string') {
+      try {
+        return formatMoney(money(amount, currency));
+      } catch {
+        return '';
+      }
+    }
+  }
+  return v;
 }
 
 export interface RenderInput {
@@ -172,21 +203,29 @@ export interface RenderInput {
   data: Record<string, unknown>;
   variables: readonly string[];
   locale: Locale;
+  /** Overrides: pre-format money values since helpers are not allowed in tenant templates. */
+  flattenMoney?: boolean;
 }
 
 /** HTML/MJML fragment: every `{{x}}` is HTML-escaped. */
 export function renderHtmlFragment(input: RenderInput): string {
   assertTemplate(input.source, input.variables);
-  return compile(input.source, true)(pickVariables(input.data, input.variables), {
-    data: { locale: input.locale },
-  });
+  return compile(input.source, true)(
+    pickVariables(input.data, input.variables, { flattenMoney: input.flattenMoney ?? false }),
+    {
+      data: { locale: input.locale },
+    },
+  );
 }
 
 /** Plain text (subject, SMS, WhatsApp, text e-mail): no HTML escaping; CR/LF removed on request. */
 export function renderPlain(input: RenderInput & { singleLine?: boolean }): string {
   assertTemplate(input.source, input.variables);
-  const out = compile(input.source, false)(pickVariables(input.data, input.variables), {
-    data: { locale: input.locale },
-  });
+  const out = compile(input.source, false)(
+    pickVariables(input.data, input.variables, { flattenMoney: input.flattenMoney ?? false }),
+    {
+      data: { locale: input.locale },
+    },
+  );
   return input.singleLine ? out.replace(/[\r\n]+/g, ' ').trim() : out.trim();
 }
