@@ -1,0 +1,92 @@
+{
+  "error": "Something went wrong",
+  "save": "Save",
+  "saved": "Branding saved",
+  "edit": "Edit",
+  "delete": "Delete",
+  "cancel": "Cancel",
+  "actions": "Actions",
+  "contrastWarning": "White text on the primary colour reaches only {{ratio}}:1 (WCAG AA needs 4.5:1): black text will be used.",
+  "tabs": {
+    "identity": "Visual identity",
+    "templates": "Message templates",
+    "domain": "Custom domain"
+  },
+  "f": {
+    "primaryColor": "Primary colour",
+    "secondaryColor": "Secondary colour",
+    "emailSenderName": "Email sender name",
+    "loginMessage": "Login page message",
+    "docHeader": "Document header",
+    "docFooter": "Document footer",
+    "legalMentions": "Legal mentions"
+  },
+  "validation": {
+    "invalidColor": "Expected a #RRGGBB colour",
+    "invalidSender": "No line break, quote, angle bracket or @"
+  },
+  "legal": {
+    "title": "Legal identity (Togo)",
+    "legalForm": "Legal form",
+    "nif": "NIF",
+    "rccm": "RCCM",
+    "taxRegime": "Tax regime",
+    "address": "Registered address",
+    "regimeHint": "Common regimes:"
+  },
+  "preview": {
+    "title": "Live preview",
+    "brand": "Your hotel",
+    "button": "Book now",
+    "tag": "Confirmed",
+    "link": "See details"
+  },
+  "assets": {
+    "title": "Logos and images",
+    "upload": "Upload",
+    "replace": "Replace",
+    "remove": "Remove",
+    "confirmRemove": "Remove this image?",
+    "set": "Set",
+    "unset": "Not set",
+    "kinds": {
+      "logo": "Logo (light)",
+      "logo-dark": "Logo (dark)",
+      "favicon": "Favicon",
+      "login-background": "Login background",
+      "signature": "Signature / stamp"
+    },
+    "hints": {
+      "logo": "PNG, JPEG or WebP, 1 MB max",
+      "logo-dark": "PNG, JPEG or WebP, 1 MB max",
+      "favicon": "Square PNG or ICO, 256 KB max",
+      "login-background": "At least 640x360, 3 MB max",
+      "signature": "PNG, JPEG or WebP, 512 KB max"
+    }
+  },
+  "templates": {
+    "title": "Message templates",
+    "add": "New template",
+    "code": "Code",
+    "channel": "Channel",
+    "locale": "Language",
+    "subject": "Subject",
+    "body": "Message",
+    "variables": "Allowed variables:",
+    "preview": "Preview",
+    "confirmDelete": "Delete this template?"
+  },
+  "domain": {
+    "title": "Custom domain",
+    "subdomain": "Your address:",
+    "hostname": "Domain name",
+    "add": "Add domain",
+    "status": "Status",
+    "statuses": { "PENDING_VERIFICATION": "Pending verification", "VERIFIED": "Verified" },
+    "txt": "TXT record to publish",
+    "verify": "Check DNS",
+    "notFound": "TXT record not found yet. DNS propagation can take a while.",
+    "remove": "Remove domain",
+    "confirmRemove": "Remove this custom domain?"
+  }
+}

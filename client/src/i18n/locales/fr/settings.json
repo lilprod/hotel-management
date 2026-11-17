@@ -12,6 +12,7 @@
   "yes": "Oui",
   "no": "Non",
   "tabs": {
+    "branding": "Image de marque",
     "property": "Établissement",
     "rooms": "Chambres",
     "rates": "Tarifs",
