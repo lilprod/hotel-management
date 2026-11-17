@@ -46,6 +46,9 @@ export interface NotificationMessage {
   subject?: string;
   text: string;
   html?: string;
+  /** Display name of the sender (tenant e-mail sender name / SMS sender id). */
+  fromName?: string;
+  replyTo?: string;
   attachments?: { filename: string; content: Buffer; contentType?: string }[];
 }
 
@@ -66,6 +69,9 @@ export interface PdfRenderOptions {
   paper?: 'A4' | 'A5' | 'Letter';
   landscape?: boolean;
   marginsMm?: number;
+  /** Custom page size in mm (receipt tickets); overrides `paper`. */
+  widthMm?: number;
+  heightMm?: number;
 }
 
 export interface PdfRenderer {

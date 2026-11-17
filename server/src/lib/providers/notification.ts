@@ -25,7 +25,8 @@ export class SmtpNotificationProvider implements NotificationProvider {
 
   async send(message: NotificationMessage): Promise<SendResult> {
     const info = (await this.transport.sendMail({
-      from: this.from,
+      from: withDisplayName(this.from, message.fromName),
+      ...(message.replyTo ? { replyTo: message.replyTo } : {}),
       to: message.to,
       subject: message.subject ?? '',
       text: message.text,
@@ -49,7 +50,7 @@ export class ConsoleNotificationProvider implements NotificationProvider {
   readonly name: string;
 
   constructor(
-    readonly channel: Exclude<NotificationChannel, 'email'>,
+    readonly channel: NotificationChannel,
     private readonly logger: Logger,
   ) {
     this.name = `${channel}-console`;
@@ -63,4 +64,12 @@ export class ConsoleNotificationProvider implements NotificationProvider {
     });
     return { channel: this.channel, provider: this.name, accepted: true };
   }
+}
+
+/** `Name <addr@host>` from MAIL_FROM, with the tenant sender name replacing the display name. */
+export function withDisplayName(from: string, name?: string): string {
+  if (!name) return from;
+  const addr = /<([^>]+)>/.exec(from)?.[1] ?? from.trim();
+  const safe = name.replace(/[\r\n"<>\\]/g, ' ').trim();
+  return `"${safe}" <${addr}>`;
 }

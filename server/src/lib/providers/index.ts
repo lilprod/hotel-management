@@ -17,6 +17,8 @@ import type {
 export * from './types.js';
 export { ManualPaymentProvider, SmtpNotificationProvider, ConsoleNotificationProvider };
 export { GotenbergPdfRenderer, NoneFiscalInvoiceProvider };
+export { HttpSmsProvider, smsHttpConfigSchema, type SmsHttpConfig } from './sms-http.js';
+export { withDisplayName } from './notification.js';
 
 /** Tenant-level adapter selection (settings hierarchy). */
 export const providerSettings = {
@@ -53,6 +55,9 @@ export class ProviderRegistry {
   payment(name: string): PaymentProvider {
     return required(this.payments.get(name), 'payment', name);
   }
+  hasNotification(name: string): boolean {
+    return this.notifications.has(name);
+  }
   notification(name: string): NotificationProvider {
     return required(this.notifications.get(name), 'notification', name);
   }
@@ -74,6 +79,7 @@ export function createProviders(config: Config, logger: Logger): ProviderRegistr
   const reg = new ProviderRegistry(new GotenbergPdfRenderer(config.GOTENBERG_URL))
     .addPayment(new ManualPaymentProvider())
     .addFiscal(new NoneFiscalInvoiceProvider())
+    .addNotification(new ConsoleNotificationProvider('email', logger))
     .addNotification(new ConsoleNotificationProvider('sms', logger))
     .addNotification(new ConsoleNotificationProvider('whatsapp', logger));
   if (config.SMTP_URL)

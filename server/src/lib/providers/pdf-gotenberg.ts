@@ -17,7 +17,10 @@ export class GotenbergPdfRenderer implements PdfRenderer {
   ) {}
 
   async renderHtml(html: string, opts: PdfRenderOptions = {}): Promise<Buffer> {
-    const [w, h] = PAPER_IN[opts.paper ?? 'A4'];
+    const [w, h] =
+      opts.widthMm && opts.heightMm
+        ? [opts.widthMm / 25.4, opts.heightMm / 25.4]
+        : PAPER_IN[opts.paper ?? 'A4'];
     const margin = String((opts.marginsMm ?? 10) / 25.4);
     const form = new FormData();
     form.append('files', new Blob([html], { type: 'text/html' }), 'index.html');
