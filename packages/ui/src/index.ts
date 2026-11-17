@@ -5,3 +5,4 @@ export * from './PageHeader';
 export * from './EmptyState';
 export * from './controls';
 export * from './AppShell';
+export * from './TotpSetup';
