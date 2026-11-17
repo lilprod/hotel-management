@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Button, Dropdown, Form, Input, Modal, Select, Table, Tag } from 'antd';
 import { useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, type Resolver } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 
@@ -40,7 +40,9 @@ function UserModal({ user, onClose }: { user: PlatformUser | 'new'; onClose: () 
   const isNew = user === 'new';
   const [error, setError] = useState<string | null>(null);
   const form = useForm<CreateValues>({
-    resolver: zodResolver(isNew ? createSchema : createSchema.partial({ email: true, password: true })),
+    resolver: zodResolver(
+      isNew ? createSchema : createSchema.partial({ email: true, password: true }),
+    ) as Resolver<CreateValues>,
     defaultValues: isNew
       ? { email: '', name: '', role: 'SUPPORT', password: '' }
       : { email: user.email, name: user.name, role: user.role, password: '' },
@@ -187,19 +189,27 @@ export function PlatformUsersPage() {
             title: t('users.status'),
             dataIndex: 'isActive',
             render: (a: boolean) => (
-              <Tag color={a ? 'green' : 'default'}>{a ? t('users.active') : t('users.inactive')}</Tag>
+              <Tag color={a ? 'green' : 'default'}>
+                {a ? t('users.active') : t('users.inactive')}
+              </Tag>
             ),
           },
           {
             title: 'TOTP',
             dataIndex: 'mfaEnabled',
-            render: (v: boolean) => (v ? <Tag color="green">{t('users.enrolled')}</Tag> : <Tag>{t('users.pending')}</Tag>),
+            render: (v: boolean) =>
+              v ? <Tag color="green">{t('users.enrolled')}</Tag> : <Tag>{t('users.pending')}</Tag>,
           },
           {
             title: t('users.lastLogin'),
             dataIndex: 'lastLoginAt',
             render: (v: string | null) =>
-              v ? new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' }).format(new Date(v)) : '—',
+              v
+                ? new Intl.DateTimeFormat(i18n.language, {
+                    dateStyle: 'short',
+                    timeStyle: 'short',
+                  }).format(new Date(v))
+                : '—',
           },
           {
             title: t('users.actions'),
@@ -211,7 +221,12 @@ export function PlatformUsersPage() {
                   items: [
                     { key: 'edit', label: t('users.edit') },
                     u.isActive
-                      ? { key: 'deactivate', label: t('users.deactivate'), danger: true, disabled: u.id === me?.id }
+                      ? {
+                          key: 'deactivate',
+                          label: t('users.deactivate'),
+                          danger: true,
+                          disabled: u.id === me?.id,
+                        }
                       : { key: 'activate', label: t('users.activate') },
                     { key: 'mfa', label: t('users.resetMfa'), danger: true },
                   ],

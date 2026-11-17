@@ -1,26 +1,17 @@
-import { render, screen, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { useSessionStore, useUiStore } from '@hm/ui';
+import { useUiStore } from '@hm/ui';
 
-import { App } from './App';
 import i18n from './i18n';
 import { modules } from './modules';
-
-function renderApp(path = '/dashboard') {
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <App />
-    </MemoryRouter>,
-  );
-}
+import { renderApp, signInAs, signOut } from './test-utils';
 
 beforeEach(async () => {
   window.localStorage.clear();
   useUiStore.setState({ mode: 'light', language: 'fr' });
-  useSessionStore.setState({ features: ['*'], permissions: ['*'] });
+  signInAs('SUPER_ADMIN');
   await i18n.changeLanguage('fr');
 });
 
@@ -37,6 +28,8 @@ describe('admin shell', () => {
       'announcements',
       'support',
       'platform-users',
+      'impersonations',
+      'audit',
       'settings',
     ]);
   });
@@ -49,11 +42,13 @@ describe('admin shell', () => {
   });
 
   it('filters sidebar items by permissions', () => {
-    useSessionStore.setState({ features: ['*'], permissions: ['platform.tenants.read'] });
+    signInAs('FINANCE');
     renderApp();
     const nav = screen.getByRole('navigation', { name: 'Navigation principale' });
     expect(within(nav).getByText('Établissements')).toBeInTheDocument();
-    expect(within(nav).queryByText('Factures')).not.toBeInTheDocument();
+    expect(within(nav).getByText('Factures')).toBeInTheDocument();
+    expect(within(nav).queryByText('Utilisateurs plateforme')).not.toBeInTheDocument();
+    expect(within(nav).queryByText('Impersonation')).not.toBeInTheDocument();
   });
 
   it('switches language from the header', async () => {
@@ -65,6 +60,7 @@ describe('admin shell', () => {
   });
 
   it('validates the login form without calling an API', async () => {
+    signOut();
     const user = userEvent.setup();
     renderApp('/login');
     await user.click(screen.getByRole('button', { name: 'Se connecter' }));

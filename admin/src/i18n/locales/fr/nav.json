@@ -10,5 +10,7 @@
   "announcements": "Annonces",
   "support": "Support",
   "platformUsers": "Utilisateurs plateforme",
-  "settings": "Paramètres"
+  "settings": "Paramètres",
+  "impersonations": "Impersonation",
+  "audit": "Journal d'audit"
 }

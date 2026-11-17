@@ -39,8 +39,15 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const startSchema = z.object({
   tenantId: z.string().trim().regex(UUID, 'validation.uuid'),
   reason: z.string().trim().min(10, 'validation.reasonMin').max(500),
-  durationMinutes: z.number({ error: 'validation.required' }).int().min(1, 'validation.range').max(30, 'validation.range'),
-  userId: z.string().trim().refine((v) => v === '' || UUID.test(v), 'validation.uuid'),
+  durationMinutes: z
+    .number({ error: 'validation.required' })
+    .int()
+    .min(1, 'validation.range')
+    .max(30, 'validation.range'),
+  userId: z
+    .string()
+    .trim()
+    .refine((v) => v === '' || UUID.test(v), 'validation.uuid'),
 });
 type StartValues = z.infer<typeof startSchema>;
 
@@ -55,7 +62,11 @@ const base64url = (o: unknown) => {
  * URL of the tenant staff app carrying the support token in the FRAGMENT (never sent to a
  * server, consumed and erased by the staff app; the token is non refreshable and ≤ 30 min).
  */
-export function handoffUrl(r: StartResult, reason: string, by: { id: string; name: string }): string | null {
+export function handoffUrl(
+  r: StartResult,
+  reason: string,
+  by: { id: string; name: string },
+): string | null {
   if (!r.tenant.host) return null;
   const payload = base64url({
     accessToken: r.accessToken,
@@ -73,7 +84,9 @@ export function ImpersonationsPage() {
   const message = useApiError();
   const qc = useQueryClient();
   const me = useMeStore((s) => s.me);
-  const canStart = useSessionStore((s) => hasPermission(s.permissions, 'platform.impersonations.start'));
+  const canStart = useSessionStore((s) =>
+    hasPermission(s.permissions, 'platform.impersonations.start'),
+  );
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [started, setStarted] = useState<{ url: string | null; tenant: string } | null>(null);
@@ -144,8 +157,12 @@ export function ImpersonationsPage() {
           }
         />
       ) : null}
-      {list.isError ? <Alert type="error" showIcon message={message(list.error)} style={{ marginBottom: 12 }} /> : null}
-      {end.isError ? <Alert type="error" showIcon message={message(end.error)} style={{ marginBottom: 12 }} /> : null}
+      {list.isError ? (
+        <Alert type="error" showIcon message={message(list.error)} style={{ marginBottom: 12 }} />
+      ) : null}
+      {end.isError ? (
+        <Alert type="error" showIcon message={message(end.error)} style={{ marginBottom: 12 }} />
+      ) : null}
       <Table<ImpersonationEvent>
         rowKey="id"
         loading={list.isPending}
@@ -158,7 +175,10 @@ export function ImpersonationsPage() {
             title: t('imp.at'),
             dataIndex: 'at',
             render: (v: string) =>
-              new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' }).format(new Date(v)),
+              new Intl.DateTimeFormat(i18n.language, {
+                dateStyle: 'short',
+                timeStyle: 'short',
+              }).format(new Date(v)),
           },
           {
             title: t('imp.action'),
@@ -169,14 +189,27 @@ export function ImpersonationsPage() {
               </Tag>
             ),
           },
-          { title: t('imp.tenant'), dataIndex: 'tenantId', render: (v: string | null) => (v ? <code>{v.slice(0, 8)}</code> : '—') },
-          { title: t('imp.reason'), key: 'reason', render: (_: unknown, r) => r.details?.reason ?? '—' },
+          {
+            title: t('imp.tenant'),
+            dataIndex: 'tenantId',
+            render: (v: string | null) => (v ? <code>{v.slice(0, 8)}</code> : '—'),
+          },
+          {
+            title: t('imp.reason'),
+            key: 'reason',
+            render: (_: unknown, r) => r.details?.reason ?? '—',
+          },
           {
             title: t('users.actions'),
             key: 'actions',
             render: (_: unknown, r) =>
               canStart && r.action === 'impersonation.started' && r.details?.sessionId ? (
-                <Button size="small" danger loading={end.isPending} onClick={() => end.mutate(r.details!.sessionId!)}>
+                <Button
+                  size="small"
+                  danger
+                  loading={end.isPending}
+                  onClick={() => end.mutate(r.details!.sessionId!)}
+                >
                   {t('imp.end')}
                 </Button>
               ) : null,
@@ -195,21 +228,50 @@ export function ImpersonationsPage() {
         <form noValidate onSubmit={(e) => void submit(e)}>
           <Form layout="vertical" component={false}>
             <Field id="imp-tenant" label={t('imp.tenantId')} error={errors.tenantId?.message}>
-              <Input {...a11y('imp-tenant', errors.tenantId)} {...bind(form.register('tenantId'))} />
+              <Input
+                {...a11y('imp-tenant', errors.tenantId)}
+                {...bind(form.register('tenantId'))}
+              />
             </Field>
-            <Field id="imp-reason" label={t('imp.reason')} extra={t('imp.reasonHint')} error={errors.reason?.message}>
-              <Input.TextArea rows={3} maxLength={500} {...a11y('imp-reason', errors.reason)} {...form.register('reason')} />
+            <Field
+              id="imp-reason"
+              label={t('imp.reason')}
+              extra={t('imp.reasonHint')}
+              error={errors.reason?.message}
+            >
+              <Input.TextArea
+                rows={3}
+                maxLength={500}
+                {...a11y('imp-reason', errors.reason)}
+                {...form.register('reason')}
+              />
             </Field>
-            <Field id="imp-duration" label={t('imp.duration')} error={errors.durationMinutes?.message}>
+            <Field
+              id="imp-duration"
+              label={t('imp.duration')}
+              error={errors.durationMinutes?.message}
+            >
               <Controller
                 control={form.control}
                 name="durationMinutes"
                 render={({ field }) => (
-                  <InputNumber {...a11y('imp-duration', errors.durationMinutes)} min={1} max={30} addonAfter="min" value={field.value} onChange={field.onChange} />
+                  <InputNumber
+                    {...a11y('imp-duration', errors.durationMinutes)}
+                    min={1}
+                    max={30}
+                    addonAfter="min"
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
                 )}
               />
             </Field>
-            <Field id="imp-user" label={t('imp.userId')} extra={t('imp.userHint')} error={errors.userId?.message}>
+            <Field
+              id="imp-user"
+              label={t('imp.userId')}
+              extra={t('imp.userHint')}
+              error={errors.userId?.message}
+            >
               <Input {...a11y('imp-user', errors.userId)} {...bind(form.register('userId'))} />
             </Field>
             {error ? <Alert type="error" showIcon message={error} role="alert" /> : null}

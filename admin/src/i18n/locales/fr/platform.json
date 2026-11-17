@@ -1,0 +1,80 @@
+{
+  "save": "Enregistrer",
+  "cancel": "Annuler",
+  "confirm": "Confirmer",
+  "roles": {
+    "SUPER_ADMIN": "Super administrateur",
+    "FINANCE": "Finance",
+    "SUPPORT": "Support",
+    "READ_ONLY": "Lecture seule"
+  },
+  "users": {
+    "title": "Utilisateurs plateforme",
+    "subtitle": "Comptes de l'équipe Super Admin. La double authentification est obligatoire.",
+    "create": "Nouvel utilisateur",
+    "edit": "Modifier",
+    "email": "Adresse e-mail",
+    "name": "Nom",
+    "role": "Rôle",
+    "password": "Mot de passe initial",
+    "passwordHint": "12 caractères minimum. L'utilisateur configurera sa double authentification à la première connexion.",
+    "status": "Statut",
+    "active": "Actif",
+    "inactive": "Inactif",
+    "enrolled": "Activé",
+    "pending": "À configurer",
+    "lastLogin": "Dernière connexion",
+    "actions": "Actions",
+    "activate": "Activer",
+    "deactivate": "Désactiver",
+    "resetMfa": "Réinitialiser la double authentification",
+    "confirm": {
+      "deactivate": "Désactiver {{name}} ?",
+      "mfa": "Réinitialiser la double authentification de {{name}} ? Il devra la reconfigurer à sa prochaine connexion."
+    }
+  },
+  "imp": {
+    "title": "Impersonation",
+    "subtitle": "Sessions « agir en tant que » de 30 minutes maximum, sur les établissements consentants. Chaque action est tracée.",
+    "start": "Démarrer une session",
+    "confirmStart": "Démarrer",
+    "started": "Session ouverte sur {{tenant}}",
+    "open": "Ouvrir l'établissement dans un nouvel onglet",
+    "noHost": "Cet établissement n'a pas de domaine configuré.",
+    "empty": "Aucune session d'impersonation.",
+    "at": "Date",
+    "action": "Évènement",
+    "tenant": "Établissement",
+    "tenantId": "Identifiant de l'établissement",
+    "reason": "Motif",
+    "reasonHint": "Obligatoire (10 caractères minimum) : conservé dans le journal d'audit.",
+    "duration": "Durée",
+    "userId": "Utilisateur ciblé (optionnel)",
+    "userHint": "UUID d'un utilisateur de l'établissement ; par défaut le propriétaire.",
+    "end": "Terminer",
+    "actions": {
+      "started": "Démarrée",
+      "ended": "Terminée",
+      "expired": "Expirée"
+    }
+  },
+  "audit": {
+    "title": "Journal d'audit plateforme",
+    "subtitle": "Historique immuable des actions de la plateforme.",
+    "filters": "Filtres",
+    "action": "Action",
+    "actionHint": "ex. platform_user.* ",
+    "entity": "Entité",
+    "user": "Acteur",
+    "userHint": "UUID de l'acteur",
+    "period": "Période",
+    "apply": "Filtrer",
+    "reset": "Réinitialiser",
+    "export": "Exporter en CSV",
+    "empty": "Aucune entrée.",
+    "at": "Date",
+    "before": "Avant",
+    "after": "Après",
+    "more": "Charger plus"
+  }
+}

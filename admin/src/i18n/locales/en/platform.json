@@ -1,0 +1,80 @@
+{
+  "save": "Save",
+  "cancel": "Cancel",
+  "confirm": "Confirm",
+  "roles": {
+    "SUPER_ADMIN": "Super admin",
+    "FINANCE": "Finance",
+    "SUPPORT": "Support",
+    "READ_ONLY": "Read only"
+  },
+  "users": {
+    "title": "Platform users",
+    "subtitle": "Super Admin team accounts. Two-factor authentication is mandatory.",
+    "create": "New user",
+    "edit": "Edit",
+    "email": "Email address",
+    "name": "Name",
+    "role": "Role",
+    "password": "Initial password",
+    "passwordHint": "At least 12 characters. The user enrols their two-factor authentication at first login.",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "enrolled": "Enabled",
+    "pending": "To set up",
+    "lastLogin": "Last login",
+    "actions": "Actions",
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "resetMfa": "Reset two-factor authentication",
+    "confirm": {
+      "deactivate": "Deactivate {{name}}?",
+      "mfa": "Reset the two-factor authentication of {{name}}? They will have to set it up again at their next login."
+    }
+  },
+  "imp": {
+    "title": "Impersonation",
+    "subtitle": "\"Act as\" sessions of 30 minutes at most, on consenting tenants. Every action is logged.",
+    "start": "Start a session",
+    "confirmStart": "Start",
+    "started": "Session opened on {{tenant}}",
+    "open": "Open the tenant in a new tab",
+    "noHost": "This tenant has no configured domain.",
+    "empty": "No impersonation session.",
+    "at": "Date",
+    "action": "Event",
+    "tenant": "Tenant",
+    "tenantId": "Tenant identifier",
+    "reason": "Reason",
+    "reasonHint": "Required (10 characters minimum): kept in the audit log.",
+    "duration": "Duration",
+    "userId": "Target user (optional)",
+    "userHint": "UUID of a tenant user; defaults to the owner.",
+    "end": "End",
+    "actions": {
+      "started": "Started",
+      "ended": "Ended",
+      "expired": "Expired"
+    }
+  },
+  "audit": {
+    "title": "Platform audit log",
+    "subtitle": "Immutable history of platform actions.",
+    "filters": "Filters",
+    "action": "Action",
+    "actionHint": "e.g. platform_user.* ",
+    "entity": "Entity",
+    "user": "Actor",
+    "userHint": "Actor UUID",
+    "period": "Period",
+    "apply": "Filter",
+    "reset": "Reset",
+    "export": "Export CSV",
+    "empty": "No entries.",
+    "at": "Date",
+    "before": "Before",
+    "after": "After",
+    "more": "Load more"
+  }
+}

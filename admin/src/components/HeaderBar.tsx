@@ -3,6 +3,7 @@ import { Badge, Button, Dropdown, Grid } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
+import { logout } from '../auth/session';
 import { LanguageSwitch, ThemeToggle, useSessionStore } from '@hm/ui';
 
 export function HeaderBar() {
@@ -27,7 +28,7 @@ export function HeaderBar() {
             { key: 'logout', label: t('logout'), icon: <LogoutOutlined /> },
           ],
           onClick: ({ key }) => {
-            if (key === 'logout') navigate('/login');
+            if (key === 'logout') void logout().then(() => navigate('/login', { replace: true }));
           },
         }}
       >

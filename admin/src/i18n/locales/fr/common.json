@@ -16,16 +16,14 @@
     "description": "Ce module n'est pas inclus dans votre offre ou vos droits."
   },
   "notFound": "Page introuvable",
-  "login": {
-    "title": "Connexion",
-    "subtitle": "Administration de la plateforme",
-    "email": "Adresse e-mail",
-    "password": "Mot de passe",
-    "submit": "Se connecter",
-    "placeholderNotice": "Maquette : aucun appel API n'est effectué."
-  },
   "validation": {
     "emailInvalid": "Saisissez une adresse e-mail valide.",
-    "passwordRequired": "Le mot de passe est obligatoire."
+    "passwordRequired": "Le mot de passe est obligatoire.",
+    "codeInvalid": "Saisissez le code à 6 chiffres (ou un code de secours).",
+    "required": "Ce champ est obligatoire.",
+    "passwordMin12": "12 caractères minimum.",
+    "uuid": "Identifiant invalide (UUID attendu).",
+    "reasonMin": "Le motif doit contenir au moins 10 caractères.",
+    "range": "Valeur comprise entre 1 et 30."
   }
 }

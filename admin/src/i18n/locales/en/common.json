@@ -16,16 +16,14 @@
     "description": "This module is not included in your plan or permissions."
   },
   "notFound": "Page not found",
-  "login": {
-    "title": "Sign in",
-    "subtitle": "Platform administration",
-    "email": "Email address",
-    "password": "Password",
-    "submit": "Sign in",
-    "placeholderNotice": "Mock-up: no API call is made."
-  },
   "validation": {
     "emailInvalid": "Enter a valid email address.",
-    "passwordRequired": "Password is required."
+    "passwordRequired": "Password is required.",
+    "codeInvalid": "Enter the 6-digit code (or a backup code).",
+    "required": "This field is required.",
+    "passwordMin12": "At least 12 characters.",
+    "uuid": "Invalid identifier (UUID expected).",
+    "reasonMin": "The reason must be at least 10 characters.",
+    "range": "Value between 1 and 30."
   }
 }
