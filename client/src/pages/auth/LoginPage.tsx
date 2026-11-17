@@ -11,7 +11,7 @@ import { BackupCodes, TotpSetup } from '@hm/ui';
 import { adoptTokens, apiClient, loadMe, type AuthResult } from '../../auth/session';
 import { useApiError } from '../../auth/useApiError';
 import { AuthLayout } from '../../components/AuthLayout';
-import { Field, a11y } from '../../components/Field';
+import { Field, a11y, bind } from '../../components/Field';
 
 // Messages are i18n keys, translated at render time.
 export const loginSchema = z.object({
@@ -168,7 +168,7 @@ export function LoginPage() {
   if (step.kind === 'mfa') {
     const errors = mfa.formState.errors;
     return (
-      <AuthLayout title={t('auth:mfa.title')} subtitle={t('auth:mfa.subtitle')}>
+      <AuthLayout key="mfa" title={t('auth:mfa.title')} subtitle={t('auth:mfa.subtitle')}>
         <form noValidate onSubmit={submitMfa}>
           <Form layout="vertical" component={false}>
             <Field
@@ -180,7 +180,7 @@ export function LoginPage() {
                 {...a11y('mfa-code', errors.code)}
                 inputMode={step.backup ? 'text' : 'numeric'}
                 autoComplete="one-time-code"
-                {...mfa.register('code')}
+                {...bind(mfa.register('code'))}
               />
             </Field>
             {error ? (
@@ -225,7 +225,7 @@ export function LoginPage() {
 
   const errors = credentials.formState.errors;
   return (
-    <AuthLayout title={t('auth:login.title')} subtitle={t('auth:login.subtitle')}>
+    <AuthLayout key="login" title={t('auth:login.title')} subtitle={t('auth:login.subtitle')}>
       <form noValidate onSubmit={submitCredentials}>
         <Form layout="vertical" component={false}>
           <Field id="email" label={t('auth:login.email')} error={errors.email?.message}>
@@ -233,14 +233,14 @@ export function LoginPage() {
               {...a11y('email', errors.email)}
               type="email"
               autoComplete="username"
-              {...credentials.register('email')}
+              {...bind(credentials.register('email'))}
             />
           </Field>
           <Field id="password" label={t('auth:login.password')} error={errors.password?.message}>
             <Input.Password
               {...a11y('password', errors.password)}
               autoComplete="current-password"
-              {...credentials.register('password')}
+              {...bind(credentials.register('password'))}
             />
           </Field>
           {error ? (

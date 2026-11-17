@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { apiClient, useMeStore } from '../../auth/session';
 import { useApiError } from '../../auth/useApiError';
 import { useCan } from '../../auth/useCan';
-import { Field, a11y } from '../../components/Field';
+import { Field, a11y, bind } from '../../components/Field';
 import type { IamUser, Role, UserStatus } from './api';
 import { fmtDate } from './SessionsPanel';
 
@@ -104,14 +104,18 @@ function UserModal({
               {...a11y('user-email', errors.email)}
               type="email"
               disabled={!isNew}
-              {...form.register('email')}
+              {...bind(form.register('email'))}
             />
           </Field>
           <Field id="user-name" label={t('users.name')} error={errors.name?.message}>
-            <Input {...a11y('user-name', errors.name)} {...form.register('name')} />
+            <Input {...a11y('user-name', errors.name)} {...bind(form.register('name'))} />
           </Field>
           <Field id="user-phone" label={t('users.phone')} error={errors.phone?.message}>
-            <Input {...a11y('user-phone', errors.phone)} type="tel" {...form.register('phone')} />
+            <Input
+              {...a11y('user-phone', errors.phone)}
+              type="tel"
+              {...bind(form.register('phone'))}
+            />
           </Field>
           <Field id="user-roles" label={t('users.roles')} error={errors.roleIds?.message}>
             <Controller

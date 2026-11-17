@@ -2,9 +2,10 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useSessionStore, useUiStore } from '@hm/ui';
+import { useUiStore } from '@hm/ui';
 
 import { App } from '../App';
+import { signIn } from '../test-utils';
 import i18n from '../i18n';
 
 const json = (status: number, body: unknown) =>
@@ -22,6 +23,7 @@ function stub(brandingStatus: number) {
               assets: { logo: { url: '/logo.png' } },
             })
           : json(brandingStatus, { title: 'Unauthorized' });
+      if (url.endsWith('/auth/refresh')) return json(200, { accessToken: 'renewed' });
       if (url.includes('/lodging/properties'))
         return json(200, {
           items: [{ id: 'p1', name: 'Hôtel Ahoefa Palace', currency: 'XOF', country: 'TG' }],
@@ -34,7 +36,7 @@ function stub(brandingStatus: number) {
 beforeEach(async () => {
   window.localStorage.clear();
   useUiStore.setState({ mode: 'light', language: 'fr' });
-  useSessionStore.setState({ features: ['*'], permissions: ['*'] });
+  signIn();
   await i18n.changeLanguage('fr');
 });
 afterEach(() => vi.unstubAllGlobals());

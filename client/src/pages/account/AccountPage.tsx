@@ -10,7 +10,7 @@ import { BackupCodes, PageHeader, TotpSetup } from '@hm/ui';
 import { adoptTokens, apiClient, loadMe, useMeStore } from '../../auth/session';
 import type { AuthResult } from '../../auth/session';
 import { useApiError } from '../../auth/useApiError';
-import { Field, a11y } from '../../components/Field';
+import { Field, a11y, bind } from '../../components/Field';
 import { fmtDate, SessionsPanel } from '../security/SessionsPanel';
 
 const passwordSchema = z
@@ -63,21 +63,21 @@ function PasswordPanel() {
           <Input.Password
             {...a11y('acc-current', errors.currentPassword)}
             autoComplete="current-password"
-            {...form.register('currentPassword')}
+            {...bind(form.register('currentPassword'))}
           />
         </Field>
         <Field id="acc-new" label={t('auth:newPassword')} error={errors.newPassword?.message}>
           <Input.Password
             {...a11y('acc-new', errors.newPassword)}
             autoComplete="new-password"
-            {...form.register('newPassword')}
+            {...bind(form.register('newPassword'))}
           />
         </Field>
         <Field id="acc-confirm" label={t('auth:confirmPassword')} error={errors.confirm?.message}>
           <Input.Password
             {...a11y('acc-confirm', errors.confirm)}
             autoComplete="new-password"
-            {...form.register('confirm')}
+            {...bind(form.register('confirm'))}
           />
         </Field>
         {error ? (

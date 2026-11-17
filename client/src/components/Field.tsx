@@ -1,4 +1,5 @@
 import { Form } from 'antd';
+import type { UseFormRegisterReturn } from 'react-hook-form';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -42,4 +43,16 @@ export function Field({ id, label, error, extra, required, children }: FieldProp
       {children}
     </Form.Item>
   );
+}
+
+/**
+ * antd inputs expose an `InputRef` (`.input` = DOM node) rather than the element itself, which
+ * react-hook-form needs to read values: adapt the `register()` ref.
+ */
+export function bind<T extends UseFormRegisterReturn>(r: T) {
+  const { ref, ...rest } = r;
+  return {
+    ...rest,
+    ref: (inst: { input?: HTMLInputElement | null } | null) => ref(inst?.input ?? null),
+  };
 }

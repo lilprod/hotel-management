@@ -3,9 +3,10 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { useSessionStore, useUiStore } from '@hm/ui';
+import { useUiStore } from '@hm/ui';
 
 import { App } from './App';
+import { signIn, signOut } from './test-utils';
 import i18n from './i18n';
 import { modules } from './modules';
 
@@ -20,7 +21,7 @@ function renderApp(path = '/dashboard') {
 beforeEach(async () => {
   window.localStorage.clear();
   useUiStore.setState({ mode: 'light', language: 'fr' });
-  useSessionStore.setState({ features: ['*'], permissions: ['*'] });
+  signIn();
   await i18n.changeLanguage('fr');
 });
 
@@ -59,7 +60,7 @@ describe('client shell', () => {
   });
 
   it('filters sidebar items by enabled features', () => {
-    useSessionStore.setState({ features: ['spa'], permissions: ['*'] });
+    signIn({ features: ['spa'], permissions: ['*'] });
     renderApp();
     const nav = screen.getByRole('navigation', { name: 'Navigation principale' });
     expect(within(nav).getByText('Spa')).toBeInTheDocument();
@@ -70,7 +71,7 @@ describe('client shell', () => {
   });
 
   it('filters sidebar items by permissions', () => {
-    useSessionStore.setState({ features: ['*'], permissions: ['guests.read'] });
+    signIn({ features: ['*'], permissions: ['guests.read'] });
     renderApp();
     const nav = screen.getByRole('navigation', { name: 'Navigation principale' });
     expect(within(nav).getByText('Clients')).toBeInTheDocument();
@@ -95,6 +96,7 @@ describe('client shell', () => {
 
   it('validates the login form without calling an API', async () => {
     const user = userEvent.setup();
+    signOut();
     renderApp('/login');
     await user.type(screen.getByLabelText('Adresse e-mail'), 'not-an-email');
     await user.click(screen.getByRole('button', { name: 'Se connecter' }));

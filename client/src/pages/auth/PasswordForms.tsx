@@ -10,7 +10,7 @@ import { adoptTokens, apiClient, loadMe, logout } from '../../auth/session';
 import type { AuthResult } from '../../auth/session';
 import { useApiError } from '../../auth/useApiError';
 import { AuthLayout } from '../../components/AuthLayout';
-import { Field, a11y } from '../../components/Field';
+import { Field, a11y, bind } from '../../components/Field';
 
 /** The tenant policy is enforced by the API (422 with the violated rules); 8 is its floor. */
 const newPassword = z.string().min(8, 'validation.passwordMin').max(256);
@@ -100,7 +100,7 @@ export function ForgotPasswordPage() {
                 {...a11y('forgot-email', errors.email)}
                 type="email"
                 autoComplete="username"
-                {...form.register('email')}
+                {...bind(form.register('email'))}
               />
             </Field>
             <ErrorAlert error={error} />
@@ -162,14 +162,14 @@ export function ResetPasswordPage() {
               <Input.Password
                 {...a11y('new-password', errors.newPassword)}
                 autoComplete="new-password"
-                {...form.register('newPassword')}
+                {...bind(form.register('newPassword'))}
               />
             </Field>
             <Field id="confirm" label={t('confirmPassword')} error={errors.confirm?.message}>
               <Input.Password
                 {...a11y('confirm', errors.confirm)}
                 autoComplete="new-password"
-                {...form.register('confirm')}
+                {...bind(form.register('confirm'))}
               />
             </Field>
             <ErrorAlert error={error} />
@@ -261,21 +261,21 @@ export function AcceptInvitePage() {
               <Input
                 {...a11y('invite-name', errors.name)}
                 autoComplete="name"
-                {...form.register('name')}
+                {...bind(form.register('name'))}
               />
             </Field>
             <Field id="invite-password" label={t('newPassword')} error={errors.password?.message}>
               <Input.Password
                 {...a11y('invite-password', errors.password)}
                 autoComplete="new-password"
-                {...form.register('password')}
+                {...bind(form.register('password'))}
               />
             </Field>
             <Field id="invite-confirm" label={t('confirmPassword')} error={errors.confirm?.message}>
               <Input.Password
                 {...a11y('invite-confirm', errors.confirm)}
                 autoComplete="new-password"
-                {...form.register('confirm')}
+                {...bind(form.register('confirm'))}
               />
             </Field>
             <ErrorAlert error={error} />
@@ -324,21 +324,21 @@ export function ChangePasswordPage() {
             <Input.Password
               {...a11y('current-password', errors.currentPassword)}
               autoComplete="current-password"
-              {...form.register('currentPassword')}
+              {...bind(form.register('currentPassword'))}
             />
           </Field>
           <Field id="new-password" label={t('newPassword')} error={errors.newPassword?.message}>
             <Input.Password
               {...a11y('new-password', errors.newPassword)}
               autoComplete="new-password"
-              {...form.register('newPassword')}
+              {...bind(form.register('newPassword'))}
             />
           </Field>
           <Field id="confirm" label={t('confirmPassword')} error={errors.confirm?.message}>
             <Input.Password
               {...a11y('confirm', errors.confirm)}
               autoComplete="new-password"
-              {...form.register('confirm')}
+              {...bind(form.register('confirm'))}
             />
           </Field>
           <ErrorAlert error={error} />
