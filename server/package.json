@@ -41,6 +41,7 @@
     "@aws-sdk/s3-request-presigner": "^3.1167.0",
     "@hm/database": "workspace:*",
     "@hm/shared": "workspace:*",
+    "@hm/templates": "workspace:*",
     "@socket.io/redis-adapter": "^8.3.0",
     "bullmq": "^6.7.5",
     "cors": "^2.8.6",
