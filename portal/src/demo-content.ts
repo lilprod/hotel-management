@@ -315,7 +315,7 @@ export const demoGalleries: Record<SectionId, DemoGalleryItem[]> = {
     },
     { photo: 'lagoon', alt: { fr: 'Plage et palmier', en: 'Beach and palm tree' } },
     { photo: 'garden', alt: { fr: 'Jardin tropical', en: 'Tropical garden' } },
-    { photo: 'hero', alt: { fr: 'Piscine et lodge', en: 'Pool and lodge' } },
+    { photo: 'hero', alt: { fr: 'Piscine tropicale et bungalows', en: 'Tropical pool and bungalows' } },
     { photo: 'pool', alt: { fr: 'Piscine au crépuscule', en: 'Pool at dusk' } },
     {
       photo: 'exterior',

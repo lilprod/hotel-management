@@ -17,7 +17,7 @@ source. Point ouvert : compléter avec les noms d'auteurs si l'attribution nomin
 
 | Fichier | Sujet | Source (identifiant d'origine) | Licence |
 | --- | --- | --- | --- |
-| `hero-*.webp` | Piscine et lodge tropical | Unsplash `photo-1566073771259-6a8506099945` | Unsplash License |
+| `hero-*.webp` | Piscine tropicale, bungalows et jardin (sans personne) | Unsplash `photo-1520250497591-112f2f40a3f4` | Unsplash License |
 | `exterior-*.webp` | Façade d'hôtel et palmiers | Unsplash `photo-1455587734955-081b22074882` | Unsplash License |
 | `pool-*.webp` | Piscine au crépuscule | Unsplash `photo-1551882547-ff40c63fe5fa` | Unsplash License |
 | `lagoon-*.webp` | Plage et palmier | Unsplash `photo-1519046904884-53103b34b206` | Unsplash License |
