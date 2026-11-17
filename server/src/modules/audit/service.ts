@@ -26,7 +26,7 @@ export interface PlatformAuditInput extends AuditInput {
 
 /** Keys never written to the audit trail (secrets, hashes, tokens). */
 const SECRET_KEY_RE =
-  /^(password|current_?password|new_?password|code|backup_?codes|secret|token)$|(hash|secret|secretenc|token)$/i;
+  /^(password|current_?password|new_?password|backup_?codes|secret|token)$|(hash|secret|secretenc|token)$/i;
 
 /** Removes secrets recursively and converts values to JSON (BigInt → string, Date → ISO). */
 export function sanitize(value: unknown, depth = 0): Prisma.InputJsonValue | undefined {
