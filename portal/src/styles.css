@@ -357,3 +357,9 @@ main:focus {
     scroll-behavior: auto !important;
   }
 }
+.brand-logo {
+  height: 36px;
+  width: auto;
+  max-width: 160px;
+  object-fit: contain;
+}

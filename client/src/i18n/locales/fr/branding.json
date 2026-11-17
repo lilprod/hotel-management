@@ -1,0 +1,92 @@
+{
+  "error": "Une erreur est survenue",
+  "save": "Enregistrer",
+  "saved": "Image de marque enregistrée",
+  "edit": "Modifier",
+  "delete": "Supprimer",
+  "cancel": "Annuler",
+  "actions": "Actions",
+  "contrastWarning": "Le texte blanc sur la couleur principale n'atteint que {{ratio}}:1 (WCAG AA exige 4,5:1) : le texte noir sera utilisé.",
+  "tabs": {
+    "identity": "Identité visuelle",
+    "templates": "Modèles de messages",
+    "domain": "Domaine personnalisé"
+  },
+  "f": {
+    "primaryColor": "Couleur principale",
+    "secondaryColor": "Couleur secondaire",
+    "emailSenderName": "Nom d'expéditeur des e-mails",
+    "loginMessage": "Message de la page de connexion",
+    "docHeader": "En-tête des documents",
+    "docFooter": "Pied de page des documents",
+    "legalMentions": "Mentions légales"
+  },
+  "validation": {
+    "invalidColor": "Couleur attendue au format #RRGGBB",
+    "invalidSender": "Ni retour à la ligne, ni guillemet, ni chevron, ni @"
+  },
+  "legal": {
+    "title": "Identité légale (Togo)",
+    "legalForm": "Forme juridique",
+    "nif": "NIF",
+    "rccm": "RCCM",
+    "taxRegime": "Régime fiscal",
+    "address": "Adresse du siège",
+    "regimeHint": "Régimes courants :"
+  },
+  "preview": {
+    "title": "Aperçu en direct",
+    "brand": "Votre hôtel",
+    "button": "Réserver",
+    "tag": "Confirmée",
+    "link": "Voir le détail"
+  },
+  "assets": {
+    "title": "Logos et images",
+    "upload": "Téléverser",
+    "replace": "Remplacer",
+    "remove": "Retirer",
+    "confirmRemove": "Retirer cette image ?",
+    "set": "Définie",
+    "unset": "Non définie",
+    "kinds": {
+      "logo": "Logo (clair)",
+      "logo-dark": "Logo (sombre)",
+      "favicon": "Favicon",
+      "login-background": "Fond de connexion",
+      "signature": "Signature / cachet"
+    },
+    "hints": {
+      "logo": "PNG, JPEG ou WebP, 1 Mo max",
+      "logo-dark": "PNG, JPEG ou WebP, 1 Mo max",
+      "favicon": "PNG ou ICO carré, 256 Ko max",
+      "login-background": "Au moins 640x360, 3 Mo max",
+      "signature": "PNG, JPEG ou WebP, 512 Ko max"
+    }
+  },
+  "templates": {
+    "title": "Modèles de messages",
+    "add": "Nouveau modèle",
+    "code": "Code",
+    "channel": "Canal",
+    "locale": "Langue",
+    "subject": "Objet",
+    "body": "Message",
+    "variables": "Variables autorisées :",
+    "preview": "Aperçu",
+    "confirmDelete": "Supprimer ce modèle ?"
+  },
+  "domain": {
+    "title": "Domaine personnalisé",
+    "subdomain": "Votre adresse :",
+    "hostname": "Nom de domaine",
+    "add": "Ajouter le domaine",
+    "status": "Statut",
+    "statuses": { "PENDING_VERIFICATION": "En attente de vérification", "VERIFIED": "Vérifié" },
+    "txt": "Enregistrement TXT à publier",
+    "verify": "Vérifier le DNS",
+    "notFound": "Enregistrement TXT introuvable pour le moment. La propagation DNS peut prendre du temps.",
+    "remove": "Supprimer le domaine",
+    "confirmRemove": "Supprimer ce domaine personnalisé ?"
+  }
+}

@@ -1,0 +1,133 @@
+{
+  "title": "Paramétrage",
+  "property": "Établissement",
+  "actions": "Actions",
+  "edit": "Modifier",
+  "delete": "Supprimer",
+  "add": "Ajouter",
+  "save": "Enregistrer",
+  "cancel": "Annuler",
+  "confirmDelete": "Supprimer cet élément ?",
+  "error": "Une erreur est survenue",
+  "yes": "Oui",
+  "no": "Non",
+  "tabs": {
+    "branding": "Image de marque",
+    "property": "Établissement",
+    "rooms": "Chambres",
+    "rates": "Tarifs",
+    "taxes": "Taxes",
+    "policies": "Politiques",
+    "products": "Produits",
+    "lists": "Listes",
+    "customFields": "Champs personnalisés"
+  },
+  "f": {
+    "name": "Nom",
+    "city": "Ville",
+    "country": "Pays",
+    "currency": "Devise",
+    "timezone": "Fuseau horaire",
+    "checkin": "Heure d'arrivée",
+    "checkout": "Heure de départ",
+    "taxId": "NIF",
+    "rccm": "RCCM",
+    "code": "Code",
+    "description": "Description",
+    "floor": "Étage",
+    "building": "Bâtiment"
+  },
+  "rooms": {
+    "types": "Types de chambre",
+    "rooms": "Chambres",
+    "type": "Type",
+    "number": "Numéro",
+    "hk": "Ménage",
+    "maxAdults": "Adultes max",
+    "maxChildren": "Enfants max",
+    "baseOccupancy": "Occupation de base",
+    "beds": "Literie",
+    "bulk": "Création en masse",
+    "bulkCreate": "Créer",
+    "prefix": "Préfixe",
+    "from": "De",
+    "to": "À"
+  },
+  "rates": {
+    "plans": "Plans tarifaires",
+    "seasons": "Saisons",
+    "grid": "Grille tarifaire",
+    "plan": "Plan tarifaire",
+    "season": "Saison",
+    "base": "Hors saison",
+    "price": "Prix / nuit",
+    "weekend": "Prix week-end (ven-sam)",
+    "extraAdult": "Adulte suppl.",
+    "extraChild": "Enfant suppl.",
+    "minStay": "Séjour min.",
+    "meal": "Repas",
+    "public": "Public",
+    "from": "Du",
+    "to": "Au",
+    "priority": "Priorité"
+  },
+  "taxes": {
+    "type": "Type",
+    "value": "Valeur",
+    "inclusive": "Incluse dans le prix",
+    "types": {
+      "PERCENT": "Pourcentage",
+      "FIXED_PER_PERSON_NIGHT": "Fixe par personne et par nuit",
+      "FIXED_PER_NIGHT": "Fixe par nuit"
+    }
+  },
+  "policies": {
+    "kind": "Type",
+    "rules": "Règles (JSON)",
+    "kinds": {
+      "CANCELLATION": "Annulation",
+      "DEPOSIT": "Acompte"
+    }
+  },
+  "products": {
+    "price": "Prix",
+    "active": "Actif",
+    "department": "Département"
+  },
+  "lists": {
+    "list": "Liste",
+    "labelFr": "Libellé FR",
+    "labelEn": "Libellé EN",
+    "keys": {
+      "reservation_source": "Sources de réservation",
+      "guest_segment": "Segments clients",
+      "cancel_reason": "Motifs d'annulation",
+      "task_type": "Types de tâche",
+      "product_category": "Catégories de produits",
+      "tag": "Étiquettes"
+    }
+  },
+  "cf": {
+    "entity": "Entité",
+    "key": "Clé",
+    "type": "Type",
+    "required": "Obligatoire",
+    "options": "Options (une par ligne : valeur=Libellé)",
+    "entities": {
+      "guest": "Client",
+      "reservation": "Réservation",
+      "room": "Chambre",
+      "employee": "Employé",
+      "product": "Produit",
+      "work_order": "Ordre de travail"
+    },
+    "types": {
+      "TEXT": "Texte",
+      "NUMBER": "Nombre",
+      "DATE": "Date",
+      "BOOLEAN": "Oui/Non",
+      "SELECT": "Liste",
+      "MULTI_SELECT": "Liste multiple"
+    }
+  }
+}

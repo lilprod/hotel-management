@@ -1,0 +1,133 @@
+{
+  "title": "Settings",
+  "property": "Property",
+  "actions": "Actions",
+  "edit": "Edit",
+  "delete": "Delete",
+  "add": "Add",
+  "save": "Save",
+  "cancel": "Cancel",
+  "confirmDelete": "Delete this item?",
+  "error": "Something went wrong",
+  "yes": "Yes",
+  "no": "No",
+  "tabs": {
+    "branding": "Branding",
+    "property": "Property",
+    "rooms": "Rooms",
+    "rates": "Rates",
+    "taxes": "Taxes",
+    "policies": "Policies",
+    "products": "Products",
+    "lists": "Lists",
+    "customFields": "Custom fields"
+  },
+  "f": {
+    "name": "Name",
+    "city": "City",
+    "country": "Country",
+    "currency": "Currency",
+    "timezone": "Time zone",
+    "checkin": "Check-in time",
+    "checkout": "Check-out time",
+    "taxId": "Tax ID",
+    "rccm": "Trade register",
+    "code": "Code",
+    "description": "Description",
+    "floor": "Floor",
+    "building": "Building"
+  },
+  "rooms": {
+    "types": "Room types",
+    "rooms": "Rooms",
+    "type": "Type",
+    "number": "Number",
+    "hk": "Housekeeping",
+    "maxAdults": "Max adults",
+    "maxChildren": "Max children",
+    "baseOccupancy": "Base occupancy",
+    "beds": "Beds",
+    "bulk": "Bulk creation",
+    "bulkCreate": "Create",
+    "prefix": "Prefix",
+    "from": "From",
+    "to": "To"
+  },
+  "rates": {
+    "plans": "Rate plans",
+    "seasons": "Seasons",
+    "grid": "Rate grid",
+    "plan": "Rate plan",
+    "season": "Season",
+    "base": "Off season",
+    "price": "Price / night",
+    "weekend": "Weekend price (Fri-Sat)",
+    "extraAdult": "Extra adult",
+    "extraChild": "Extra child",
+    "minStay": "Min. stay",
+    "meal": "Meals",
+    "public": "Public",
+    "from": "From",
+    "to": "To",
+    "priority": "Priority"
+  },
+  "taxes": {
+    "type": "Type",
+    "value": "Value",
+    "inclusive": "Included in price",
+    "types": {
+      "PERCENT": "Percentage",
+      "FIXED_PER_PERSON_NIGHT": "Fixed per person per night",
+      "FIXED_PER_NIGHT": "Fixed per night"
+    }
+  },
+  "policies": {
+    "kind": "Type",
+    "rules": "Rules (JSON)",
+    "kinds": {
+      "CANCELLATION": "Cancellation",
+      "DEPOSIT": "Deposit"
+    }
+  },
+  "products": {
+    "price": "Price",
+    "active": "Active",
+    "department": "Department"
+  },
+  "lists": {
+    "list": "List",
+    "labelFr": "Label FR",
+    "labelEn": "Label EN",
+    "keys": {
+      "reservation_source": "Reservation sources",
+      "guest_segment": "Guest segments",
+      "cancel_reason": "Cancellation reasons",
+      "task_type": "Task types",
+      "product_category": "Product categories",
+      "tag": "Tags"
+    }
+  },
+  "cf": {
+    "entity": "Entity",
+    "key": "Key",
+    "type": "Type",
+    "required": "Required",
+    "options": "Options (one per line: value=Label)",
+    "entities": {
+      "guest": "Guest",
+      "reservation": "Reservation",
+      "room": "Room",
+      "employee": "Employee",
+      "product": "Product",
+      "work_order": "Work order"
+    },
+    "types": {
+      "TEXT": "Text",
+      "NUMBER": "Number",
+      "DATE": "Date",
+      "BOOLEAN": "Yes/No",
+      "SELECT": "List",
+      "MULTI_SELECT": "Multi-select"
+    }
+  }
+}
