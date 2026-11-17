@@ -33,7 +33,10 @@ const read = can('lodging.read', { property: propertyFromRequest });
 const manage = can('lodging.manage', { property: propertyFromRequest });
 const readId = can('lodging.read');
 const manageId = can('lodging.manage');
-const imageUpload = upload({ mimeTypes: ['image/jpeg', 'image/png', 'image/webp'], maxBytes: 5_000_000 });
+const imageUpload = upload({
+  mimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
+  maxBytes: 5_000_000,
+});
 
 const noContent = { 204: { description: 'Deleted' } };
 
@@ -44,7 +47,9 @@ export const propertyRouter = createModuleRouter()
     path: '/properties',
     summary: 'Properties reachable by the caller',
     middleware: [readId, feature],
-    responses: { 200: { description: 'Properties', schema: z.object({ items: z.array(propertySchema) }) } },
+    responses: {
+      200: { description: 'Properties', schema: z.object({ items: z.array(propertySchema) }) },
+    },
     handler: (req) => withCtx(req, (ctx) => service.listProperties(ctx)),
   })
   .route({
@@ -143,7 +148,9 @@ export const propertyRouter = createModuleRouter()
     summary: 'Photos of a room type (signed URLs, 5 min)',
     middleware: [readId, feature],
     request: { params: idParams },
-    responses: { 200: { description: 'Photos', schema: z.object({ items: z.array(photoUrlSchema) }) } },
+    responses: {
+      200: { description: 'Photos', schema: z.object({ items: z.array(photoUrlSchema) }) },
+    },
     handler: (req) => withCtx(req, (ctx) => service.listRoomTypePhotos(ctx, req.valid.params.id)),
   })
   .route({
@@ -262,7 +269,9 @@ export const propertyRouter = createModuleRouter()
     summary: 'Room blocks (maintenance / out of service) of a property',
     middleware: [read, feature],
     request: { query: listBlocksQuery },
-    responses: { 200: { description: 'Blocks', schema: z.object({ items: z.array(blockSchema) }) } },
+    responses: {
+      200: { description: 'Blocks', schema: z.object({ items: z.array(blockSchema) }) },
+    },
     handler: (req) => withCtx(req, (ctx) => service.listBlocks(ctx, req.valid.query)),
   })
   .route({

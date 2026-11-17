@@ -1,8 +1,10 @@
 import { coreModule } from '../core/core-module.js';
 import type { ModuleDefinition } from '../core/module.js';
+import { catalogModule } from './catalog/index.js';
 import { customFieldsModule } from './custom-fields/index.js';
 import { lookupsModule } from './lookups/index.js';
 import { propertyModule } from './property/index.js';
+import { ratesModule } from './rates/index.js';
 import { sequencesModule } from './sequences/index.js';
 import { systemModule } from './system/index.js';
 
@@ -11,6 +13,8 @@ export const MODULES: readonly ModuleDefinition[] = [
   coreModule,
   systemModule,
   propertyModule,
+  ratesModule,
+  catalogModule,
   lookupsModule,
   customFieldsModule,
   sequencesModule,

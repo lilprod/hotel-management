@@ -31,13 +31,19 @@ export async function listDefinitions(
   q: { entity?: string | undefined; includeInactive: boolean },
 ): Promise<{ items: DefinitionDto[] }> {
   const rows = await ctx.db.customFieldDefinition.findMany({
-    where: { ...(q.entity ? { entity: q.entity } : {}), ...(q.includeInactive ? {} : { isActive: true }) },
+    where: {
+      ...(q.entity ? { entity: q.entity } : {}),
+      ...(q.includeInactive ? {} : { isActive: true }),
+    },
     orderBy: [{ entity: 'asc' }, { sort: 'asc' }, { key: 'asc' }],
   });
   return { items: rows.map(toDto) };
 }
 
-export async function createDefinition(ctx: Ctx, input: CreateDefinitionInput): Promise<DefinitionDto> {
+export async function createDefinition(
+  ctx: Ctx,
+  input: CreateDefinitionInput,
+): Promise<DefinitionDto> {
   const existing = await ctx.db.customFieldDefinition.findFirst({
     where: { entity: input.entity, key: input.key },
     select: { id: true },

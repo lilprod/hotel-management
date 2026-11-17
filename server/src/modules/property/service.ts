@@ -68,10 +68,15 @@ export async function listProperties(ctx: Ctx): Promise<{ items: PropertyDto[] }
 
 export async function getProperty(ctx: Ctx, id: string): Promise<PropertyDto> {
   assertPropertyAccess(ctx, id);
-  return toProperty(must(await ctx.db.property.findFirst({ where: { id, deletedAt: null } }), 'Property'));
+  return toProperty(
+    must(await ctx.db.property.findFirst({ where: { id, deletedAt: null } }), 'Property'),
+  );
 }
 
-export async function createProperty(ctx: Ctx, input: In<typeof createPropertyBody>): Promise<PropertyDto> {
+export async function createProperty(
+  ctx: Ctx,
+  input: In<typeof createPropertyBody>,
+): Promise<PropertyDto> {
   const today = new Date().toISOString().slice(0, 10);
   const { businessDate, ...rest } = input;
   const row = await ctx.db.$transaction(async (tx) => {
@@ -93,7 +98,10 @@ export async function updateProperty(
   input: In<typeof updatePropertyBody>,
 ): Promise<PropertyDto> {
   assertPropertyAccess(ctx, id);
-  must(await ctx.db.property.findFirst({ where: { id, deletedAt: null }, select: { id: true } }), 'Property');
+  must(
+    await ctx.db.property.findFirst({ where: { id, deletedAt: null }, select: { id: true } }),
+    'Property',
+  );
   return toProperty(await ctx.db.property.update({ where: { id }, data: input }));
 }
 
@@ -136,7 +144,10 @@ export async function listRoomTypes(ctx: Ctx, q: In<typeof listRoomTypesQuery>) 
 }
 
 export async function loadRoomType(ctx: Ctx, id: string) {
-  const row = must(await ctx.db.roomType.findFirst({ where: { id, deletedAt: null } }), 'Room type');
+  const row = must(
+    await ctx.db.roomType.findFirst({ where: { id, deletedAt: null } }),
+    'Room type',
+  );
   assertPropertyAccess(ctx, row.propertyId);
   return row;
 }
@@ -183,7 +194,8 @@ export async function addRoomTypePhoto(
 ) {
   const rt = await loadRoomType(ctx, id);
   if (rt.photos.length >= MAX_PHOTOS) throw conflict(`At most ${MAX_PHOTOS} photos per room type`);
-  const ext = file.mimetype === 'image/png' ? 'png' : file.mimetype === 'image/webp' ? 'webp' : 'jpg';
+  const ext =
+    file.mimetype === 'image/png' ? 'png' : file.mimetype === 'image/webp' ? 'webp' : 'jpg';
   const storage = storageFactory(ctx);
   const name = `${crypto.randomUUID()}.${ext}`;
   const { key, size } = await storage.put({
@@ -256,7 +268,8 @@ async function requireRoomTypeIn(ctx: Ctx, roomTypeId: string, propertyId: strin
     await ctx.db.roomType.findFirst({ where: { id: roomTypeId, deletedAt: null } }),
     'Room type',
   );
-  if (rt.propertyId !== propertyId) throw invalid('roomTypeId', 'Room type belongs to another property');
+  if (rt.propertyId !== propertyId)
+    throw invalid('roomTypeId', 'Room type belongs to another property');
   return rt;
 }
 
@@ -345,7 +358,11 @@ export async function updateRoom(ctx: Ctx, id: string, input: In<typeof updateRo
   const data: Prisma.RoomUncheckedUpdateInput = { ...rest };
   if (customFields !== undefined) {
     const merged = { ...((cur.customFields ?? {}) as Record<string, unknown>), ...customFields };
-    data.customFields = (await validateCustomFields(ctx.db, 'room', merged)) as Prisma.InputJsonValue;
+    data.customFields = (await validateCustomFields(
+      ctx.db,
+      'room',
+      merged,
+    )) as Prisma.InputJsonValue;
   }
   return toRoom(await ctx.db.room.update({ where: { id }, data }));
 }

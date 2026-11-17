@@ -19,7 +19,14 @@ const rate = (o: Partial<QuoteRate> & { id: string }): QuoteRate => ({
   minStay: 1,
   ...o,
 });
-const VAT_EXCL: QuoteTax = { id: 'vat', code: 'TVA', name: 'TVA', type: 'PERCENT', value: '18', inclusive: false };
+const VAT_EXCL: QuoteTax = {
+  id: 'vat',
+  code: 'TVA',
+  name: 'TVA',
+  type: 'PERCENT',
+  value: '18',
+  inclusive: false,
+};
 const VAT_INCL: QuoteTax = { ...VAT_EXCL, inclusive: true };
 const STAY_TAX: QuoteTax = {
   id: 'ts',
@@ -70,7 +77,10 @@ describe('priceStay', () => {
   });
 
   it('weekend price: a Fri/Sat rate beats the all-week rate in the same season', () => {
-    const rates = [rate({ id: 'wk', price: 30000 }), rate({ id: 'we', dowMask: FRI_SAT, price: 40000 })];
+    const rates = [
+      rate({ id: 'wk', price: 30000 }),
+      rate({ id: 'we', dowMask: FRI_SAT, price: 40000 }),
+    ];
     const q = priceStay(data({ rates }), stay('2026-11-19', '2026-11-23'));
     // Thu, Fri, Sat, Sun
     expect(q.nightly.map((n) => n.base)).toEqual([30000, 40000, 40000, 30000]);
@@ -86,7 +96,11 @@ describe('priceStay', () => {
   it('extra adults beyond base occupancy and children, per night', () => {
     const q = priceStay(data(), stay('2026-11-16', '2026-11-18', 3, 2));
     // per night: 30000 + 1 extra adult 5000 + 2 children 4000
-    expect(q.nightly[0]).toMatchObject({ extraAdultAmount: 5000, extraChildAmount: 4000, total: 39000 });
+    expect(q.nightly[0]).toMatchObject({
+      extraAdultAmount: 5000,
+      extraChildAmount: 4000,
+      total: 39000,
+    });
     expect(q.roomTotal).toBe(60000);
     expect(q.extrasTotal).toBe(18000);
     expect(q.total).toBe(78000);
@@ -94,7 +108,9 @@ describe('priceStay', () => {
 
   it('rejects occupancy above capacity or without adult', () => {
     expect(() => priceStay(data(), stay('2026-11-16', '2026-11-17', 4))).toThrowError(QuoteError);
-    expect(() => priceStay(data(), stay('2026-11-16', '2026-11-17', 2, 3))).toThrowError(QuoteError);
+    expect(() => priceStay(data(), stay('2026-11-16', '2026-11-17', 2, 3))).toThrowError(
+      QuoteError,
+    );
     expect(() => priceStay(data(), stay('2026-11-16', '2026-11-17', 0))).toThrowError(
       expect.objectContaining({ code: 'INVALID_OCCUPANCY' }),
     );
@@ -137,7 +153,13 @@ describe('priceStay', () => {
   });
 
   it('fixed per night tax', () => {
-    const t: QuoteTax = { ...STAY_TAX, id: 'pn', code: 'PN', type: 'FIXED_PER_NIGHT', value: '1000' };
+    const t: QuoteTax = {
+      ...STAY_TAX,
+      id: 'pn',
+      code: 'PN',
+      type: 'FIXED_PER_NIGHT',
+      value: '1000',
+    };
     const q = priceStay(data({ taxes: [t] }), stay('2026-11-16', '2026-11-18', 2, 0));
     expect(q.taxes[0]?.amount).toBe(2000);
   });

@@ -105,12 +105,7 @@ export interface Quote {
 
 export class QuoteError extends Error {
   constructor(
-    readonly code:
-      | 'INVALID_DATES'
-      | 'INVALID_OCCUPANCY'
-      | 'NO_RATE'
-      | 'MIN_STAY'
-      | 'INVALID_DATA',
+    readonly code: 'INVALID_DATES' | 'INVALID_OCCUPANCY' | 'NO_RATE' | 'MIN_STAY' | 'INVALID_DATA',
     message: string,
     readonly meta: Record<string, unknown> = {},
   ) {
@@ -162,7 +157,8 @@ function parseRate(value: string): bigint {
 const SCALE = 10_000n;
 
 function assertInt(n: number, what: string): void {
-  if (!Number.isSafeInteger(n) || n < 0) throw new QuoteError('INVALID_DATA', `${what} must be a non-negative integer`);
+  if (!Number.isSafeInteger(n) || n < 0)
+    throw new QuoteError('INVALID_DATA', `${what} must be a non-negative integer`);
 }
 
 export function pickRate(
@@ -211,9 +207,9 @@ export function priceStay(data: QuoteData, input: QuoteInput): Quote {
   let firstRate: QuoteRate | undefined;
   for (const n of nights) {
     const rate = pickRate(data.rates, seasons, n.date, n.dow);
-    if (!rate) throw new QuoteError('NO_RATE', `No rate for the night of ${n.date}`, { date: n.date });
-    for (const v of [rate.price, rate.extraAdult, rate.extraChild])
-      assertInt(v, 'rate amount');
+    if (!rate)
+      throw new QuoteError('NO_RATE', `No rate for the night of ${n.date}`, { date: n.date });
+    for (const v of [rate.price, rate.extraAdult, rate.extraChild]) assertInt(v, 'rate amount');
     firstRate ??= rate;
     const extraAdultAmount = extraAdults * rate.extraAdult;
     const extraChildAmount = children * rate.extraChild;
@@ -261,7 +257,10 @@ export function priceStay(data: QuoteData, input: QuoteInput): Quote {
     if (!/^\d+(\.0+)?$/.test(t.value))
       throw new QuoteError('INVALID_DATA', `Fixed tax ${t.code} must be an integer amount`);
     const unit = BigInt(t.value.split('.')[0]!);
-    line(t, Number(unit * (t.type === 'FIXED_PER_PERSON_NIGHT' ? persons * nightCount : nightCount)));
+    line(
+      t,
+      Number(unit * (t.type === 'FIXED_PER_PERSON_NIGHT' ? persons * nightCount : nightCount)),
+    );
   }
   const fixedIncl = taxLines.filter((l) => l.inclusive).reduce((s, l) => s + l.amount, 0);
 

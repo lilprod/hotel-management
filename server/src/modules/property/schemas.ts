@@ -25,10 +25,7 @@ export const propertyBase = z.object({
   checkoutTime: hhmm.default('12:00'),
 });
 export const createPropertyBody = propertyBase.extend({ businessDate: dayString.optional() });
-export const updatePropertyBody = propertyBase
-  .omit({ currency: true })
-  .partial()
-  .strict();
+export const updatePropertyBody = propertyBase.omit({ currency: true }).partial().strict();
 
 export const propertySchema = z.object({
   id: uuid,
@@ -68,7 +65,10 @@ export const createRoomTypeBody = roomTypeBase.refine((v) => v.baseOccupancy <= 
   path: ['baseOccupancy'],
   message: 'Base occupancy cannot exceed max adults',
 });
-export const updateRoomTypeBody = roomTypeBase.omit({ propertyId: true, code: true }).partial().strict();
+export const updateRoomTypeBody = roomTypeBase
+  .omit({ propertyId: true, code: true })
+  .partial()
+  .strict();
 
 export const roomTypeSchema = z.object({
   id: uuid,
@@ -166,7 +166,10 @@ export const createBlockBody = z
     reason: z.enum(['MAINTENANCE', 'OUT_OF_SERVICE']),
     note: optText(500),
   })
-  .refine((v) => v.toDate > v.fromDate, { path: ['toDate'], message: 'toDate must be after fromDate' });
+  .refine((v) => v.toDate > v.fromDate, {
+    path: ['toDate'],
+    message: 'toDate must be after fromDate',
+  });
 
 export const blockSchema = z.object({
   id: uuid,

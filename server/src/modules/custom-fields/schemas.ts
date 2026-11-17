@@ -31,9 +31,7 @@ export type I18nLabel = z.infer<typeof i18nLabel>;
 export const selectOptionsSchema = z
   .array(
     z.object({
-      value: z
-        .string()
-        .regex(/^[A-Za-z0-9_.-]{1,40}$/, 'Letters, digits, _ . - only (max 40)'),
+      value: z.string().regex(/^[A-Za-z0-9_.-]{1,40}$/, 'Letters, digits, _ . - only (max 40)'),
       label: i18nLabel,
     }),
   )
@@ -89,7 +87,9 @@ export function optionsError(type: CustomFieldTypeName, options: unknown): strin
     case 'SELECT':
     case 'MULTI_SELECT': {
       const r = selectOptionsSchema.safeParse(options);
-      return r.success ? null : (r.error.issues[0]?.message ?? 'Options required for a select field');
+      return r.success
+        ? null
+        : (r.error.issues[0]?.message ?? 'Options required for a select field');
     }
     case 'NUMBER': {
       if (empty) return null;
@@ -106,12 +106,10 @@ export function optionsError(type: CustomFieldTypeName, options: unknown): strin
   }
 }
 
-export const createDefinitionBody = z
-  .object(baseFields)
-  .superRefine((d, ctx) => {
-    const message = optionsError(d.type, d.options);
-    if (message) ctx.addIssue({ code: 'custom', path: ['options'], message });
-  });
+export const createDefinitionBody = z.object(baseFields).superRefine((d, ctx) => {
+  const message = optionsError(d.type, d.options);
+  if (message) ctx.addIssue({ code: 'custom', path: ['options'], message });
+});
 export type CreateDefinitionInput = z.infer<typeof createDefinitionBody>;
 
 /** `entity`, `key` and `type` are immutable (stored values depend on them). */

@@ -65,9 +65,8 @@ export async function createValue(
   if (dup) throw conflict(`Value ${input.code} already exists in ${listKey}`);
   const sort =
     input.sort ??
-    ((
-      await ctx.db.lookupValue.aggregate({ where: { listKey }, _max: { sort: true } })
-    )._max.sort ?? 0) + 1;
+    ((await ctx.db.lookupValue.aggregate({ where: { listKey }, _max: { sort: true } }))._max.sort ??
+      0) + 1;
   const row = await ctx.db.lookupValue.create({
     data: {
       tenantId: ctx.tenantId,
