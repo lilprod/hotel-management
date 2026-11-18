@@ -2,6 +2,7 @@ import type { Prisma } from '@hm/database';
 import {
   BILLING_EVENTS,
   actorLabel,
+  billingNow,
   dateOf,
   emit,
   isoOf,
@@ -98,6 +99,7 @@ export async function applyTransition(
       toStatus: to,
       reason: [t.trigger, t.reason].filter(Boolean).join(': ').slice(0, 500),
       actor: actorLabel(t.actor),
+      createdAt: billingNow(),
     },
   });
   await emit(tx, sub.tenantId, BILLING_EVENTS.subscriptionChanged, {
@@ -123,6 +125,7 @@ export async function recordSubscriptionChange(
       toStatus: sub.status,
       reason: reason.slice(0, 500),
       actor: actorLabel(actor),
+      createdAt: billingNow(),
     },
   });
   await emit(tx, sub.tenantId, BILLING_EVENTS.subscriptionChanged, {

@@ -2,16 +2,17 @@ import type { Prisma } from '@hm/database';
 import type { Services } from '../../core/container.js';
 import {
   BILLING_EVENTS,
+  billingNow,
   dateOf,
   emit,
   inTx,
   invalid,
   invalidateTenantCaches,
-  isoOf,
   isoOrNull,
   lockTenantBilling,
   notFound,
   num,
+  platformToday,
   precondition,
   tenantClock,
   type Actor,
@@ -86,6 +87,7 @@ export async function startSubscription(
       toStatus: sub.status,
       reason: trialing ? `subscription started, trial ${trialDays} days` : 'subscription started',
       actor: actor.id ? `${actor.kind}:${actor.id}` : actor.kind,
+      createdAt: billingNow(),
     },
   });
   await emit(tx, input.tenantId, BILLING_EVENTS.subscriptionChanged, {
@@ -481,7 +483,7 @@ export async function cancelSubscription(
         trigger: 'ADMIN_CANCEL',
         reason,
         actor,
-        patch: { cancelAt: dateOf(isoOf(new Date())) },
+        patch: { cancelAt: dateOf(platformToday()) },
       }),
     );
   });

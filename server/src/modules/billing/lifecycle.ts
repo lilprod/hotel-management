@@ -134,6 +134,15 @@ async function lifecycleOf(
     await renderInvoicePdf(services, id).catch((err: unknown) =>
       services.logger.error('invoice pdf failed', { invoiceId: id, err: (err as Error).message }),
     );
+  if (report.transition?.to === 'CANCELLED') {
+    // EX-11: the export is prepared automatically before the purge.
+    try {
+      const { exportTenant } = await import('../platform-tenants/export.js');
+      await exportTenant(services, tenantId, null);
+    } catch (err) {
+      services.logger.error('automatic export failed', { tenantId, err: (err as Error).message });
+    }
+  }
   if (report.transition)
     await writePlatformAudit(services, {
       action: 'subscription.transition',

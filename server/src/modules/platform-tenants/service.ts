@@ -7,6 +7,7 @@ import { sendAuthMessage } from '../auth/mailer.js';
 import { INVITE_TTL_S, inviteKey, inviteUserKey } from '../auth/service.js';
 import { randomToken, sha256 } from '../auth/tokens.js';
 import {
+  billingNow,
   conflict,
   dateOf,
   inTx,
@@ -153,7 +154,7 @@ export async function tenantDetail(services: Services, tenantId: string) {
     include: { tenantDomains: true },
   });
   if (!t) throw notFound('Tenant');
-  const today = localDate(new Date(), t.timezone);
+  const today = localDate(billingNow(), t.timezone);
   const sub = await currentSubscription(admin, tenantId);
   const [usage, ent, invoices, payments, events, addons, overrides, credit, declarations] =
     await Promise.all([
@@ -278,7 +279,7 @@ export async function createTenant(
   if (await admin.tenantDomain.findUnique({ where: { hostname } }))
     throw conflict('Hostname already used', { hostname });
   const settings = await loadBillingSettings(admin);
-  const today = localDate(new Date(), body.timezone);
+  const today = localDate(billingNow(), body.timezone);
   const out = await inTx(services, async (tx) => {
     const tenant = await tx.tenant.create({
       data: {

@@ -250,6 +250,17 @@ async function confirmInTx(
     allocations = auto.allocations;
     remainder = auto.remainder;
   }
+  // Confirmed first: only allocations of CONFIRMED payments count in the invoice balances.
+  const receiptNumber = await nextPlatformNumber(tx, 'receipt', Number(today.slice(0, 4)));
+  await tx.payment.update({
+    where: { id: paymentId },
+    data: {
+      status: 'CONFIRMED',
+      validatedBy: actor.id,
+      validatedAt: billingNow(),
+      receiptNumber,
+    },
+  });
   for (const a of allocations)
     if (a.amount > 0n)
       await tx.paymentAllocation.create({
@@ -268,16 +279,6 @@ async function confirmInTx(
         currency: p.currency,
       },
     });
-  const receiptNumber = await nextPlatformNumber(tx, 'receipt', Number(today.slice(0, 4)));
-  await tx.payment.update({
-    where: { id: paymentId },
-    data: {
-      status: 'CONFIRMED',
-      validatedBy: actor.id,
-      validatedAt: billingNow(),
-      receiptNumber,
-    },
-  });
   const sub = await settleSubscription(
     tx,
     p.tenantId,
