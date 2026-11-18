@@ -2,6 +2,12 @@ import { coreModule } from '../core/core-module.js';
 import type { ModuleDefinition } from '../core/module.js';
 import { auditModule } from './audit/index.js';
 import { authModule } from './auth/index.js';
+import {
+  billingAdminModule,
+  declarationsModule,
+  paymentsModule,
+  platformInvoicesModule,
+} from './billing/index.js';
 import { brandingModule, brandingPublicModule } from './branding/index.js';
 import { catalogModule } from './catalog/index.js';
 import { customFieldsModule } from './custom-fields/index.js';
@@ -14,6 +20,11 @@ import {
   platformAuthModule,
   platformUsersModule,
 } from './platform-auth/index.js';
+import {
+  platformAddonsModule,
+  platformCouponsModule,
+  platformPlansModule,
+} from './platform-plans/index.js';
 import { portalAuthModule } from './portal-auth/index.js';
 import { propertyModule } from './property/index.js';
 import { ratesModule } from './rates/index.js';
@@ -41,4 +52,11 @@ export const MODULES: readonly ModuleDefinition[] = [
   customFieldsModule,
   sequencesModule,
   notificationsModule,
+  platformPlansModule,
+  platformAddonsModule,
+  platformCouponsModule,
+  paymentsModule,
+  platformInvoicesModule,
+  declarationsModule,
+  billingAdminModule,
 ];

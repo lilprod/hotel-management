@@ -37,6 +37,10 @@ export function setBillingClock(fn: (() => Date) | null): void {
 }
 export const billingNow = (): Date => (clockOverride ? clockOverride() : new Date());
 
+/** Platform "today" (Africa/Lome: dates of the platform documents and reports). */
+export const PLATFORM_TIMEZONE = 'Africa/Lome';
+export const platformToday = (): IsoDate => localDate(billingNow(), PLATFORM_TIMEZONE);
+
 export const dateOf = (iso: IsoDate) => fromIsoDate(iso);
 export const isoOf = (d: Date) => toIsoDate(d);
 export const isoOrNull = (d: Date | null | undefined) => (d ? toIsoDate(d) : null);

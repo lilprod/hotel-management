@@ -1,4 +1,4 @@
-import { addDays, type IsoDate } from './domain.js';
+import { addDays, maxDate, type IsoDate } from './domain.js';
 
 /**
  * Subscription state machine (doc 02 §2) — pure, no I/O.
@@ -146,9 +146,14 @@ export function evaluate(
     case 'ACTIVE':
       if (scheduledCancel) return decide('ACTIVE', 'SCHEDULED_CANCEL');
       if (!overdue) return null;
-      if (graceEnd !== null && today >= graceEnd)
-        return decide('ACTIVE', 'GRACE_EXPIRED', { graceEndsAt: graceEnd });
-      return decide('ACTIVE', 'INVOICE_OVERDUE', { graceEndsAt: graceEnd });
+      {
+        // A grace granted by a reactivation (later than due + G) is honoured.
+        const end =
+          graceEnd !== null && s.graceEndsAt !== null ? maxDate(graceEnd, s.graceEndsAt) : graceEnd;
+        if (end !== null && today >= end)
+          return decide('ACTIVE', 'GRACE_EXPIRED', { graceEndsAt: end });
+        return decide('ACTIVE', 'INVOICE_OVERDUE', { graceEndsAt: end });
+      }
     case 'PAST_DUE': {
       if (scheduledCancel) return decide('PAST_DUE', 'SCHEDULED_CANCEL');
       if (!overdue) return decide('PAST_DUE', 'PAYMENT_SETTLED', { graceEndsAt: null });

@@ -272,7 +272,7 @@ export async function runReminders(services: Services, opts: RunOptions = {}) {
   return sent;
 }
 
-interface TickData {
+export interface TickData {
   /** ISO timestamp overriding the clock (tests / manual re-run). */
   now?: string;
 }
