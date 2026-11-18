@@ -236,7 +236,7 @@ describe('PermissionMatrix', () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<Harness onChange={onChange} />);
-    await user.click(screen.getByRole('checkbox', { name: 'create' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Créer' }));
     expect([...onChange.mock.calls[0]![0]].sort()).toEqual(['guests.create', 'guests.read']);
     await user.click(
       screen.getByRole('checkbox', { name: /Toutes les permissions du module Folio/ }),
