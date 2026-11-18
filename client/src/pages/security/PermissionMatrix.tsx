@@ -43,7 +43,8 @@ export function PermissionMatrix({ catalog, value, readOnly, onChange, sensitive
       size="small"
       pagination={false}
       dataSource={catalog.modules}
-      scroll={{ x: 'max-content' }}
+      tableLayout="fixed"
+      scroll={{ x: 720 }}
       columns={[
         {
           title: t('roles.module'),

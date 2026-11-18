@@ -180,7 +180,7 @@ export function RolesTab() {
         />
       </Card>
 
-      <div style={{ flex: 1, minWidth: 320 }}>
+      <div style={{ flex: '1 1 480px', minWidth: 0 }}>
         {!customRoles ? (
           <Alert style={{ marginBottom: 12 }} type="info" showIcon message={t('roles.notInPlan')} />
         ) : null}
