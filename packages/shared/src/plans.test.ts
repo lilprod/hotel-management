@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SUBSCRIPTION_STATUSES, TENANT_STATUSES } from './enums.js';
 import { FEATURE_KEYS } from './features.js';
 import { DEFAULT_PLAN_CODES, DEFAULT_PLANS } from './plans.js';
 import { QUOTA_KEYS } from './quotas.js';
@@ -41,5 +42,13 @@ describe('default plan matrix', () => {
     expect(DEFAULT_PLANS.PREMIUM.features).toContain('api');
     expect(DEFAULT_PLANS.PREMIUM.quotas.units).toBeNull();
     expect(DEFAULT_PLANS.STANDARD.quotas).toMatchObject({ properties: 1, units: 20, users: 5 });
+  });
+});
+
+describe('tenant vs subscription statuses', () => {
+  it('keeps the tenant status administrative (schema TenantStatus) and the lifecycle on subscriptions', () => {
+    expect([...TENANT_STATUSES]).toEqual(['ACTIVE', 'SUSPENDED', 'ARCHIVED']);
+    expect(SUBSCRIPTION_STATUSES).toContain('TRIALING');
+    expect(SUBSCRIPTION_STATUSES).toContain('CANCELLED');
   });
 });

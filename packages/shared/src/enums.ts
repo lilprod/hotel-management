@@ -25,8 +25,12 @@ export const SUBSCRIPTION_STATUSES = [
 ] as const;
 export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
 
-/** (assumed) */
-export const TENANT_STATUSES = ['TRIAL', 'ACTIVE', 'SUSPENDED', 'CANCELLED'] as const;
+/**
+ * Administrative status of a tenant (schema `TenantStatus`). The commercial lifecycle (trial,
+ * past due, suspended for non-payment, cancelled) lives on the subscription
+ * (`SUBSCRIPTION_STATUSES`).
+ */
+export const TENANT_STATUSES = ['ACTIVE', 'SUSPENDED', 'ARCHIVED'] as const;
 export type TenantStatus = (typeof TENANT_STATUSES)[number];
 
 /** (assumed) */
