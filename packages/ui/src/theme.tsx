@@ -5,7 +5,7 @@ import frFR from 'antd/locale/fr_FR';
 import { useEffect } from 'react';
 import type { ReactNode } from 'react';
 
-import { defaultBranding, ensureContrast, readableTextColor } from './branding';
+import { defaultBranding, ensureContrast, readableTextColor, sidebarPalette } from './branding';
 import type { Branding } from './branding';
 import { useUiStore } from './store';
 import type { Language, ThemeMode } from './store';
@@ -19,7 +19,7 @@ export function buildThemeConfig(branding: Branding, mode: ThemeMode): ThemeConf
       ? ensureContrast(branding.primaryColor, DARK_SURFACE, 3, 1)
       : branding.primaryColor;
   const onPrimary = readableTextColor(primary);
-  const onSecondary = readableTextColor(branding.secondaryColor);
+  const sider = sidebarPalette(branding, mode);
   return {
     algorithm: mode === 'dark' ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
     token: {
@@ -30,15 +30,15 @@ export function buildThemeConfig(branding: Branding, mode: ThemeMode): ThemeConf
       borderRadius: 6,
     },
     components: {
-      Layout: { siderBg: branding.secondaryColor, triggerBg: branding.secondaryColor },
+      Layout: { siderBg: sider.background, triggerBg: sider.background },
       Menu: {
-        darkItemBg: branding.secondaryColor,
-        darkSubMenuItemBg: branding.secondaryColor,
-        darkItemColor: onSecondary,
-        darkItemHoverColor: onSecondary,
-        darkItemHoverBg: 'transparent',
-        darkItemSelectedBg: primary,
-        darkItemSelectedColor: onPrimary,
+        darkItemBg: sider.background,
+        darkSubMenuItemBg: sider.background,
+        darkItemColor: sider.text,
+        darkItemHoverColor: sider.text,
+        darkItemHoverBg: sider.hover,
+        darkItemSelectedBg: sider.selectedBg,
+        darkItemSelectedColor: sider.selectedText,
       },
     },
   };

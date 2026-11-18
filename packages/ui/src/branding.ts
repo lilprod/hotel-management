@@ -77,3 +77,44 @@ export function ensureContrast(
   }
   return toHex([target, target, target]);
 }
+
+/** Linear mix of two hex colors (`weight` = share of `b`, 0 to 1). */
+export function mixColors(a: string, b: string, weight: number): string {
+  const ra = parseHex(a);
+  const rb = parseHex(b);
+  if (!ra || !rb) return a;
+  return toHex(ra.map((c, i) => c + ((rb[i] ?? c) - c) * weight) as [number, number, number]);
+}
+
+export interface SidebarPalette {
+  /** Sidebar background: a dark neutral tinted with ~10% of the primary color. */
+  background: string;
+  /** Menu and brand text (AA, 4.5:1 minimum on `background`). */
+  text: string;
+  /** Hover overlay (translucent). */
+  hover: string;
+  /** Selected item pill: the primary color, kept visible on the background. */
+  selectedBg: string;
+  selectedText: string;
+  /** Secondary color, only used as a small accent (active indicator). */
+  accent: string;
+}
+
+/**
+ * Sidebar colors derived from the tenant branding. The background is never the secondary color:
+ * it is a dark neutral mixed with a little primary, whatever the tenant palette.
+ */
+export function sidebarPalette(branding: Branding, mode: 'light' | 'dark'): SidebarPalette {
+  const base = mode === 'dark' ? '#0d0f12' : '#111827';
+  const background = mixColors(base, branding.primaryColor, mode === 'dark' ? 0.08 : 0.1);
+  const text = ensureContrast('#e5e7eb', background, 4.5, 1);
+  const selectedBg = ensureContrast(branding.primaryColor, background, 3, 1);
+  return {
+    background,
+    text,
+    hover: 'rgba(255, 255, 255, 0.08)',
+    selectedBg,
+    selectedText: readableTextColor(selectedBg),
+    accent: ensureContrast(branding.secondaryColor, background, 3, 1),
+  };
+}

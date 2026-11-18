@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
-import { AppShell, filterModules, readableTextColor, useSessionStore } from '@hm/ui';
+import { AppShell, filterModules, useSessionStore } from '@hm/ui';
 
 import { modules } from '../modules';
 import { HeaderBar } from './HeaderBar';
@@ -25,7 +25,7 @@ export function ShellLayout() {
     <AppShell
       brandName={branding.name}
       logoUrl={branding.logoUrl}
-      siderTextColor={readableTextColor(branding.secondaryColor)}
+      branding={branding}
       items={visible.map((m) => ({
         key: m.key,
         label: t(m.labelKey),

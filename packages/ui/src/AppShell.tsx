@@ -2,6 +2,10 @@ import { Layout, Menu, Tag, theme as antTheme } from 'antd';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 
+import { defaultBranding, sidebarPalette } from './branding';
+import type { Branding } from './branding';
+import { useUiStore } from './store';
+
 export interface ShellNavItem {
   key: string;
   label: string;
@@ -14,8 +18,8 @@ export interface AppShellProps {
   logoUrl?: string | null;
   /** Small badge under the brand name (e.g. "Super Admin"). */
   brandBadge?: string;
-  /** Text color on the sidebar background; defaults to white. */
-  siderTextColor?: string;
+  /** Tenant colors the sidebar palette is derived from (dark neutral + primary; secondary = accent). */
+  branding?: Branding;
   items: ShellNavItem[];
   selectedKey?: string | undefined;
   onNavigate: (path: string) => void;
@@ -29,6 +33,8 @@ export interface AppShellProps {
 const skipLinkCss = `
 .hm-skip-link{position:absolute;left:8px;top:-100px;z-index:1100;padding:8px 12px;background:#fff;color:#000;border-radius:4px}
 .hm-skip-link:focus{top:8px}
+.hm-sider .ant-menu-item-selected{position:relative}
+.hm-sider .ant-menu-item-selected::before{content:'';position:absolute;inset-inline-start:-4px;top:9px;bottom:9px;width:3px;border-radius:2px;background:var(--hm-sider-accent)}
 `;
 
 /** Collapsible-sidebar layout shared by the staff and Super Admin apps (collapses below 992px). */
@@ -36,7 +42,7 @@ export function AppShell({
   brandName,
   logoUrl,
   brandBadge,
-  siderTextColor = '#ffffff',
+  branding = defaultBranding,
   items,
   selectedKey,
   onNavigate,
@@ -47,6 +53,8 @@ export function AppShell({
 }: AppShellProps) {
   const [collapsed, setCollapsed] = useState(false);
   const { token } = antTheme.useToken();
+  const mode = useUiStore((s) => s.mode);
+  const palette = sidebarPalette(branding, mode);
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -64,7 +72,14 @@ export function AppShell({
         collapsedWidth={64}
         theme="dark"
         aria-label={navLabel}
-        style={{ position: 'sticky', top: 0, height: '100vh', overflow: 'auto' }}
+        className="hm-sider"
+        style={{
+          position: 'sticky',
+          top: 0,
+          height: '100vh',
+          overflow: 'auto',
+          ['--hm-sider-accent' as string]: palette.accent,
+        }}
       >
         <div
           data-testid="brand-block"
@@ -76,7 +91,7 @@ export function AppShell({
             justifyContent: collapsed ? 'center' : 'flex-start',
             gap: 10,
             padding: collapsed ? '8px 0' : '8px 16px',
-            color: siderTextColor,
+            color: palette.text,
             overflow: 'hidden',
           }}
         >
