@@ -13,6 +13,11 @@ interface Props {
   sensitive?: readonly string[];
 }
 
+/** i18n key (security namespace) of an action: `rates.manage` becomes `actions.rates_manage`. */
+export function actionLabelKey(module: string, permission: string): string {
+  return `actions.${permission.slice(module.length + 1).replace(/\./g, '_')}`;
+}
+
 /** Roles × permissions editor: one row per module, with a "whole module" toggle and one checkbox per action. */
 export function PermissionMatrix({ catalog, value, readOnly, onChange, sensitive = [] }: Props) {
   const { t } = useTranslation('security');
@@ -74,11 +79,14 @@ export function PermissionMatrix({ catalog, value, readOnly, onChange, sensitive
               {row.permissions.map((p) => (
                 <Checkbox
                   key={p}
+                  title={p}
                   disabled={readOnly}
                   checked={value.has(p)}
                   onChange={(e) => toggle(p, e.target.checked)}
                 >
-                  {p.slice(row.module.length + 1)}
+                  {t(actionLabelKey(row.module, p), {
+                    defaultValue: p.slice(row.module.length + 1),
+                  })}
                   {sensitive.includes(p) ? (
                     <Tag color="red" style={{ marginInlineStart: 4 }}>
                       {t('roles.sensitive')}
