@@ -34,7 +34,7 @@ const skipLinkCss = `
 .hm-skip-link{position:absolute;left:8px;top:-100px;z-index:1100;padding:8px 12px;background:#fff;color:#000;border-radius:4px}
 .hm-skip-link:focus{top:8px}
 .hm-sider .ant-menu-item-selected{position:relative}
-.hm-sider .ant-menu-item-selected::before{content:'';position:absolute;inset-inline-start:-4px;top:9px;bottom:9px;width:3px;border-radius:2px;background:var(--hm-sider-accent)}
+.hm-sider .ant-menu-item-selected::before{content:'';position:absolute;inset-inline-start:3px;top:10px;bottom:10px;width:3px;border-radius:2px;background:var(--hm-sider-accent)}
 `;
 
 /** Collapsible-sidebar layout shared by the staff and Super Admin apps (collapses below 992px). */
