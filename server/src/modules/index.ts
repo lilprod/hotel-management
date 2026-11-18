@@ -25,11 +25,13 @@ import {
   platformCouponsModule,
   platformPlansModule,
 } from './platform-plans/index.js';
+import { platformTenantsModule } from './platform-tenants/index.js';
 import { portalAuthModule } from './portal-auth/index.js';
 import { propertyModule } from './property/index.js';
 import { ratesModule } from './rates/index.js';
 import { sequencesModule } from './sequences/index.js';
 import { systemModule } from './system/index.js';
+import { tenantSubscriptionModule } from './tenant-subscription/index.js';
 
 /** Modules loaded by the server and the worker. Business modules are appended by later lots. */
 export const MODULES: readonly ModuleDefinition[] = [
@@ -59,4 +61,6 @@ export const MODULES: readonly ModuleDefinition[] = [
   platformInvoicesModule,
   declarationsModule,
   billingAdminModule,
+  platformTenantsModule,
+  tenantSubscriptionModule,
 ];
