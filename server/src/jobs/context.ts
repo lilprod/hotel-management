@@ -3,6 +3,7 @@ import type { Job, JobsOptions } from 'bullmq';
 import type { Services } from '../core/container.js';
 import { requestContext } from '../lib/request-context.js';
 import type { QueueFactory } from './queue.js';
+import type { RepeatSchedule } from './repeatable.js';
 
 /** Every tenant-scoped job carries the tenant id it was enqueued for. */
 export interface TenantJobData {
@@ -24,6 +25,8 @@ export interface JobDefinition<D = unknown> {
   tenantScoped: boolean;
   handler: (data: D, ctx: JobContext) => Promise<unknown>;
   options?: JobsOptions;
+  /** Repeatable schedule registered by `startWorkers` (BullMQ job scheduler, never node-cron). */
+  repeat?: RepeatSchedule;
 }
 
 /** Any job definition, whatever its data type (handlers are contravariant in their data). */

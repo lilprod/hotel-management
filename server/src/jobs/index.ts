@@ -34,6 +34,11 @@ export async function startWorkers(services: Services, queues: QueueFactory): Pr
     m.set(def.name, def);
     byQueue.set(def.queue, m);
   }
+  for (const def of services.modules.jobs()) {
+    if (!def.repeat) continue;
+    if (def.tenantScoped) throw new Error(`Repeatable job ${def.name} must be a platform job`);
+    await registerRepeatable(queues.queue(def.queue), def.name, def.repeat, { name: def.name });
+  }
   for (const [queue, defs] of byQueue) {
     if (queue === QUEUES.outbox || queue === QUEUES.domainEvents)
       throw new Error(`Queue ${queue} is reserved by the core`);
