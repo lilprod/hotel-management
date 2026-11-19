@@ -3,6 +3,9 @@ import type { ReactElement } from 'react';
 import { DashboardPage } from './pages/dashboard/DashboardPage';
 import { PlatformAuditPage } from './pages/audit/PlatformAuditPage';
 import { ImpersonationsPage } from './pages/impersonations/ImpersonationsPage';
+import { DeclarationsPage } from './pages/declarations/DeclarationsPage';
+import { InvoiceDetailPage } from './pages/invoices/InvoiceDetailPage';
+import { InvoicesPage } from './pages/invoices/InvoicesPage';
 import { PaymentDetailPage } from './pages/payments/PaymentDetailPage';
 import { PaymentFormPage } from './pages/payments/PaymentFormPage';
 import { PaymentsPage } from './pages/payments/PaymentsPage';
@@ -15,6 +18,8 @@ import { PlatformUsersPage } from './pages/platform-users/PlatformUsersPage';
 export const pages: Record<string, ReactElement> = {
   dashboard: <DashboardPage />,
   payments: <PaymentsPage />,
+  invoices: <InvoicesPage />,
+  'payment-declarations': <DeclarationsPage />,
   tenants: <TenantsPage />,
   'platform-users': <PlatformUsersPage />,
   impersonations: <ImpersonationsPage />,
@@ -25,6 +30,7 @@ export const pages: Record<string, ReactElement> = {
 export const subRoutes: { path: string; module: string; element: ReactElement }[] = [
   { path: '/tenants/new', module: 'tenants', element: <TenantCreatePage /> },
   { path: '/tenants/:id', module: 'tenants', element: <TenantDetailPage /> },
+  { path: '/invoices/:id', module: 'invoices', element: <InvoiceDetailPage /> },
   { path: '/payments/new', module: 'payments', element: <PaymentFormPage /> },
   { path: '/payments/:id', module: 'payments', element: <PaymentDetailPage /> },
 ];

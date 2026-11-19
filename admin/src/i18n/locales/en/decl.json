@@ -1,0 +1,30 @@
+{
+  "title": "Payment declarations",
+  "subtitle": "Payments declared by tenants, to be checked before being recorded.",
+  "filters": {
+    "SUBMITTED": "To review",
+    "APPROVED": "Approved",
+    "REJECTED": "Rejected",
+    "ALL": "All"
+  },
+  "status": { "SUBMITTED": "To review", "APPROVED": "Approved", "REJECTED": "Rejected" },
+  "empty": "No declaration.",
+  "submittedAt": "Received",
+  "reference": "Reference",
+  "paidAt": "Payment date",
+  "note": "Tenant note",
+  "review": "Review",
+  "approve": "Approve",
+  "reject": "Reject",
+  "rejectTitle": "Reject the declaration",
+  "rejectHint": "The reason is sent to the tenant.",
+  "rejectReason": "Rejection reason",
+  "payment": "Payment created",
+  "seePayment": "View the payment",
+  "proof": "Proof",
+  "noProof": "No proof attached.",
+  "proofLoading": "Loading the proof…",
+  "proofUnavailable": "A proof is attached but its preview is not available right now.",
+  "openProof": "Open the proof (PDF)",
+  "proofAlt": "Screenshot of the payment declared by the tenant"
+}

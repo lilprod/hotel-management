@@ -1,0 +1,30 @@
+{
+  "title": "Déclarations de paiement",
+  "subtitle": "Paiements déclarés par les établissements, à vérifier avant d'être enregistrés.",
+  "filters": {
+    "SUBMITTED": "À traiter",
+    "APPROVED": "Approuvées",
+    "REJECTED": "Rejetées",
+    "ALL": "Toutes"
+  },
+  "status": { "SUBMITTED": "À traiter", "APPROVED": "Approuvée", "REJECTED": "Rejetée" },
+  "empty": "Aucune déclaration.",
+  "submittedAt": "Reçue le",
+  "reference": "Référence",
+  "paidAt": "Date du paiement",
+  "note": "Note de l'établissement",
+  "review": "Examiner",
+  "approve": "Approuver",
+  "reject": "Rejeter",
+  "rejectTitle": "Rejeter la déclaration",
+  "rejectHint": "Le motif est communiqué à l'établissement.",
+  "rejectReason": "Motif du rejet",
+  "payment": "Paiement créé",
+  "seePayment": "Voir le paiement",
+  "proof": "Justificatif",
+  "noProof": "Aucun justificatif joint.",
+  "proofLoading": "Chargement du justificatif…",
+  "proofUnavailable": "Un justificatif est joint mais son aperçu n'est pas disponible pour le moment.",
+  "openProof": "Ouvrir le justificatif (PDF)",
+  "proofAlt": "Capture du paiement déclarée par l'établissement"
+}
