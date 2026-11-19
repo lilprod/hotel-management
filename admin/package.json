@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@ant-design/icons": "^5.6.1",
+    "@hm/shared": "workspace:*",
     "@hm/ui": "workspace:*",
     "@hookform/resolvers": "^7.0.6",
     "@tanstack/react-query": "^5.107.1",
@@ -23,6 +24,7 @@
     "react-hook-form": "^7.92.0",
     "react-i18next": "^18.0.1",
     "react-router-dom": "^6.30.6",
+    "recharts": "^2.15.4",
     "zod": "^4.6.7",
     "zustand": "^5.1.0"
   },
