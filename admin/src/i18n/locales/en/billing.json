@@ -1,0 +1,55 @@
+{
+  "cancel": "Cancel",
+  "confirm": "Confirm",
+  "save": "Save",
+  "close": "Close",
+  "back": "Back",
+  "search": "Search",
+  "reset": "Reset",
+  "actions": "Actions",
+  "reason": "Reason",
+  "reasonRequired": "A reason is required (3 characters minimum).",
+  "loadError": "Unable to load the data.",
+  "retry": "Retry",
+  "export": "Export",
+  "exportCsv": "CSV export",
+  "download": "Download",
+  "tenant": "Tenant",
+  "tenants": "Tenants",
+  "amount": "Amount",
+  "date": "Date",
+  "status": "Status",
+  "method": {
+    "label": "Payment method",
+    "MIXX": "Mixx by Yas",
+    "MOOV_MONEY": "Moov Money",
+    "CASH": "Cash",
+    "CARD": "Bank card"
+  },
+  "invoiceStatus": {
+    "DRAFT": "Draft",
+    "ISSUED": "Open",
+    "PARTIALLY_PAID": "Partially paid",
+    "PAID": "Paid",
+    "OVERDUE": "Overdue",
+    "VOID": "Void"
+  },
+  "paymentStatus": {
+    "PENDING_VALIDATION": "To validate",
+    "CONFIRMED": "Confirmed",
+    "REVERSED": "Reversed"
+  },
+  "subStatus": {
+    "TRIALING": "Trial",
+    "ACTIVE": "Active",
+    "PAST_DUE": "Past due",
+    "SUSPENDED": "Suspended",
+    "CANCELLED": "Cancelled"
+  },
+  "cycle": {
+    "MONTHLY": "Monthly",
+    "QUARTERLY": "Quarterly",
+    "YEARLY": "Yearly"
+  },
+  "readOnly": "Your role is read-only: actions are hidden."
+}

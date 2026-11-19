@@ -1,0 +1,55 @@
+{
+  "cancel": "Annuler",
+  "confirm": "Confirmer",
+  "save": "Enregistrer",
+  "close": "Fermer",
+  "back": "Retour",
+  "search": "Rechercher",
+  "reset": "Réinitialiser",
+  "actions": "Actions",
+  "reason": "Motif",
+  "reasonRequired": "Le motif est obligatoire (3 caractères minimum).",
+  "loadError": "Impossible de charger les données.",
+  "retry": "Réessayer",
+  "export": "Exporter",
+  "exportCsv": "Export CSV",
+  "download": "Télécharger",
+  "tenant": "Établissement",
+  "tenants": "Établissements",
+  "amount": "Montant",
+  "date": "Date",
+  "status": "Statut",
+  "method": {
+    "label": "Mode de paiement",
+    "MIXX": "Mixx by Yas",
+    "MOOV_MONEY": "Moov Money",
+    "CASH": "Espèces",
+    "CARD": "Carte bancaire"
+  },
+  "invoiceStatus": {
+    "DRAFT": "Brouillon",
+    "ISSUED": "Ouverte",
+    "PARTIALLY_PAID": "Partiellement payée",
+    "PAID": "Payée",
+    "OVERDUE": "En retard",
+    "VOID": "Annulée"
+  },
+  "paymentStatus": {
+    "PENDING_VALIDATION": "À valider",
+    "CONFIRMED": "Confirmé",
+    "REVERSED": "Contre-passé"
+  },
+  "subStatus": {
+    "TRIALING": "Essai",
+    "ACTIVE": "Actif",
+    "PAST_DUE": "Impayé",
+    "SUSPENDED": "Suspendu",
+    "CANCELLED": "Résilié"
+  },
+  "cycle": {
+    "MONTHLY": "Mensuel",
+    "QUARTERLY": "Trimestriel",
+    "YEARLY": "Annuel"
+  },
+  "readOnly": "Votre rôle est en lecture seule : les actions sont masquées."
+}

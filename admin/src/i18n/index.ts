@@ -3,36 +3,31 @@ import { initReactI18next } from 'react-i18next';
 
 import { errorMessages, useUiStore } from '@hm/ui';
 
-import enAuth from './locales/en/auth.json';
-import enCommon from './locales/en/common.json';
-import enNav from './locales/en/nav.json';
-import enPlatform from './locales/en/platform.json';
-import frAuth from './locales/fr/auth.json';
-import frCommon from './locales/fr/common.json';
-import frNav from './locales/fr/nav.json';
-import frPlatform from './locales/fr/platform.json';
+/** Every `locales/<lng>/<namespace>.json` is a namespace (the error messages come from @hm/ui). */
+function load(modules: Record<string, { default: Record<string, unknown> }>) {
+  const out: Record<string, Record<string, unknown>> = {};
+  for (const [path, mod] of Object.entries(modules)) {
+    const ns = /\/([^/]+)\.json$/.exec(path)?.[1];
+    if (ns) out[ns] = mod.default;
+  }
+  return out;
+}
+
+const fr = {
+  ...load(import.meta.glob('./locales/fr/*.json', { eager: true })),
+  errors: errorMessages.fr,
+};
+const en = {
+  ...load(import.meta.glob('./locales/en/*.json', { eager: true })),
+  errors: errorMessages.en,
+};
 
 void i18n.use(initReactI18next).init({
-  resources: {
-    fr: {
-      auth: frAuth,
-      common: frCommon,
-      errors: errorMessages.fr,
-      nav: frNav,
-      platform: frPlatform,
-    },
-    en: {
-      auth: enAuth,
-      common: enCommon,
-      errors: errorMessages.en,
-      nav: enNav,
-      platform: enPlatform,
-    },
-  },
+  resources: { fr, en },
   lng: useUiStore.getState().language,
   fallbackLng: 'fr',
   supportedLngs: ['fr', 'en'],
-  ns: ['auth', 'common', 'errors', 'nav', 'platform'],
+  ns: Object.keys(fr),
   defaultNS: 'common',
   interpolation: { escapeValue: false },
   react: { useSuspense: false },

@@ -9,13 +9,11 @@ import './i18n';
 import { Guard } from './auth/guards';
 import { bootstrapSession } from './auth/session';
 import { ModulePage } from './pages/ModulePage';
-import { PlatformAuditPage } from './pages/audit/PlatformAuditPage';
-import { ImpersonationsPage } from './pages/impersonations/ImpersonationsPage';
 import { LoginPage } from './pages/LoginPage';
-import { PlatformUsersPage } from './pages/platform-users/PlatformUsersPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { ShellLayout } from './components/ShellLayout';
 import { modules } from './modules';
+import { pages, subRoutes } from './routes';
 
 /** Keeps i18next in sync with the persisted UI language. */
 function useI18nSync() {
@@ -27,16 +25,14 @@ function useI18nSync() {
 }
 
 function moduleElement(m: (typeof modules)[number]) {
-  const guard = { permission: m.requiredPermission, feature: m.requiredFeature };
-  const page =
-    m.key === 'platform-users' ? (
-      <PlatformUsersPage />
-    ) : m.key === 'impersonations' ? (
-      <ImpersonationsPage />
-    ) : m.key === 'audit' ? (
-      <PlatformAuditPage />
-    ) : null;
-  return page ? <Guard {...guard}>{page}</Guard> : <ModulePage module={m} />;
+  const page = pages[m.key];
+  return page ? (
+    <Guard permission={m.requiredPermission} feature={m.requiredFeature}>
+      {page}
+    </Guard>
+  ) : (
+    <ModulePage module={m} />
+  );
 }
 
 export function App() {
@@ -66,6 +62,20 @@ export function App() {
             {modules.map((m) => (
               <Route key={m.key} path={m.path} element={moduleElement(m)} />
             ))}
+            {subRoutes.map((r) => {
+              const m = modules.find((x) => x.key === r.module);
+              return (
+                <Route
+                  key={r.path}
+                  path={r.path}
+                  element={
+                    <Guard permission={m?.requiredPermission} feature={m?.requiredFeature}>
+                      {r.element}
+                    </Guard>
+                  }
+                />
+              );
+            })}
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>
