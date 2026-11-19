@@ -4,6 +4,15 @@ import { afterEach } from 'vitest';
 
 afterEach(() => cleanup());
 
+// Recharts' ResponsiveContainer observes its parent; jsdom has no layout engine.
+if (!('ResizeObserver' in globalThis)) {
+  (globalThis as { ResizeObserver?: unknown }).ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
+
 if (!window.matchMedia) {
   window.matchMedia = (query: string) =>
     ({
