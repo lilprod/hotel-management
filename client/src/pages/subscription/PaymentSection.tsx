@@ -226,11 +226,19 @@ export function DeclarationForm({
           required
           error={errors.paidAt?.message}
         >
-          <Input
-            type="date"
-            max={todayIso()}
-            {...a11y('decl-paid-at', errors.paidAt)}
-            {...bind(form.register('paidAt'))}
+          <Controller
+            control={form.control}
+            name="paidAt"
+            render={({ field }) => (
+              <Input
+                type="date"
+                max={todayIso()}
+                {...a11y('decl-paid-at', errors.paidAt)}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+              />
+            )}
           />
         </Field>
         <Field
