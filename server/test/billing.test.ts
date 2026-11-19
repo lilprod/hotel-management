@@ -601,6 +601,54 @@ describe('payment declarations and tenant administration', () => {
     ).toBe(true);
   });
 
+  it('proof attachment: signed URL + mime for declarations and payments, tenant name in the queue', async () => {
+    setDay('2026-11-18');
+    const T2 = await newTenant(0);
+    const up = await staff('post', T2, '/billing/declarations/attachments').attach(
+      'file',
+      Buffer.from('fake png'),
+      { filename: 'proof.png', contentType: 'image/png' },
+    );
+    expect(up.status, JSON.stringify(up.body)).toBe(201);
+    const d = await staff('post', T2, '/billing/declarations').send({
+      method: 'MOOV_MONEY',
+      amount: 4_000,
+      paidAt: '2026-11-18',
+      attachmentFileId: up.body.fileId,
+    });
+    expect(d.status, JSON.stringify(d.body)).toBe(201);
+    const att = await adm('get', `/declarations/${d.body.id}/attachment`, tokens.READ_ONLY);
+    expect(att.status).toBe(200);
+    expect(att.body.mime).toBe('image/png');
+    expect(att.body.url).toContain('https://files.test/');
+    expect((await adm('get', `/declarations/${d.body.id}/attachment`, tokens.SUPPORT)).status).toBe(
+      403,
+    );
+    expect(
+      (await adm('get', `/declarations/${crypto.randomUUID()}/attachment`, tokens.FINANCE)).status,
+    ).toBe(404);
+    const queue = await adm('get', `/declarations?tenantId=${T2.tenantId}`, tokens.READ_ONLY);
+    expect(queue.body.items[0].tenantName).toMatch(/^Hôtel bt-/);
+
+    const none = await staff('post', T2, '/billing/declarations').send({
+      method: 'MIXX',
+      amount: 1_000,
+      paidAt: '2026-11-18',
+    });
+    expect((await adm('get', `/declarations/${none.body.id}/attachment`)).status).toBe(404);
+
+    const p = await pay(T2, 1_000, { attachmentFileId: up.body.fileId });
+    expect(p.status, JSON.stringify(p.body)).toBe(201);
+    const pa = await adm('get', `/payments/${p.body.id}/attachment`, tokens.FINANCE);
+    expect(pa.status).toBe(200);
+    expect(pa.body.mime).toBe('image/png');
+    expect((await adm('get', `/payments/${p.body.id}/attachment`, tokens.SUPPORT)).status).toBe(
+      403,
+    );
+    const p2 = await pay(T2, 500);
+    expect((await adm('get', `/payments/${p2.body.id}/attachment`)).status).toBe(404);
+  });
+
   it('tenant card, overrides, offered days, suspend / reactivate, export', async () => {
     const card = await adm('get', `/tenants/${E.tenantId}`, tokens.SUPPORT);
     expect(card.status).toBe(200);

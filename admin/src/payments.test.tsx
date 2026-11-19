@@ -191,6 +191,27 @@ describe('role-based actions', () => {
     expect(screen.queryByRole('button', { name: 'Contre-passer' })).toBeNull();
   });
 
+  it('opens the proof of a payment through its signed URL', async () => {
+    const open = vi.fn();
+    vi.stubGlobal('open', open);
+    const user = userEvent.setup();
+    stubApi({
+      'GET /payments/pay-1': () => json(200, payment({ attachmentFileId: 'file-9' })),
+      'GET /payments/pay-1/attachment': () =>
+        json(200, { url: 'https://files.example/p.png', mime: 'image/png' }),
+    });
+    signInAs('READ_ONLY');
+    renderApp('/payments/pay-1');
+    await user.click(await screen.findByRole('button', { name: 'Fourni' }));
+    await waitFor(() =>
+      expect(open).toHaveBeenCalledWith(
+        'https://files.example/p.png',
+        '_blank',
+        'noopener,noreferrer',
+      ),
+    );
+  });
+
   it('forbids validating a payment recorded by the same user', async () => {
     const me = meOf('FINANCE');
     stubApi({

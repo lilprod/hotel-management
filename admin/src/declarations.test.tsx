@@ -19,6 +19,7 @@ afterEach(() => vi.unstubAllGlobals());
 const declaration: Declaration = {
   id: 'dec-1',
   tenantId: 'ten-1',
+  tenantName: 'Hôtel Lac',
   paymentId: null,
   amount: 75_000,
   currency: 'XOF',
@@ -37,7 +38,6 @@ const declaration: Declaration = {
 
 const api = () => ({
   'GET /declarations': () => json(200, { items: [declaration], total: 1 }),
-  'GET /tenants/ten-1': () => json(200, { id: 'ten-1', name: 'Hôtel Lac', slug: 'hotel-lac' }),
   'GET /declarations/dec-1/attachment': () =>
     json(200, { url: 'https://files.example/proof.png', mime: 'image/png' }),
 });

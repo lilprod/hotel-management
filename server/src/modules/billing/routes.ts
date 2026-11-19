@@ -1,6 +1,6 @@
 import type { Request } from 'express';
 import { createModuleRouter } from '../../core/router.js';
-import { unauthenticated } from '../../lib/errors.js';
+import { notFound, unauthenticated } from '../../lib/errors.js';
 import { platformRole } from '../../middleware/platform-guard.js';
 import { recordAudit } from '../../middleware/audit.js';
 import { platformToday, type Actor } from './common.js';
@@ -8,7 +8,7 @@ import { platformToday, type Actor } from './common.js';
 export { platformToday };
 import { sendCsv } from './csv.js';
 import { approveDeclaration, rejectDeclaration, serializeDeclaration } from './declarations.js';
-import { proofUpload, storeProof } from './files.js';
+import { proofAttachment, proofUpload, storeProof } from './files.js';
 import { withIdempotency } from './idempotency.js';
 import { voidInvoice } from './management.js';
 import {
@@ -55,6 +55,7 @@ export function platformActor(req: Request): Actor {
 
 const FINANCE = platformRole('FINANCE');
 const READERS = platformRole('FINANCE', 'SUPPORT', 'READ_ONLY');
+const PROOF_READERS = platformRole('FINANCE', 'READ_ONLY');
 const SUPER = platformRole();
 
 // --- /api/v1/admin/payments ---------------------------------------------------------------
@@ -120,6 +121,22 @@ export const paymentsRouter = createModuleRouter()
         recordAudit(req, { action: 'payment.record', entity: 'payment', entityId: p.id, after: p });
         return p;
       }),
+  })
+  .route({
+    method: 'get',
+    path: '/:id/attachment',
+    tags: ['platform: payments'],
+    summary: 'Signed URL (5 min) + mime of the payment proof',
+    middleware: [PROOF_READERS],
+    request: { params: idParams },
+    handler: async (req) => {
+      const p = await req.services.admin.payment.findUnique({
+        where: { id: req.valid.params.id },
+        select: { tenantId: true, attachmentFileId: true },
+      });
+      if (!p) throw notFound('Payment');
+      return proofAttachment(req.services, p.tenantId, p.attachmentFileId);
+    },
   })
   .route({
     method: 'get',
@@ -244,10 +261,30 @@ export const declarationsRouter = createModuleRouter()
           orderBy: { createdAt: 'asc' },
           take: q.limit,
           skip: q.offset,
+          include: { tenant: { select: { name: true } } },
         }),
         req.services.admin.paymentDeclaration.count({ where }),
       ]);
-      return { items: rows.map(serializeDeclaration), total };
+      return {
+        items: rows.map((d) => ({ ...serializeDeclaration(d), tenantName: d.tenant.name })),
+        total,
+      };
+    },
+  })
+  .route({
+    method: 'get',
+    path: '/:id/attachment',
+    tags: ['platform: payment declarations'],
+    summary: 'Signed URL (5 min) + mime of the declaration proof',
+    middleware: [PROOF_READERS],
+    request: { params: idParams },
+    handler: async (req) => {
+      const d = await req.services.admin.paymentDeclaration.findUnique({
+        where: { id: req.valid.params.id },
+        select: { tenantId: true, attachmentFileId: true },
+      });
+      if (!d) throw notFound('Declaration');
+      return proofAttachment(req.services, d.tenantId, d.attachmentFileId);
     },
   })
   .route({

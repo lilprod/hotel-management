@@ -56,6 +56,10 @@ export function PaymentDetailPage() {
     mutationFn: () => apiClient.get<{ url: string | null }>(`/payments/${id}/receipt`),
     onSuccess: (r) => openUrl(r.url),
   });
+  const proof = useMutation({
+    mutationFn: () => apiClient.get<{ url: string | null }>(`/payments/${id}/attachment`),
+    onSuccess: (r) => openUrl(r.url),
+  });
 
   const p = q.data;
   const sameUser = p ? recordedByMe(p, me?.id) : false;
@@ -146,7 +150,19 @@ export function PaymentDetailPage() {
                 {money(p.credit, p.currency)}
               </Descriptions.Item>
               <Descriptions.Item label={t('attachment')}>
-                {p.attachmentFileId ? t('attachmentYes') : t('attachmentNo')}
+                {p.attachmentFileId ? (
+                  <Button
+                    type="link"
+                    size="small"
+                    style={{ padding: 0 }}
+                    loading={proof.isPending}
+                    onClick={() => proof.mutate()}
+                  >
+                    {t('attachmentYes')}
+                  </Button>
+                ) : (
+                  t('attachmentNo')
+                )}
               </Descriptions.Item>
               <Descriptions.Item label={t('recordedBy')}>{p.recordedBy ?? '—'}</Descriptions.Item>
               <Descriptions.Item label={t('validatedBy')}>

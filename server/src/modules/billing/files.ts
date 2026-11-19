@@ -2,9 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { runWithTenant } from '@hm/database';
 import type { Request, RequestHandler } from 'express';
 import type { Services } from '../../core/container.js';
-import { AppError } from '../../lib/errors.js';
+import { AppError, notFound } from '../../lib/errors.js';
 import { upload } from '../../lib/upload.js';
 import { notificationDeps } from '../notifications/deps.js';
+import { signedFileUrl } from './documents.js';
 
 /** Payment proofs (SA-31 / TN-31): image or PDF, ≤ 5 MB. */
 export const PROOF_MAX_BYTES = 5 * 1024 * 1024;
@@ -56,4 +57,16 @@ export async function storeProof(
     },
   });
   return { fileId: row.id, size: stored.size, mime: f.mimetype };
+}
+
+/** Signed URL (5 min) + mime of a stored proof, or 404 when the record has none. */
+export async function proofAttachment(services: Services, tenantId: string, fileId: string | null) {
+  if (!fileId) throw notFound('Attachment');
+  const file = await services.admin.file.findFirst({
+    where: { id: fileId, tenantId },
+    select: { mime: true },
+  });
+  const url = file ? await signedFileUrl(services, tenantId, fileId) : null;
+  if (!file || !url) throw notFound('Attachment');
+  return { url, mime: file.mime };
 }

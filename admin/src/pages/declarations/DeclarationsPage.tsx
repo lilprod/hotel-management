@@ -1,4 +1,4 @@
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Button, Descriptions, Drawer, Image, Segmented, Table, Tag } from 'antd';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -9,13 +9,14 @@ import { PageHeader } from '@hm/ui';
 import { apiClient } from '../../auth/session';
 import { useApiError } from '../../auth/useApiError';
 import { money, qs, useAbilities, useFormatDate } from '../../billing/common';
-import type { Paged, PayMethod, TenantRef } from '../../billing/common';
+import type { Paged, PayMethod } from '../../billing/common';
 import { usePaging } from '../../billing/hooks';
 import { ReasonModal, useMethodLabel } from '../../billing/ui';
 
 export interface Declaration {
   id: string;
   tenantId: string;
+  tenantName: string;
   paymentId: string | null;
   amount: number;
   currency: string;
@@ -33,18 +34,6 @@ export interface Declaration {
 }
 
 const STATUS_COLORS = { SUBMITTED: 'gold', APPROVED: 'green', REJECTED: 'red' } as const;
-
-/** Tenant names of the queue (the list only carries tenant ids). */
-function useTenantNames(ids: string[]) {
-  const results = useQueries({
-    queries: ids.map((id) => ({
-      queryKey: ['tenant-ref', id],
-      queryFn: () => apiClient.get<TenantRef>(`/tenants/${id}`),
-      staleTime: 5 * 60_000,
-    })),
-  });
-  return new Map(ids.map((id, n) => [id, results[n]?.data?.name ?? id]));
-}
 
 interface Attachment {
   url: string | null;
@@ -205,7 +194,6 @@ export function DeclarationsPage() {
         `/declarations${qs({ status, limit: paging.limit, offset: paging.offset })}`,
       ),
   });
-  const names = useTenantNames([...new Set((list.data?.items ?? []).map((d) => d.tenantId))]);
 
   return (
     <>
@@ -237,7 +225,7 @@ export function DeclarationsPage() {
           },
           {
             title: tb('tenant'),
-            render: (_: unknown, d) => names.get(d.tenantId) ?? d.tenantId,
+            dataIndex: 'tenantName',
           },
           {
             title: tb('amount'),
@@ -268,7 +256,7 @@ export function DeclarationsPage() {
       {selected ? (
         <ReviewDrawer
           declaration={selected}
-          tenantName={names.get(selected.tenantId) ?? selected.tenantId}
+          tenantName={selected.tenantName}
           onClose={() => setSelected(null)}
         />
       ) : null}
