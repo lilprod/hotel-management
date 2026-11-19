@@ -6,6 +6,7 @@ import { ImpersonationsPage } from './pages/impersonations/ImpersonationsPage';
 import { DeclarationsPage } from './pages/declarations/DeclarationsPage';
 import { InvoiceDetailPage } from './pages/invoices/InvoiceDetailPage';
 import { InvoicesPage } from './pages/invoices/InvoicesPage';
+import { PlansPage } from './pages/plans/PlansPage';
 import { PaymentDetailPage } from './pages/payments/PaymentDetailPage';
 import { PaymentFormPage } from './pages/payments/PaymentFormPage';
 import { PaymentsPage } from './pages/payments/PaymentsPage';
@@ -18,6 +19,7 @@ import { PlatformUsersPage } from './pages/platform-users/PlatformUsersPage';
 export const pages: Record<string, ReactElement> = {
   dashboard: <DashboardPage />,
   payments: <PaymentsPage />,
+  plans: <PlansPage />,
   invoices: <InvoicesPage />,
   'payment-declarations': <DeclarationsPage />,
   tenants: <TenantsPage />,
