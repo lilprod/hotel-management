@@ -1,0 +1,37 @@
+{
+  "title": "Rapports",
+  "subtitle": "Balance âgée, encaissements et conversion des essais, avec export CSV.",
+  "tabs": {
+    "aged": "Balance âgée",
+    "collections": "Encaissements",
+    "trials": "Conversion des essais"
+  },
+  "asOf": "Situation au",
+  "from": "Du",
+  "to": "Au",
+  "exportCsv": "Export CSV",
+  "tenant": "Établissement",
+  "totals": "Total",
+  "noReceivable": "Aucune créance ouverte à cette date.",
+  "buckets": {
+    "current": "Non échu",
+    "d1_30": "1 à 30 jours",
+    "d31_60": "31 à 60 jours",
+    "d61_90": "61 à 90 jours",
+    "d90_plus": "Plus de 90 jours",
+    "total": "Total"
+  },
+  "groupBy": "Regroupement",
+  "byMonth": "Par mois",
+  "byDay": "Par jour",
+  "badRange": "La date de début doit précéder la date de fin.",
+  "period": "Période",
+  "method": "Mode de paiement",
+  "count": "Paiements",
+  "amount": "Montant",
+  "noCollection": "Aucun encaissement sur cette période.",
+  "trialsStarted": "Essais démarrés",
+  "trialsConverted": "Essais convertis",
+  "trialsLost": "Essais perdus",
+  "conversionRate": "Taux de conversion"
+}

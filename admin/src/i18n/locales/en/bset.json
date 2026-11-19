@@ -1,0 +1,82 @@
+{
+  "title": "Billing settings",
+  "subtitle": "Issuer identity, payment instructions, delays, VAT and reminders. Every change is recorded in the audit log.",
+  "saved": "Settings saved.",
+  "invalid": "The form contains errors:",
+  "errors": {
+    "legalName": "The legal name is required.",
+    "country": "The country must be a 2-letter code.",
+    "currency": "The currency must be a 3-letter code.",
+    "email": "The e-mail address is invalid.",
+    "methodLabel": "Each payment method needs a label.",
+    "pattern": "A reference regular expression is invalid.",
+    "vat": "The VAT rate (0 to 100 %) and its label are required."
+  },
+  "tabs": {
+    "identity": "Identity",
+    "payment": "Payment instructions",
+    "lifecycle": "Delays and validation",
+    "vat": "VAT",
+    "reminders": "Reminders"
+  },
+  "identity": {
+    "legalName": "Legal name",
+    "legalForm": "Legal form",
+    "country": "Country (ISO code)",
+    "currency": "Currency",
+    "taxId": "Tax identification number",
+    "rccm": "Trade register (RCCM)",
+    "taxRegime": "Tax regime",
+    "address": "Address",
+    "email": "Billing e-mail",
+    "phone": "Phone"
+  },
+  "payment": {
+    "note": "Message shown to tenants",
+    "noteHint": "Free text added to invoices and to the subscription page.",
+    "methods": "Accepted payment methods",
+    "code": "Method",
+    "label": "Displayed label",
+    "merchantNumber": "Merchant number",
+    "referenceLabel": "Reference label",
+    "referencePattern": "Reference format (regular expression)",
+    "patternHint": "Optional. Checks the reference entered when recording a payment.",
+    "add": "Add a payment method",
+    "remove": "Remove this payment method"
+  },
+  "lifecycle": {
+    "graceDays": "Grace period (days)",
+    "graceHint": "Delay after the due date before suspension.",
+    "suspensionDays": "Suspension duration before cancellation (days)",
+    "suspensionHint": "After this delay, the suspended subscription is cancelled automatically.",
+    "purgeDays": "Retention after cancellation (days)",
+    "purgeHint": "Delay before the data of a cancelled tenant is purged.",
+    "paymentTermsDays": "Invoice payment terms (days)",
+    "termsHint": "Due date = issue date + this delay.",
+    "renewalLeadDays": "Renewal invoice lead time (days before)",
+    "leadHint": "Renewal invoices are issued this many days before the end of the period.",
+    "doubleValidation": "Double validation of payments",
+    "doubleHint": "A payment recorded by one user must be confirmed by another."
+  },
+  "vat": {
+    "enabled": "Apply VAT to invoices",
+    "rate": "VAT rate",
+    "rateHint": "Up to 2 decimals.",
+    "label": "Label"
+  },
+  "reminders": {
+    "sms": "SMS reminders",
+    "smsHint": "Adds SMS to the reminders that offer it as an option.",
+    "offsets": "Days relative to the event",
+    "offsetsHint": "Negative = before (e.g. -7), positive = after (e.g. 3). Between -60 and 60.",
+    "channels": "Channels",
+    "channel": { "EMAIL": "E-mail", "SMS": "SMS", "BANNER": "In-app banner" },
+    "models": {
+      "trial_ending": "Trial ending",
+      "invoice_upcoming": "Upcoming invoice",
+      "invoice_due": "Invoice due",
+      "invoice_overdue": "Invoice overdue",
+      "account_suspended": "Account suspended"
+    }
+  }
+}

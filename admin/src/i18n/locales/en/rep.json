@@ -1,0 +1,37 @@
+{
+  "title": "Reports",
+  "subtitle": "Aged receivables, collections and trial conversion, with CSV export.",
+  "tabs": {
+    "aged": "Aged receivables",
+    "collections": "Collections",
+    "trials": "Trial conversion"
+  },
+  "asOf": "As of",
+  "from": "From",
+  "to": "To",
+  "exportCsv": "CSV export",
+  "tenant": "Tenant",
+  "totals": "Total",
+  "noReceivable": "No open receivable at this date.",
+  "buckets": {
+    "current": "Not due",
+    "d1_30": "1 to 30 days",
+    "d31_60": "31 to 60 days",
+    "d61_90": "61 to 90 days",
+    "d90_plus": "Over 90 days",
+    "total": "Total"
+  },
+  "groupBy": "Grouping",
+  "byMonth": "By month",
+  "byDay": "By day",
+  "badRange": "The start date must be before the end date.",
+  "period": "Period",
+  "method": "Payment method",
+  "count": "Payments",
+  "amount": "Amount",
+  "noCollection": "No collection in this period.",
+  "trialsStarted": "Trials started",
+  "trialsConverted": "Trials converted",
+  "trialsLost": "Trials lost",
+  "conversionRate": "Conversion rate"
+}

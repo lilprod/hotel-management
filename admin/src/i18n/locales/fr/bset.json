@@ -1,0 +1,82 @@
+{
+  "title": "Paramètres de facturation",
+  "subtitle": "Identité de l'émetteur, instructions de paiement, délais, TVA et relances. Chaque modification est tracée dans le journal d'audit.",
+  "saved": "Paramètres enregistrés.",
+  "invalid": "Le formulaire contient des erreurs :",
+  "errors": {
+    "legalName": "La raison sociale est obligatoire.",
+    "country": "Le pays doit être un code à 2 lettres.",
+    "currency": "La devise doit être un code à 3 lettres.",
+    "email": "L'adresse e-mail est invalide.",
+    "methodLabel": "Chaque mode de paiement doit avoir un libellé.",
+    "pattern": "Une expression régulière de référence est invalide.",
+    "vat": "Le taux de TVA (0 à 100 %) et son libellé sont obligatoires."
+  },
+  "tabs": {
+    "identity": "Identité",
+    "payment": "Instructions de paiement",
+    "lifecycle": "Délais et validation",
+    "vat": "TVA",
+    "reminders": "Relances"
+  },
+  "identity": {
+    "legalName": "Raison sociale",
+    "legalForm": "Forme juridique",
+    "country": "Pays (code ISO)",
+    "currency": "Devise",
+    "taxId": "Numéro d'identification fiscale",
+    "rccm": "RCCM",
+    "taxRegime": "Régime fiscal",
+    "address": "Adresse",
+    "email": "E-mail de facturation",
+    "phone": "Téléphone"
+  },
+  "payment": {
+    "note": "Message affiché aux établissements",
+    "noteHint": "Texte libre ajouté aux factures et à la page d'abonnement.",
+    "methods": "Modes de paiement acceptés",
+    "code": "Mode",
+    "label": "Libellé affiché",
+    "merchantNumber": "Numéro marchand",
+    "referenceLabel": "Libellé de la référence",
+    "referencePattern": "Format de la référence (expression régulière)",
+    "patternHint": "Optionnel. Contrôle la référence saisie à l'enregistrement d'un paiement.",
+    "add": "Ajouter un mode de paiement",
+    "remove": "Supprimer ce mode de paiement"
+  },
+  "lifecycle": {
+    "graceDays": "Période de grâce (jours)",
+    "graceHint": "Délai après l'échéance avant la suspension.",
+    "suspensionDays": "Durée de suspension avant résiliation (jours)",
+    "suspensionHint": "Après ce délai, l'abonnement suspendu est résilié automatiquement.",
+    "purgeDays": "Conservation après résiliation (jours)",
+    "purgeHint": "Délai avant la purge des données d'un établissement résilié.",
+    "paymentTermsDays": "Délai de paiement des factures (jours)",
+    "termsHint": "Échéance = date d'émission + ce délai.",
+    "renewalLeadDays": "Émission des factures de renouvellement (jours avant)",
+    "leadHint": "Les factures de renouvellement sont émises ce nombre de jours avant la fin de la période.",
+    "doubleValidation": "Double validation des paiements",
+    "doubleHint": "Un paiement enregistré par un utilisateur doit être confirmé par un autre."
+  },
+  "vat": {
+    "enabled": "Appliquer la TVA aux factures",
+    "rate": "Taux de TVA",
+    "rateHint": "Jusqu'à 2 décimales.",
+    "label": "Libellé"
+  },
+  "reminders": {
+    "sms": "Relances par SMS",
+    "smsHint": "Ajoute le SMS aux relances qui le proposent en option.",
+    "offsets": "Jours par rapport à l'évènement",
+    "offsetsHint": "Valeurs négatives = avant (ex. -7), positives = après (ex. 3). Entre -60 et 60.",
+    "channels": "Canaux",
+    "channel": { "EMAIL": "E-mail", "SMS": "SMS", "BANNER": "Bandeau dans l'application" },
+    "models": {
+      "trial_ending": "Fin d'essai",
+      "invoice_upcoming": "Facture à venir",
+      "invoice_due": "Facture à échéance",
+      "invoice_overdue": "Facture en retard",
+      "account_suspended": "Compte suspendu"
+    }
+  }
+}
