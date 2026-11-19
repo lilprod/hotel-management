@@ -1,0 +1,204 @@
+{
+  "title": "Abonnement",
+  "subtitle": "Votre offre, vos consommations, vos factures et vos paiements.",
+  "loadError": "Impossible de charger les données de l'abonnement.",
+  "retry": "Réessayer",
+  "unlimited": "Illimité",
+  "none": "Aucune",
+  "status": {
+    "TRIALING": "Essai",
+    "ACTIVE": "Actif",
+    "PAST_DUE": "Impayé",
+    "SUSPENDED": "Suspendu (lecture seule)",
+    "CANCELLED": "Résilié"
+  },
+  "cycle": {
+    "MONTHLY": "Mensuel",
+    "QUARTERLY": "Trimestriel",
+    "YEARLY": "Annuel"
+  },
+  "cycleShort": {
+    "MONTHLY": "/ mois",
+    "QUARTERLY": "/ trimestre",
+    "YEARLY": "/ an"
+  },
+  "method": {
+    "MIXX": "Mixx by Yas",
+    "MOOV_MONEY": "Moov Money",
+    "CASH": "Espèces",
+    "CARD": "Carte bancaire"
+  },
+  "invoiceStatus": {
+    "DRAFT": "Brouillon",
+    "ISSUED": "Ouverte",
+    "PARTIALLY_PAID": "Partiellement payée",
+    "PAID": "Payée",
+    "OVERDUE": "En retard",
+    "VOID": "Annulée"
+  },
+  "declStatus": {
+    "SUBMITTED": "En cours de vérification",
+    "APPROVED": "Validée",
+    "REJECTED": "Rejetée"
+  },
+  "quotas": {
+    "properties": "Établissements",
+    "units": "Chambres / unités",
+    "users": "Utilisateurs",
+    "storage_mb": "Stockage (Mo)",
+    "sms_per_month": "SMS par mois"
+  },
+  "plan": {
+    "title": "Offre actuelle",
+    "cycle": "Facturation",
+    "periodEnd": "Prochaine échéance",
+    "trialEnd": "Fin de l'essai",
+    "daysLeft_one": "dans {{count}} jour",
+    "daysLeft_other": "dans {{count}} jours",
+    "today": "aujourd'hui",
+    "amountDue": "Solde à régler",
+    "credit": "Avoir disponible",
+    "pending": "Changement programmé : offre {{plan}} ({{cycle}}) à partir du {{date}}.",
+    "cancelAt": "Résiliation prévue le {{date}}.",
+    "none": "Aucun abonnement actif."
+  },
+  "usage": {
+    "title": "Consommation"
+  },
+  "compare": {
+    "title": "Comparer les offres",
+    "cycleLabel": "Cycle de facturation",
+    "price": "Prix",
+    "features": "Fonctionnalités",
+    "quotas": "Quotas",
+    "current": "Offre actuelle",
+    "request": "Demander ce plan",
+    "included": "Inclus",
+    "notIncluded": "Non inclus",
+    "noPrice": "Indisponible",
+    "confirmTitle": "Changer pour l'offre {{plan}} ?",
+    "upgradeNotice": "Passage à une offre supérieure : effectif immédiatement. Une facture au prorata de la période restante vous sera adressée.",
+    "downgradeNotice": "Passage à une offre inférieure ou changement de cycle : effectif à la fin de la période en cours ({{date}}). Vos quotas actuels doivent respecter les limites de la nouvelle offre.",
+    "trialNotice": "Pendant l'essai, le changement est immédiat et sans frais.",
+    "confirm": "Confirmer le changement",
+    "cancel": "Annuler",
+    "doneImmediate": "Offre mise à jour. Une facture au prorata a pu être émise.",
+    "doneScheduled": "Changement programmé pour la fin de la période en cours."
+  },
+  "invoices": {
+    "title": "Factures",
+    "number": "Numéro",
+    "issueDate": "Émission",
+    "dueDate": "Échéance",
+    "total": "Total",
+    "balance": "Solde",
+    "status": "Statut",
+    "pdf": "PDF",
+    "empty": "Aucune facture."
+  },
+  "receipts": {
+    "title": "Reçus",
+    "number": "Reçu",
+    "paidAt": "Date",
+    "amount": "Montant",
+    "method": "Mode",
+    "reference": "Référence",
+    "pdf": "PDF",
+    "empty": "Aucun reçu."
+  },
+  "pdfError": "Le document n'est pas disponible pour le moment.",
+  "instructions": {
+    "title": "Comment payer",
+    "payee": "Bénéficiaire : {{name}}",
+    "amountDue": "Montant à régler",
+    "nothingDue": "Aucun solde à régler.",
+    "merchantNumber": "Numéro marchand",
+    "reference": "Référence à indiquer",
+    "referenceHint": "Indiquez le numéro de facture dans le message ou la référence du paiement.",
+    "copy": "Copier",
+    "copied": "Copié",
+    "noMethods": "Les instructions de paiement ne sont pas encore renseignées.",
+    "then": "Après votre paiement, déclarez-le ci-dessous : il sera vérifié par notre équipe."
+  },
+  "declare": {
+    "title": "Déclarer un paiement",
+    "method": "Mode de paiement",
+    "amount": "Montant payé",
+    "paidAt": "Date du paiement",
+    "reference": "Référence de la transaction",
+    "referenceHint": "Identifiant de la transaction Mixx / Moov Money.",
+    "note": "Note (facultatif)",
+    "screenshot": "Capture d'écran",
+    "screenshotHint": "Image ou PDF, 5 Mo maximum.",
+    "choose": "Choisir un fichier",
+    "remove": "Retirer",
+    "submit": "Envoyer la déclaration",
+    "sent": "Déclaration envoyée. Elle sera vérifiée par notre équipe."
+  },
+  "validation": {
+    "method": "Choisissez un mode de paiement.",
+    "amount": "Saisissez un montant entier supérieur à 0.",
+    "paidAt": "Saisissez la date du paiement.",
+    "paidAtFuture": "La date ne peut pas être dans le futur.",
+    "referenceMax": "100 caractères maximum.",
+    "fileSize": "Le fichier dépasse 5 Mo.",
+    "fileType": "Format accepté : image (JPG, PNG, WebP) ou PDF."
+  },
+  "history": {
+    "title": "Mes déclarations",
+    "date": "Déclarée le",
+    "paidAt": "Payée le",
+    "amount": "Montant",
+    "method": "Mode",
+    "reference": "Référence",
+    "status": "Statut",
+    "reason": "Motif du rejet",
+    "empty": "Aucune déclaration."
+  },
+  "banner": {
+    "cta": "Régler maintenant",
+    "view": "Voir l'abonnement",
+    "trial": "Période d'essai : J-{{count}} (fin le {{date}}).",
+    "trialToday": "Votre période d'essai se termine aujourd'hui.",
+    "dueSoon": "La facture {{number}} de {{amount}} arrive à échéance le {{date}} (J-{{count}}).",
+    "dueToday": "La facture {{number}} de {{amount}} est à régler aujourd'hui.",
+    "overdue": "Paiement en retard : {{amount}} dû depuis le {{date}}.",
+    "overdueSuspension": " Suspension prévue le {{date}}.",
+    "suspended": "Abonnement suspendu : votre établissement est en lecture seule. Solde à régler : {{amount}}.",
+    "cancelled": "Abonnement résilié : seul l'export de vos données reste disponible.",
+    "cancelScheduled": "Résiliation prévue le {{date}}."
+  },
+  "suspended": {
+    "title": "Lecture seule : abonnement suspendu",
+    "body": "Cette action est impossible tant que l'abonnement est suspendu. Réglez votre solde, puis déclarez votre paiement : l'accès complet sera rétabli après validation.",
+    "bodyOther": "Cette action est impossible tant que l'abonnement est suspendu. Contactez le propriétaire de l'établissement pour régler l'abonnement.",
+    "go": "Aller à l'abonnement",
+    "close": "Fermer"
+  },
+  "features": {
+    "lodging_core": "Hébergement",
+    "billing_core": "Facturation clients",
+    "crm_core": "Fichier clients (CRM)",
+    "housekeeping": "Ménage",
+    "maintenance_preventive": "Maintenance préventive",
+    "restaurant": "Restaurant",
+    "spa": "Spa",
+    "activities": "Activités",
+    "inventory": "Stocks",
+    "hr_shifts": "Plannings du personnel",
+    "hr_timeclock": "Pointage",
+    "loyalty": "Fidélité",
+    "portal_booking": "Réservation en ligne",
+    "groups": "Groupes",
+    "city_ledger": "Compte client (city ledger)",
+    "analytics_advanced": "Analytique avancée",
+    "reports_scheduled": "Rapports planifiés",
+    "security_custom_roles": "Rôles personnalisés",
+    "security_ip_restriction": "Restriction par IP",
+    "branding_custom_domain": "Domaine personnalisé",
+    "api": "API",
+    "sso": "Authentification unique (SSO)",
+    "channel_manager": "Channel manager",
+    "sms": "SMS"
+  }
+}

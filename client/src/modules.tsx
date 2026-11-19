@@ -4,6 +4,7 @@ import {
   BarChartOutlined,
   CalendarOutlined,
   ClearOutlined,
+  CreditCardOutlined,
   CoffeeOutlined,
   CompassOutlined,
   DashboardOutlined,
@@ -145,6 +146,13 @@ export const modules: readonly ModuleDef[] = [
     icon: <SafetyOutlined />,
     path: '/settings/security',
     requiredPermission: 'security.read',
+  },
+  {
+    key: 'subscription',
+    labelKey: 'nav:subscription',
+    icon: <CreditCardOutlined />,
+    path: '/settings/subscription',
+    requiredPermission: 'billing.manage',
   },
   {
     key: 'branding',

@@ -4,8 +4,10 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AppShell, filterModules, useSessionStore } from '@hm/ui';
 
 import { modules } from '../modules';
+import { BillingBanners } from './BillingBanners';
 import { HeaderBar } from './HeaderBar';
 import { ImpersonationBanner } from './ImpersonationBanner';
+import { SuspendedModal } from './SuspendedModal';
 import { useTenantBranding } from './TenantTheme';
 
 export function ShellLayout() {
@@ -39,7 +41,9 @@ export function ShellLayout() {
       skipLabel={t('skipToContent')}
     >
       <ImpersonationBanner />
+      <BillingBanners />
       <Outlet />
+      <SuspendedModal />
     </AppShell>
   );
 }

@@ -24,6 +24,7 @@ import { ModulePage } from './pages/ModulePage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { SecurityPage } from './pages/security/SecurityPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
+import { SubscriptionPage } from './pages/subscription/SubscriptionPage';
 
 /** Keeps i18next in sync with the persisted UI language. */
 function useI18nSync() {
@@ -46,6 +47,12 @@ function moduleElement(m: (typeof modules)[number]) {
     return (
       <Guard {...guard}>
         <SecurityPage />
+      </Guard>
+    );
+  if (m.key === 'subscription')
+    return (
+      <Guard {...guard}>
+        <SubscriptionPage />
       </Guard>
     );
   return <ModulePage module={m} />;

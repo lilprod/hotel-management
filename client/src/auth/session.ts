@@ -3,6 +3,8 @@ import { create } from 'zustand';
 import { createApiClient, useSessionStore } from '@hm/ui';
 import type { ImpersonationInfo, TokenResponse } from '@hm/ui';
 
+import { useSuspendedStore } from '../billing/suspended';
+
 /** Shape of `GET /api/v1/t/auth/me` (server/src/modules/auth/schemas.ts). */
 export interface Me {
   user: {
@@ -64,6 +66,11 @@ export function endSession(): void {
 export const apiClient = createApiClient({
   baseUrl: '/api/v1/t',
   onAuthFailure: () => endSession(),
+  // Read-only mode (TN-33): a write refused because the subscription is suspended.
+  onError: (error, { method }) => {
+    if (error.code === 'SUBSCRIPTION_SUSPENDED' && method !== 'GET')
+      useSuspendedStore.getState().show();
+  },
 });
 
 export function applyMe(me: Me): void {

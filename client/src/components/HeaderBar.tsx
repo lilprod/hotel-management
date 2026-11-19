@@ -1,5 +1,6 @@
 import {
   BellOutlined,
+  CreditCardOutlined,
   LoginOutlined,
   LogoutOutlined,
   PlusOutlined,
@@ -12,12 +13,15 @@ import { useNavigate } from 'react-router-dom';
 import { LanguageSwitch, ThemeToggle, useSessionStore } from '@hm/ui';
 
 import { logout } from '../auth/session';
+import { useCan } from '../auth/useCan';
+import { SUBSCRIPTION_PATH } from '../billing/common';
 
 export function HeaderBar() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const screens = Grid.useBreakpoint();
   const user = useSessionStore((s) => s.user);
+  const { can } = useCan();
 
   const actions = [
     { key: 'booking', label: t('newBooking'), path: '/reservations', icon: <PlusOutlined /> },
@@ -70,11 +74,21 @@ export function HeaderBar() {
         menu={{
           items: [
             { key: 'profile', label: t('profile'), icon: <UserOutlined /> },
+            ...(can('billing.manage')
+              ? [
+                  {
+                    key: 'subscription',
+                    label: t('nav:subscription'),
+                    icon: <CreditCardOutlined />,
+                  },
+                ]
+              : []),
             { type: 'divider' },
             { key: 'logout', label: t('logout'), icon: <LogoutOutlined /> },
           ],
           onClick: ({ key }) => {
             if (key === 'profile') navigate('/account');
+            if (key === 'subscription') navigate(SUBSCRIPTION_PATH);
             if (key === 'logout') void logout().then(() => navigate('/login'));
           },
         }}

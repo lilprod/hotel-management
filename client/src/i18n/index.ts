@@ -9,12 +9,14 @@ import enCommon from './locales/en/common.json';
 import enNav from './locales/en/nav.json';
 import enSecurity from './locales/en/security.json';
 import enSettings from './locales/en/settings.json';
+import enSubscription from './locales/en/subscription.json';
 import frAuth from './locales/fr/auth.json';
 import frBranding from './locales/fr/branding.json';
 import frCommon from './locales/fr/common.json';
 import frNav from './locales/fr/nav.json';
 import frSecurity from './locales/fr/security.json';
 import frSettings from './locales/fr/settings.json';
+import frSubscription from './locales/fr/subscription.json';
 
 void i18n.use(initReactI18next).init({
   resources: {
@@ -26,6 +28,7 @@ void i18n.use(initReactI18next).init({
       nav: frNav,
       security: frSecurity,
       settings: frSettings,
+      subscription: frSubscription,
     },
     en: {
       auth: enAuth,
@@ -35,12 +38,13 @@ void i18n.use(initReactI18next).init({
       nav: enNav,
       security: enSecurity,
       settings: enSettings,
+      subscription: enSubscription,
     },
   },
   lng: useUiStore.getState().language,
   fallbackLng: 'fr',
   supportedLngs: ['fr', 'en'],
-  ns: ['auth', 'branding', 'common', 'errors', 'nav', 'security', 'settings'],
+  ns: ['auth', 'branding', 'common', 'errors', 'nav', 'security', 'settings', 'subscription'],
   defaultNS: 'common',
   interpolation: { escapeValue: false },
   react: { useSuspense: false },

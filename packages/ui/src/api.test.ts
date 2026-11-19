@@ -34,6 +34,19 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('createApiClient', () => {
+  it('reports every failed request to onError with its method and code', async () => {
+    stubFetch(() => json(402, { title: 'Suspended', code: 'SUBSCRIPTION_SUSPENDED' }));
+    const onError = vi.fn();
+    const api = createApiClient({ baseUrl: '/api/v1/t', onError });
+    await expect(api.post('/guests', {})).rejects.toBeInstanceOf(ApiError);
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0]![0]).toMatchObject({
+      status: 402,
+      code: 'SUBSCRIPTION_SUSPENDED',
+    });
+    expect(onError.mock.calls[0]![1]).toEqual({ method: 'POST', path: '/guests' });
+  });
+
   it('sends the in-memory bearer token and never touches storage', async () => {
     stubFetch(() => json(200, { ok: true }));
     const setItem = vi.spyOn(Storage.prototype, 'setItem');

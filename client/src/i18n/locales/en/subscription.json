@@ -1,0 +1,204 @@
+{
+  "title": "Subscription",
+  "subtitle": "Your plan, usage, invoices and payments.",
+  "loadError": "Could not load the subscription data.",
+  "retry": "Retry",
+  "unlimited": "Unlimited",
+  "none": "None",
+  "status": {
+    "TRIALING": "Trial",
+    "ACTIVE": "Active",
+    "PAST_DUE": "Past due",
+    "SUSPENDED": "Suspended (read-only)",
+    "CANCELLED": "Cancelled"
+  },
+  "cycle": {
+    "MONTHLY": "Monthly",
+    "QUARTERLY": "Quarterly",
+    "YEARLY": "Yearly"
+  },
+  "cycleShort": {
+    "MONTHLY": "/ month",
+    "QUARTERLY": "/ quarter",
+    "YEARLY": "/ year"
+  },
+  "method": {
+    "MIXX": "Mixx by Yas",
+    "MOOV_MONEY": "Moov Money",
+    "CASH": "Cash",
+    "CARD": "Card"
+  },
+  "invoiceStatus": {
+    "DRAFT": "Draft",
+    "ISSUED": "Open",
+    "PARTIALLY_PAID": "Partially paid",
+    "PAID": "Paid",
+    "OVERDUE": "Overdue",
+    "VOID": "Void"
+  },
+  "declStatus": {
+    "SUBMITTED": "Being checked",
+    "APPROVED": "Approved",
+    "REJECTED": "Rejected"
+  },
+  "quotas": {
+    "properties": "Properties",
+    "units": "Rooms / units",
+    "users": "Users",
+    "storage_mb": "Storage (MB)",
+    "sms_per_month": "SMS per month"
+  },
+  "plan": {
+    "title": "Current plan",
+    "cycle": "Billing",
+    "periodEnd": "Next due date",
+    "trialEnd": "Trial ends",
+    "daysLeft_one": "in {{count}} day",
+    "daysLeft_other": "in {{count}} days",
+    "today": "today",
+    "amountDue": "Balance due",
+    "credit": "Available credit",
+    "pending": "Scheduled change: {{plan}} plan ({{cycle}}) from {{date}}.",
+    "cancelAt": "Cancellation scheduled on {{date}}.",
+    "none": "No active subscription."
+  },
+  "usage": {
+    "title": "Usage"
+  },
+  "compare": {
+    "title": "Compare plans",
+    "cycleLabel": "Billing cycle",
+    "price": "Price",
+    "features": "Features",
+    "quotas": "Quotas",
+    "current": "Current plan",
+    "request": "Request this plan",
+    "included": "Included",
+    "notIncluded": "Not included",
+    "noPrice": "Unavailable",
+    "confirmTitle": "Switch to the {{plan}} plan?",
+    "upgradeNotice": "Upgrade: effective immediately. A prorated invoice for the remaining period will be issued.",
+    "downgradeNotice": "Downgrade or cycle change: effective at the end of the current period ({{date}}). Your current usage must fit the limits of the new plan.",
+    "trialNotice": "During the trial the change is immediate and free of charge.",
+    "confirm": "Confirm the change",
+    "cancel": "Cancel",
+    "doneImmediate": "Plan updated. A prorated invoice may have been issued.",
+    "doneScheduled": "Change scheduled for the end of the current period."
+  },
+  "invoices": {
+    "title": "Invoices",
+    "number": "Number",
+    "issueDate": "Issued",
+    "dueDate": "Due",
+    "total": "Total",
+    "balance": "Balance",
+    "status": "Status",
+    "pdf": "PDF",
+    "empty": "No invoices."
+  },
+  "receipts": {
+    "title": "Receipts",
+    "number": "Receipt",
+    "paidAt": "Date",
+    "amount": "Amount",
+    "method": "Method",
+    "reference": "Reference",
+    "pdf": "PDF",
+    "empty": "No receipts."
+  },
+  "pdfError": "The document is not available right now.",
+  "instructions": {
+    "title": "How to pay",
+    "payee": "Payee: {{name}}",
+    "amountDue": "Amount due",
+    "nothingDue": "Nothing to pay.",
+    "merchantNumber": "Merchant number",
+    "reference": "Reference to quote",
+    "referenceHint": "Put the invoice number in the message or the payment reference.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "noMethods": "Payment instructions are not set up yet.",
+    "then": "After paying, declare your payment below: our team will verify it."
+  },
+  "declare": {
+    "title": "Declare a payment",
+    "method": "Payment method",
+    "amount": "Amount paid",
+    "paidAt": "Payment date",
+    "reference": "Transaction reference",
+    "referenceHint": "Mixx / Moov Money transaction identifier.",
+    "note": "Note (optional)",
+    "screenshot": "Screenshot",
+    "screenshotHint": "Image or PDF, 5 MB maximum.",
+    "choose": "Choose a file",
+    "remove": "Remove",
+    "submit": "Send the declaration",
+    "sent": "Declaration sent. Our team will verify it."
+  },
+  "validation": {
+    "method": "Choose a payment method.",
+    "amount": "Enter a whole amount greater than 0.",
+    "paidAt": "Enter the payment date.",
+    "paidAtFuture": "The date cannot be in the future.",
+    "referenceMax": "100 characters maximum.",
+    "fileSize": "The file exceeds 5 MB.",
+    "fileType": "Accepted formats: image (JPG, PNG, WebP) or PDF."
+  },
+  "history": {
+    "title": "My declarations",
+    "date": "Declared on",
+    "paidAt": "Paid on",
+    "amount": "Amount",
+    "method": "Method",
+    "reference": "Reference",
+    "status": "Status",
+    "reason": "Rejection reason",
+    "empty": "No declarations."
+  },
+  "banner": {
+    "cta": "Pay now",
+    "view": "View subscription",
+    "trial": "Trial period: D-{{count}} (ends on {{date}}).",
+    "trialToday": "Your trial ends today.",
+    "dueSoon": "Invoice {{number}} of {{amount}} is due on {{date}} (D-{{count}}).",
+    "dueToday": "Invoice {{number}} of {{amount}} is due today.",
+    "overdue": "Payment overdue: {{amount}} due since {{date}}.",
+    "overdueSuspension": " Suspension planned on {{date}}.",
+    "suspended": "Subscription suspended: your property is read-only. Balance due: {{amount}}.",
+    "cancelled": "Subscription cancelled: only your data export remains available.",
+    "cancelScheduled": "Cancellation scheduled on {{date}}."
+  },
+  "suspended": {
+    "title": "Read-only: subscription suspended",
+    "body": "This action is not possible while the subscription is suspended. Pay your balance, then declare your payment: full access is restored after validation.",
+    "bodyOther": "This action is not possible while the subscription is suspended. Contact the property owner to settle the subscription.",
+    "go": "Go to subscription",
+    "close": "Close"
+  },
+  "features": {
+    "lodging_core": "Lodging",
+    "billing_core": "Guest billing",
+    "crm_core": "Guest CRM",
+    "housekeeping": "Housekeeping",
+    "maintenance_preventive": "Preventive maintenance",
+    "restaurant": "Restaurant",
+    "spa": "Spa",
+    "activities": "Activities",
+    "inventory": "Inventory",
+    "hr_shifts": "Staff schedules",
+    "hr_timeclock": "Time clock",
+    "loyalty": "Loyalty",
+    "portal_booking": "Online booking",
+    "groups": "Groups",
+    "city_ledger": "City ledger",
+    "analytics_advanced": "Advanced analytics",
+    "reports_scheduled": "Scheduled reports",
+    "security_custom_roles": "Custom roles",
+    "security_ip_restriction": "IP restriction",
+    "branding_custom_domain": "Custom domain",
+    "api": "API",
+    "sso": "Single sign-on (SSO)",
+    "channel_manager": "Channel manager",
+    "sms": "SMS"
+  }
+}

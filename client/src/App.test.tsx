@@ -45,6 +45,7 @@ describe('client shell', () => {
       'reports',
       'settings',
       'security',
+      'subscription',
       'branding',
     ]);
   });

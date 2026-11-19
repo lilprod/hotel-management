@@ -51,6 +51,8 @@ export interface ApiClientOptions {
   onAuthFailure?: () => void;
   /** Called after each successful refresh (token rotation). */
   onRefreshed?: (r: TokenResponse) => void;
+  /** Called with every failed (non-recovered) response, before the error is thrown. */
+  onError?: (error: ApiError, request: { method: string; path: string }) => void;
 }
 
 export interface ApiClient {
@@ -180,7 +182,11 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       }
       res = await send(method, path, body, opts);
     }
-    if (!res.ok) throw await toApiError(res);
+    if (!res.ok) {
+      const error = await toApiError(res);
+      options.onError?.(error, { method, path });
+      throw error;
+    }
     return res;
   }
 
