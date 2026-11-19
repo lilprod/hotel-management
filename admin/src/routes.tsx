@@ -6,12 +6,16 @@ import { ImpersonationsPage } from './pages/impersonations/ImpersonationsPage';
 import { PaymentDetailPage } from './pages/payments/PaymentDetailPage';
 import { PaymentFormPage } from './pages/payments/PaymentFormPage';
 import { PaymentsPage } from './pages/payments/PaymentsPage';
+import { TenantCreatePage } from './pages/tenants/TenantCreatePage';
+import { TenantDetailPage } from './pages/tenants/TenantDetailPage';
+import { TenantsPage } from './pages/tenants/TenantsPage';
 import { PlatformUsersPage } from './pages/platform-users/PlatformUsersPage';
 
 /** Page of each module key (the sidebar entry and its main route come from `modules.tsx`). */
 export const pages: Record<string, ReactElement> = {
   dashboard: <DashboardPage />,
   payments: <PaymentsPage />,
+  tenants: <TenantsPage />,
   'platform-users': <PlatformUsersPage />,
   impersonations: <ImpersonationsPage />,
   audit: <PlatformAuditPage />,
@@ -19,6 +23,8 @@ export const pages: Record<string, ReactElement> = {
 
 /** Detail / creation routes that are not sidebar entries; they inherit the module's permission. */
 export const subRoutes: { path: string; module: string; element: ReactElement }[] = [
+  { path: '/tenants/new', module: 'tenants', element: <TenantCreatePage /> },
+  { path: '/tenants/:id', module: 'tenants', element: <TenantDetailPage /> },
   { path: '/payments/new', module: 'payments', element: <PaymentFormPage /> },
   { path: '/payments/:id', module: 'payments', element: <PaymentDetailPage /> },
 ];
