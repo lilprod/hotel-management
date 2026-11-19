@@ -36,13 +36,23 @@ export function signOut() {
 
 /** Stubs `fetch` with a route table (`"METHOD /path-suffix"` → response factory). */
 export function stubApi(routes: Record<string, (body: unknown) => Response>) {
-  const calls: { method: string; url: string; body?: unknown }[] = [];
+  const calls: {
+    method: string;
+    url: string;
+    body?: unknown;
+    headers: Record<string, string>;
+  }[] = [];
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string, init?: RequestInit) => {
       const method = init?.method ?? 'GET';
       const body = init?.body ? JSON.parse(init.body as string) : undefined;
-      calls.push({ method, url, ...(body === undefined ? {} : { body }) });
+      calls.push({
+        method,
+        url,
+        headers: (init?.headers ?? {}) as Record<string, string>,
+        ...(body === undefined ? {} : { body }),
+      });
       const key = Object.keys(routes).find((k) => {
         const [m, suffix] = k.split(' ') as [string, string];
         return m === method && url.split('?')[0]!.endsWith(suffix);

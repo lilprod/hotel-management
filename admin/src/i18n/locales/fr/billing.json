@@ -51,5 +51,7 @@
     "QUARTERLY": "Trimestriel",
     "YEARLY": "Annuel"
   },
-  "readOnly": "Votre rôle est en lecture seule : les actions sont masquées."
+  "readOnly": "Votre rôle est en lecture seule : les actions sont masquées.",
+  "searchTenant": "Rechercher un établissement…",
+  "noTenant": "Aucun établissement"
 }

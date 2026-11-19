@@ -51,5 +51,7 @@
     "QUARTERLY": "Quarterly",
     "YEARLY": "Yearly"
   },
-  "readOnly": "Your role is read-only: actions are hidden."
+  "readOnly": "Your role is read-only: actions are hidden.",
+  "searchTenant": "Search a tenant…",
+  "noTenant": "No tenant found"
 }
