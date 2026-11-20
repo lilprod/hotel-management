@@ -3,8 +3,11 @@ import type { HostKind, ResolvedTenant } from '../core/tenants.js';
 import type { UserGrants } from '../core/permissions.js';
 import type { Services } from '../core/container.js';
 
-/** API surface of a route: staff (/api/v1/t), portal (/api/v1/portal), admin (/api/v1/admin). */
-export type Surface = 't' | 'portal' | 'admin';
+/**
+ * API surface of a route: staff (/api/v1/t), portal (/api/v1/portal), admin (/api/v1/admin),
+ * public (/api/v1/public: platform host only, no auth: marketing and self-service signup).
+ */
+export type Surface = 't' | 'portal' | 'admin' | 'public';
 
 export interface AuthContext {
   scope: TokenScope;

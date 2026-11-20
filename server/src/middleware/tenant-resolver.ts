@@ -6,7 +6,7 @@ import type { Surface } from '../http/types.js';
 import { AppError } from '../lib/errors.js';
 import { getRequestContext } from '../lib/request-context.js';
 
-const SURFACE_RE = /^\/api\/v1\/(t|portal|admin)(?:\/|$)/;
+const SURFACE_RE = /^\/api\/v1\/(t|portal|admin|public)(?:\/|$)/;
 
 export function surfaceOf(path: string): Surface | undefined {
   return SURFACE_RE.exec(path)?.[1] as Surface | undefined;
@@ -30,6 +30,12 @@ export function tenantResolver(): RequestHandler {
     req.hostKind = kind;
     if (surface) req.surface = surface;
 
+    // The public surface (signup, plans) exists on platform hosts only.
+    if (surface === 'public') {
+      if (kind !== 'platform')
+        throw new AppError('NOT_FOUND', undefined, { detail: 'Route not found' });
+      return next();
+    }
     if (kind === 'admin') {
       if (surface === 't' || surface === 'portal') throw unknownTenant();
       return next();

@@ -30,6 +30,7 @@ import { portalAuthModule } from './portal-auth/index.js';
 import { propertyModule } from './property/index.js';
 import { ratesModule } from './rates/index.js';
 import { sequencesModule } from './sequences/index.js';
+import { signupModule } from './signup/index.js';
 import { systemModule } from './system/index.js';
 import { tenantSubscriptionModule } from './tenant-subscription/index.js';
 
@@ -63,4 +64,5 @@ export const MODULES: readonly ModuleDefinition[] = [
   billingAdminModule,
   platformTenantsModule,
   tenantSubscriptionModule,
+  signupModule,
 ];

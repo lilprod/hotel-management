@@ -323,6 +323,66 @@ export const DEFAULT_TEMPLATES: readonly DefaultTemplateDef[] = [
     },
   },
   {
+    code: 'tenant_email_verification',
+    audience: 'tenant_owner',
+    mandatory: true,
+    variables: [...O, 'verification.url', 'verification.expiresInHours'],
+    content: {
+      fr: {
+        subject: 'Confirmez votre adresse e-mail pour activer {{hotel.name}}',
+        title: 'Confirmez votre adresse e-mail',
+        paragraphs: [
+          'Bonjour {{owner.name}},',
+          'Merci d’avoir créé l’espace de {{hotel.name}}. Confirmez votre adresse e-mail pour activer votre compte et commencer la configuration. Ce lien est valable {{verification.expiresInHours}} heures.',
+          'Si vous n’êtes pas à l’origine de cette inscription, ignorez ce message.',
+        ],
+        cta: { label: 'Confirmer mon adresse e-mail', url: 'verification.url' },
+        sms: '{{hotel.name}} : confirmez votre e-mail : {{verification.url}}',
+      },
+      en: {
+        subject: 'Confirm your e-mail address to activate {{hotel.name}}',
+        title: 'Confirm your e-mail address',
+        paragraphs: [
+          'Hello {{owner.name}},',
+          'Thank you for creating the {{hotel.name}} workspace. Confirm your e-mail address to activate your account and start the setup. This link is valid for {{verification.expiresInHours}} hours.',
+          'If you did not sign up, please ignore this message.',
+        ],
+        cta: { label: 'Confirm my e-mail address', url: 'verification.url' },
+        sms: '{{hotel.name}}: confirm your e-mail: {{verification.url}}',
+      },
+    },
+  },
+  {
+    code: 'tenant_welcome',
+    audience: 'tenant_owner',
+    mandatory: true,
+    variables: [...O, 'login.url', 'subscription.planName', 'trial.endDate'],
+    content: {
+      fr: {
+        subject: 'Bienvenue sur Hotel Management, {{hotel.name}} est prêt',
+        title: 'Votre compte est activé',
+        paragraphs: [
+          'Bonjour {{owner.name}},',
+          'Votre adresse e-mail est confirmée : l’espace de {{hotel.name}} est prêt (formule {{subscription.planName}}, essai jusqu’au {{date trial.endDate}}).',
+          'Connectez-vous pour suivre l’assistant de configuration : établissement, chambres, tarifs, taxes, équipe et image de marque.',
+        ],
+        cta: { label: 'Me connecter', url: 'login.url' },
+        sms: '{{hotel.name}} : compte active. Connexion : {{login.url}}',
+      },
+      en: {
+        subject: 'Welcome to Hotel Management, {{hotel.name}} is ready',
+        title: 'Your account is active',
+        paragraphs: [
+          'Hello {{owner.name}},',
+          'Your e-mail address is confirmed: the {{hotel.name}} workspace is ready ({{subscription.planName}} plan, trial until {{date trial.endDate}}).',
+          'Log in to follow the setup wizard: property, rooms, rates, taxes, team and branding.',
+        ],
+        cta: { label: 'Log in', url: 'login.url' },
+        sms: '{{hotel.name}}: account active. Log in: {{login.url}}',
+      },
+    },
+  },
+  {
     code: 'trial_ending',
     audience: 'tenant_owner',
     mandatory: true,

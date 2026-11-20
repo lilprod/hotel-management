@@ -27,7 +27,7 @@ const data = {
 describe('default templates', () => {
   it('ships every expected code in FR and EN with whitelisted variables only', () => {
     const codes = DEFAULT_TEMPLATES.map((t) => t.code);
-    expect(codes).toHaveLength(15);
+    expect(codes).toHaveLength(17);
     for (const t of DEFAULT_TEMPLATES)
       for (const l of ['fr', 'en'] as const) {
         const c = t.content[l];

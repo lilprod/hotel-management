@@ -1,5 +1,4 @@
 import type { Prisma } from '@hm/database';
-import { SYSTEM_ROLE_KEYS, SYSTEM_ROLE_PERMISSIONS, type SystemRoleKey } from '@hm/shared';
 import type { z } from 'zod';
 import type { Services } from '../../core/container.js';
 import { CORE_EVENTS, publishPlatformEvent } from '../../core/events.js';
@@ -23,11 +22,11 @@ import {
 import { localDate } from '../billing/domain.js';
 import { renderInvoicePdf } from '../billing/documents.js';
 import { addonPriceOn, creditBalance, pendingChangeOf } from '../billing/invoices.js';
-import { startSubscription } from '../billing/management.js';
 import { serializeInvoice } from '../billing/queries.js';
 import { serializePayment } from '../billing/payments.js';
 import { loadBillingSettings } from '../billing/settings.js';
 import { currentSubscription } from '../billing/subscriptions.js';
+import { provisionTenant, ROLE_LABELS } from './provision.js';
 import { quotaReport } from '../billing/usage.js';
 import type {
   addonAttachBody,
@@ -36,19 +35,6 @@ import type {
   tenantListQuery,
   tenantUpdateBody,
 } from './schemas.js';
-
-const ROLE_LABELS: Record<SystemRoleKey, string> = {
-  OWNER: 'Propriétaire',
-  ADMIN: 'Administrateur',
-  MANAGER: 'Manager',
-  FRONT_DESK: 'Réception',
-  HOUSEKEEPING: 'Housekeeping',
-  RESTAURANT_STAFF: 'Personnel restauration',
-  SPA_STAFF: 'Personnel spa',
-  MAINTENANCE: 'Maintenance',
-  CASHIER: 'Caisse',
-  ACCOUNTANT: 'Comptabilité',
-};
 
 async function entitlementsChanged(services: Services, tenantId: string, reason: string) {
   await publishPlatformEvent(services.admin, tenantId, CORE_EVENTS.entitlementsChanged, { reason });
@@ -271,7 +257,7 @@ export async function createTenant(
   actor: Actor,
 ) {
   const { admin, config } = services;
-  const base = config.PLATFORM_HOSTS[0];
+  const base = config.APP_BASE_DOMAIN || config.PLATFORM_HOSTS[0];
   if (!base) throw precondition('PLATFORM_HOSTS is not configured');
   const hostname = `${body.slug}.${base}`;
   if (await admin.tenant.findUnique({ where: { slug: body.slug } }))
@@ -279,72 +265,33 @@ export async function createTenant(
   if (await admin.tenantDomain.findUnique({ where: { hostname } }))
     throw conflict('Hostname already used', { hostname });
   const settings = await loadBillingSettings(admin);
-  const today = localDate(billingNow(), body.timezone);
-  const out = await inTx(services, async (tx) => {
-    const tenant = await tx.tenant.create({
-      data: {
-        slug: body.slug,
-        name: body.name,
-        legalName: body.legalName ?? null,
-        country: body.country,
-        timezone: body.timezone,
-        defaultCurrency: body.currency,
-        defaultLocale: body.locale,
-        email: body.email ?? body.owner.email,
-        phone: body.phone ?? null,
-        tags: body.tags,
-        notes: body.notes ?? null,
-      },
-    });
-    await tx.tenantDomain.create({
-      data: { tenantId: tenant.id, hostname, type: 'SUBDOMAIN', verifiedAt: new Date() },
-    });
-    await tx.securityPolicy.create({ data: { tenantId: tenant.id } });
-    let ownerRoleId = '';
-    for (const key of SYSTEM_ROLE_KEYS) {
-      const role = await tx.role.create({
-        data: {
-          tenantId: tenant.id,
-          name: ROLE_LABELS[key],
-          isSystem: true,
-          description: `Rôle système ${key}`,
-          rolePermissions: {
-            create: SYSTEM_ROLE_PERMISSIONS[key].map((permissionKey) => ({
-              tenantId: tenant.id,
-              permissionKey,
-            })),
-          },
-        },
-      });
-      if (key === 'OWNER') ownerRoleId = role.id;
-    }
-    const owner = await tx.user.create({
-      data: {
-        tenantId: tenant.id,
-        email: body.owner.email.toLowerCase(),
+  const out = await inTx(services, (tx) =>
+    provisionTenant(tx, {
+      slug: body.slug,
+      name: body.name,
+      legalName: body.legalName,
+      country: body.country,
+      timezone: body.timezone,
+      currency: body.currency,
+      locale: body.locale,
+      email: body.email ?? body.owner.email,
+      phone: body.phone,
+      tags: body.tags,
+      notes: body.notes,
+      hostname,
+      owner: {
         name: body.owner.name,
-        phone: body.owner.phone ?? null,
+        email: body.owner.email,
+        phone: body.owner.phone,
         status: 'INVITED',
       },
-    });
-    await tx.userRole.create({
-      data: { tenantId: tenant.id, userId: owner.id, roleId: ownerRoleId },
-    });
-    const { invoiceId } = await startSubscription(
-      tx,
-      {
-        tenantId: tenant.id,
-        planId: body.planId,
-        billingCycle: body.billingCycle,
-        today,
-        currency: body.currency,
-        trialDays: body.trialDays,
-      },
+      planId: body.planId,
+      billingCycle: body.billingCycle,
+      trialDays: body.trialDays,
       settings,
       actor,
-    );
-    return { tenantId: tenant.id, ownerId: owner.id, invoiceId };
-  });
+    }),
+  );
   if (out.invoiceId)
     await renderInvoicePdf(services, out.invoiceId).catch((err: unknown) =>
       services.logger.error('invoice pdf failed', { err: (err as Error).message }),

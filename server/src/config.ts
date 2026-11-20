@@ -36,6 +36,10 @@ export const envSchema = z.object({
   ADMIN_HOSTS: csv,
   /** Platform hosts without a tenant (marketing, signup, API root), comma-separated. */
   PLATFORM_HOSTS: csv,
+  /** Base domain of tenant sub-domains (`{slug}.{APP_BASE_DOMAIN}`); defaults to the first platform host. */
+  APP_BASE_DOMAIN: z.string().trim().toLowerCase().optional(),
+  /** Scheme of the links sent to users (`https` in production). */
+  APP_URL_SCHEME: z.enum(['http', 'https']).default('https'),
   /** Extra CORS origins (platform front-ends), e.g. https://admin.example.com. */
   CORS_ORIGINS: csv,
 

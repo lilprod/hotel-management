@@ -28,6 +28,7 @@ const SCOPE: Record<Surface, 'staff' | 'portal' | 'platform'> = {
   t: 'staff',
   portal: 'portal',
   admin: 'platform',
+  public: 'platform',
 };
 
 export interface AppBundle {

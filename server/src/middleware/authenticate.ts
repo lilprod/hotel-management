@@ -9,6 +9,7 @@ const SCOPE_OF_SURFACE: Record<Surface, TokenScope> = {
   t: 'staff',
   portal: 'portal',
   admin: 'platform',
+  public: 'platform',
 };
 
 /**
