@@ -27,6 +27,7 @@ import {
 } from './platform-plans/index.js';
 import { platformTenantsModule } from './platform-tenants/index.js';
 import { portalAuthModule } from './portal-auth/index.js';
+import { onboardingModule } from './onboarding/index.js';
 import { propertyModule } from './property/index.js';
 import { ratesModule } from './rates/index.js';
 import { sequencesModule } from './sequences/index.js';
@@ -65,4 +66,5 @@ export const MODULES: readonly ModuleDefinition[] = [
   platformTenantsModule,
   tenantSubscriptionModule,
   signupModule,
+  onboardingModule,
 ];
