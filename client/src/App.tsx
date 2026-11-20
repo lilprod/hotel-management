@@ -24,6 +24,10 @@ import { ModulePage } from './pages/ModulePage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { SecurityPage } from './pages/security/SecurityPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
+import { CheckEmailPage } from './signup/CheckEmailPage';
+import { LandingPage } from './signup/LandingPage';
+import { SignupFormPage } from './signup/SignupFormPage';
+import { VerifyPage } from './signup/VerifyPage';
 import { SubscriptionPage } from './pages/subscription/SubscriptionPage';
 
 /** Keeps i18next in sync with the persisted UI language. */
@@ -73,6 +77,11 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <TenantThemeProvider>
         <Routes>
+          {/* Public pages of the platform host: landing, signup, e-mail verification (TN-01). */}
+          <Route path="/signup" element={<LandingPage />} />
+          <Route path="/signup/new" element={<SignupFormPage />} />
+          <Route path="/signup/check-email" element={<CheckEmailPage />} />
+          <Route path="/signup/verify" element={<VerifyPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />

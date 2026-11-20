@@ -8,6 +8,7 @@ import enBranding from './locales/en/branding.json';
 import enCommon from './locales/en/common.json';
 import enNav from './locales/en/nav.json';
 import enSecurity from './locales/en/security.json';
+import enSignup from './locales/en/signup.json';
 import enSettings from './locales/en/settings.json';
 import enSubscription from './locales/en/subscription.json';
 import frAuth from './locales/fr/auth.json';
@@ -15,6 +16,7 @@ import frBranding from './locales/fr/branding.json';
 import frCommon from './locales/fr/common.json';
 import frNav from './locales/fr/nav.json';
 import frSecurity from './locales/fr/security.json';
+import frSignup from './locales/fr/signup.json';
 import frSettings from './locales/fr/settings.json';
 import frSubscription from './locales/fr/subscription.json';
 
@@ -27,6 +29,7 @@ void i18n.use(initReactI18next).init({
       errors: errorMessages.fr,
       nav: frNav,
       security: frSecurity,
+      signup: frSignup,
       settings: frSettings,
       subscription: frSubscription,
     },
@@ -37,6 +40,7 @@ void i18n.use(initReactI18next).init({
       errors: errorMessages.en,
       nav: enNav,
       security: enSecurity,
+      signup: enSignup,
       settings: enSettings,
       subscription: enSubscription,
     },
@@ -44,7 +48,17 @@ void i18n.use(initReactI18next).init({
   lng: useUiStore.getState().language,
   fallbackLng: 'fr',
   supportedLngs: ['fr', 'en'],
-  ns: ['auth', 'branding', 'common', 'errors', 'nav', 'security', 'settings', 'subscription'],
+  ns: [
+    'auth',
+    'branding',
+    'common',
+    'errors',
+    'nav',
+    'security',
+    'settings',
+    'signup',
+    'subscription',
+  ],
   defaultNS: 'common',
   interpolation: { escapeValue: false },
   react: { useSuspense: false },
