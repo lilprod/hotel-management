@@ -20,7 +20,8 @@
     "policies": "Policies",
     "products": "Products",
     "lists": "Lists",
-    "customFields": "Custom fields"
+    "customFields": "Custom fields",
+    "demo": "Demo data"
   },
   "f": {
     "name": "Name",

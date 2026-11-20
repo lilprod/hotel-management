@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next';
 
 import { PageHeader } from '@hm/ui';
 
+import { DemoDataPanel } from '../../onboarding/DemoDataPanel';
+
 import { api, type Items, type Property } from './api';
 import { BrandingPage } from './branding/BrandingPage';
 import { CustomFieldsPage } from './custom-fields/CustomFieldsPage';
@@ -40,6 +42,7 @@ export function SettingsPage() {
     { key: 'lists', label: t('tabs.lists'), children: <ListsPage /> },
     { key: 'branding', label: t('tabs.branding'), children: <BrandingPage /> },
     { key: 'custom-fields', label: t('tabs.customFields'), children: <CustomFieldsPage /> },
+    { key: 'demo', label: t('tabs.demo'), children: <DemoDataPanel /> },
   ];
 
   return (

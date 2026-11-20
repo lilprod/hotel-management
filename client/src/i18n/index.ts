@@ -7,6 +7,7 @@ import enAuth from './locales/en/auth.json';
 import enBranding from './locales/en/branding.json';
 import enCommon from './locales/en/common.json';
 import enNav from './locales/en/nav.json';
+import enOnboarding from './locales/en/onboarding.json';
 import enSecurity from './locales/en/security.json';
 import enSignup from './locales/en/signup.json';
 import enSettings from './locales/en/settings.json';
@@ -15,6 +16,7 @@ import frAuth from './locales/fr/auth.json';
 import frBranding from './locales/fr/branding.json';
 import frCommon from './locales/fr/common.json';
 import frNav from './locales/fr/nav.json';
+import frOnboarding from './locales/fr/onboarding.json';
 import frSecurity from './locales/fr/security.json';
 import frSignup from './locales/fr/signup.json';
 import frSettings from './locales/fr/settings.json';
@@ -28,6 +30,7 @@ void i18n.use(initReactI18next).init({
       common: frCommon,
       errors: errorMessages.fr,
       nav: frNav,
+      onboarding: frOnboarding,
       security: frSecurity,
       signup: frSignup,
       settings: frSettings,
@@ -39,6 +42,7 @@ void i18n.use(initReactI18next).init({
       common: enCommon,
       errors: errorMessages.en,
       nav: enNav,
+      onboarding: enOnboarding,
       security: enSecurity,
       signup: enSignup,
       settings: enSettings,

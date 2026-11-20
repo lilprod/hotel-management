@@ -20,6 +20,8 @@ import {
   ForgotPasswordPage,
   ResetPasswordPage,
 } from './pages/auth/PasswordForms';
+import { DashboardPage } from './onboarding/DashboardPage';
+import { OnboardingPage } from './onboarding/OnboardingPage';
 import { ModulePage } from './pages/ModulePage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { SecurityPage } from './pages/security/SecurityPage';
@@ -41,6 +43,7 @@ function useI18nSync() {
 
 function moduleElement(m: (typeof modules)[number]) {
   const guard = { permission: m.requiredPermission, feature: m.requiredFeature };
+  if (m.key === 'dashboard') return <DashboardPage />;
   if (m.key === 'settings')
     return (
       <Guard {...guard}>
@@ -111,6 +114,7 @@ export function App() {
           >
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="/account" element={<AccountPage />} />
+            <Route path="/onboarding" element={<OnboardingPage />} />
             {modules.map((m) => (
               <Route
                 key={m.key}

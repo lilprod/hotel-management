@@ -1,0 +1,202 @@
+{
+  "title": "Set up your property",
+  "subtitle": "A few steps to be ready for your first guests. You can change everything later in the settings.",
+  "progress": "Setup progress",
+  "stepOf": "Step {{current}} of {{total}}",
+  "back": "Back",
+  "next": "Next",
+  "later": "Continue later",
+  "skipWizard": "Skip the wizard",
+  "skipStep": "Skip this step",
+  "skipConfirm": "Skip the setup wizard?",
+  "skipConfirmText": "You can resume it from the dashboard at any time.",
+  "finish": "Finish setup",
+  "saving": "Saving…",
+  "saved": "Saved",
+  "loading": "Loading the wizard…",
+  "error": "Could not load the wizard.",
+  "forbidden": "Only the owner (or an administrator) can set up the property.",
+  "steps": {
+    "property": "Property",
+    "roomTypes": "Room types",
+    "rooms": "Rooms",
+    "rates": "Rates",
+    "taxes": "Taxes",
+    "team": "Team",
+    "branding": "Branding",
+    "recap": "Summary"
+  },
+  "property": {
+    "title": "Your property",
+    "text": "This information appears on your invoices and documents.",
+    "name": "Property name",
+    "address": "Address",
+    "city": "City",
+    "phone": "Phone",
+    "taxId": "Tax ID (NIF)",
+    "rccm": "Trade register (RCCM)",
+    "checkin": "Check-in time",
+    "checkout": "Check-out time",
+    "errors": {
+      "name": "Enter the property name.",
+      "time": "Expected format: HH:MM (e.g. 14:00)."
+    }
+  },
+  "roomTypes": {
+    "title": "Room types",
+    "text": "Describe your room categories (standard, superior, suite…). You will create the rooms in the next step.",
+    "none": "No room type yet.",
+    "name": "Type name",
+    "namePlaceholder": "E.g. Standard room",
+    "capacity": "Max. guests",
+    "beds": "Beds",
+    "bedsPlaceholder": "E.g. 1 double bed",
+    "add": "Add this type",
+    "remove": "Delete",
+    "removeConfirm": "Delete this room type?",
+    "persons": "{{count}} guests max.",
+    "errors": {
+      "name": "Enter the type name.",
+      "capacity": "Between 1 and 20."
+    }
+  },
+  "rooms": {
+    "title": "Rooms",
+    "text": "Create your rooms by number range, for each type. Example: from 101 to 112.",
+    "needTypes": "First add at least one room type (previous step).",
+    "quota": "Room quota",
+    "quotaUnlimited": "Unlimited",
+    "remaining": "{{count}} more room(s) available with your plan.",
+    "count": "{{count}} room(s)",
+    "prefix": "Prefix (optional)",
+    "from": "From",
+    "to": "To",
+    "floor": "Floor",
+    "create": "Create the rooms",
+    "created": "{{count}} room(s) created.",
+    "preview": "{{count}} room(s): {{first}} to {{last}}",
+    "quotaExceeded": "Quota reached: your plan allows {{limit}} room(s) and {{used}} already exist. Reduce the range or change plan.",
+    "exists": "Some room numbers already exist.",
+    "errors": {
+      "range": "\"To\" must be greater than or equal to \"From\" (500 rooms maximum)."
+    }
+  },
+  "rates": {
+    "title": "Rates",
+    "text": "Set the nightly price of each room type (base public rate).",
+    "needTypes": "First add at least one room type.",
+    "planName": "Public rate (BAR)",
+    "price": "Price per night",
+    "perNight": "per night",
+    "extraAdult": "Extra adult",
+    "season": "Add a high season",
+    "seasonText": "A different price over a period of the year (holidays, festivals…).",
+    "seasonName": "Period name",
+    "seasonNameDefault": "High season",
+    "from": "From",
+    "to": "To (inclusive)",
+    "seasonPrice": "High season price",
+    "errors": {
+      "price": "Enter a whole price in CFA francs.",
+      "season": "Fill in the high season name and dates (end ≥ start)."
+    }
+  },
+  "taxes": {
+    "title": "Taxes",
+    "text": "Taxes are added to invoices automatically, according to your country's rules.",
+    "vat": "VAT 18 %",
+    "vatText": "Standard rate, applied to lodging and services.",
+    "vatActive": "Applied",
+    "tourist": "Tourist tax",
+    "touristText": "Fixed amount per guest per night. Check the current amount with your municipality.",
+    "touristAmount": "Amount per guest per night",
+    "errors": {
+      "amount": "Enter a whole amount greater than 0."
+    }
+  },
+  "team": {
+    "title": "Your team",
+    "text": "Invite your colleagues: they receive an e-mail to choose their password. Optional step.",
+    "name": "Name",
+    "email": "E-mail",
+    "role": "Role",
+    "invite": "Invite",
+    "invited": "Invitation sent to {{email}}.",
+    "list": "Team members",
+    "pending": "Invitation pending",
+    "active": "Active",
+    "quotaExceeded": "User quota reached ({{used}} / {{limit}}).",
+    "emailTaken": "This address is already in use.",
+    "errors": {
+      "name": "Enter the name.",
+      "email": "Invalid e-mail address.",
+      "role": "Choose a role."
+    }
+  },
+  "branding": {
+    "title": "Branding",
+    "text": "Your logo and colours appear in the app, e-mails and invoices.",
+    "logo": "Logo",
+    "upload": "Choose a logo",
+    "replace": "Replace the logo",
+    "uploadHint": "PNG, JPEG or WebP, 5 MB maximum.",
+    "primary": "Primary colour",
+    "secondary": "Secondary colour",
+    "preview": "Preview",
+    "previewButton": "Book now",
+    "previewHeading": "Welcome to the hotel",
+    "contrast": "Low contrast with white text: pick a darker colour."
+  },
+  "recap": {
+    "title": "Summary",
+    "text": "Here is what you configured. Everything remains editable in the settings.",
+    "property": "Property",
+    "roomTypes": "Room types",
+    "rooms": "Rooms",
+    "rates": "Rates",
+    "taxes": "Taxes",
+    "team": "Team",
+    "branding": "Branding",
+    "done": "Done",
+    "todo": "To do",
+    "demo": "Load demonstration data",
+    "demoText": "Adds a few fictional rooms, guests and products to explore the app. You can delete them in one click from the settings.",
+    "demoQuota": "Demo rooms count toward your room quota.",
+    "finishing": "Finishing…",
+    "demoLoaded": "Demonstration data loaded."
+  },
+  "checklist": {
+    "title": "Finish your setup",
+    "text": "{{done}} of {{total}} step(s) completed. Complete your property to welcome your first guests.",
+    "resume": "Resume the wizard",
+    "dismissed": "Wizard skipped",
+    "items": {
+      "property": "Fill in the property details",
+      "roomTypes": "Define the room types",
+      "rooms": "Create the rooms",
+      "rates": "Set the rates",
+      "taxes": "Check the taxes",
+      "team": "Invite the team",
+      "branding": "Add your logo"
+    },
+    "go": "Set up"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome, {{name}}",
+    "placeholder": "Operating indicators will come with the reservation modules."
+  },
+  "demo": {
+    "title": "Demonstration data",
+    "text": "Fictional data loaded by the setup wizard (rooms, guests, products). Each row is tracked: deleting never touches your own data.",
+    "loaded": "Loaded",
+    "notLoaded": "No demonstration data.",
+    "load": "Load demonstration data",
+    "delete": "Delete demo data",
+    "deleteConfirm": "Delete the demonstration data?",
+    "deleteConfirmText": "Only the data created by the demonstration will be deleted.",
+    "deleted": "Demonstration data deleted.",
+    "counts": "{{rooms}} rooms, {{roomTypes}} types, {{guests}} guests, {{products}} products",
+    "restart": "Restart the setup wizard"
+  }
+}

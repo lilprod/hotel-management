@@ -1,0 +1,202 @@
+{
+  "title": "Configuration de votre établissement",
+  "subtitle": "Quelques étapes pour être prêt à accueillir vos premiers clients. Vous pourrez tout modifier ensuite dans les paramètres.",
+  "progress": "Progression de la configuration",
+  "stepOf": "Étape {{current}} sur {{total}}",
+  "back": "Retour",
+  "next": "Suivant",
+  "later": "Continuer plus tard",
+  "skipWizard": "Passer l'assistant",
+  "skipStep": "Passer cette étape",
+  "skipConfirm": "Passer l'assistant de configuration ?",
+  "skipConfirmText": "Vous pourrez le reprendre depuis le tableau de bord à tout moment.",
+  "finish": "Terminer la configuration",
+  "saving": "Enregistrement…",
+  "saved": "Enregistré",
+  "loading": "Chargement de l'assistant…",
+  "error": "Impossible de charger l'assistant.",
+  "forbidden": "Seul le propriétaire (ou un administrateur) peut configurer l'établissement.",
+  "steps": {
+    "property": "Établissement",
+    "roomTypes": "Types de chambres",
+    "rooms": "Chambres",
+    "rates": "Tarifs",
+    "taxes": "Taxes",
+    "team": "Équipe",
+    "branding": "Image de marque",
+    "recap": "Récapitulatif"
+  },
+  "property": {
+    "title": "Votre établissement",
+    "text": "Ces informations figurent sur vos factures et documents.",
+    "name": "Nom de l'établissement",
+    "address": "Adresse",
+    "city": "Ville",
+    "phone": "Téléphone",
+    "taxId": "NIF (numéro d'identification fiscale)",
+    "rccm": "RCCM",
+    "checkin": "Heure d'arrivée (check-in)",
+    "checkout": "Heure de départ (check-out)",
+    "errors": {
+      "name": "Saisissez le nom de l'établissement.",
+      "time": "Format attendu : HH:MM (ex. 14:00)."
+    }
+  },
+  "roomTypes": {
+    "title": "Types de chambres",
+    "text": "Décrivez vos catégories de chambres (standard, supérieure, suite…). Vous créerez les chambres à l'étape suivante.",
+    "none": "Aucun type de chambre pour le moment.",
+    "name": "Nom du type",
+    "namePlaceholder": "Ex. : Chambre standard",
+    "capacity": "Personnes max.",
+    "beds": "Couchage",
+    "bedsPlaceholder": "Ex. : 1 lit double",
+    "add": "Ajouter ce type",
+    "remove": "Supprimer",
+    "removeConfirm": "Supprimer ce type de chambre ?",
+    "persons": "{{count}} pers. max.",
+    "errors": {
+      "name": "Saisissez le nom du type.",
+      "capacity": "Entre 1 et 20."
+    }
+  },
+  "rooms": {
+    "title": "Chambres",
+    "text": "Créez vos chambres par plage de numéros, pour chaque type. Exemple : de 101 à 112.",
+    "needTypes": "Ajoutez d'abord au moins un type de chambre (étape précédente).",
+    "quota": "Quota de chambres",
+    "quotaUnlimited": "Illimité",
+    "remaining": "{{count}} chambre(s) encore disponibles avec votre offre.",
+    "count": "{{count}} chambre(s)",
+    "prefix": "Préfixe (optionnel)",
+    "from": "De",
+    "to": "À",
+    "floor": "Étage",
+    "create": "Créer les chambres",
+    "created": "{{count}} chambre(s) créée(s).",
+    "preview": "{{count}} chambre(s) : {{first}} à {{last}}",
+    "quotaExceeded": "Quota atteint : votre offre autorise {{limit}} chambre(s) et {{used}} existent déjà. Réduisez la plage ou changez d'offre.",
+    "exists": "Certains numéros existent déjà.",
+    "errors": {
+      "range": "« À » doit être supérieur ou égal à « De » (500 chambres maximum)."
+    }
+  },
+  "rates": {
+    "title": "Tarifs",
+    "text": "Définissez le prix de la nuit pour chaque type de chambre (tarif public de base).",
+    "needTypes": "Ajoutez d'abord au moins un type de chambre.",
+    "planName": "Tarif public (BAR)",
+    "price": "Prix par nuit",
+    "perNight": "par nuit",
+    "extraAdult": "Adulte supplémentaire",
+    "season": "Ajouter une haute saison",
+    "seasonText": "Un prix différent sur une période de l'année (fêtes, vacances…).",
+    "seasonName": "Nom de la période",
+    "seasonNameDefault": "Haute saison",
+    "from": "Du",
+    "to": "Au (inclus)",
+    "seasonPrice": "Prix haute saison",
+    "errors": {
+      "price": "Saisissez un prix entier en FCFA.",
+      "season": "Renseignez le nom et les dates de la haute saison (fin ≥ début)."
+    }
+  },
+  "taxes": {
+    "title": "Taxes",
+    "text": "Les taxes sont ajoutées automatiquement aux factures, selon la réglementation de votre pays.",
+    "vat": "TVA 18 %",
+    "vatText": "Taux normal, appliqué à l'hébergement et aux services.",
+    "vatActive": "Appliquée",
+    "tourist": "Taxe de séjour",
+    "touristText": "Montant fixe par personne et par nuit. Vérifiez le montant en vigueur auprès de votre commune.",
+    "touristAmount": "Montant par personne et par nuit",
+    "errors": {
+      "amount": "Saisissez un montant entier supérieur à 0."
+    }
+  },
+  "team": {
+    "title": "Votre équipe",
+    "text": "Invitez vos collaborateurs : ils recevront un e-mail pour choisir leur mot de passe. Étape facultative.",
+    "name": "Nom",
+    "email": "E-mail",
+    "role": "Rôle",
+    "invite": "Inviter",
+    "invited": "Invitation envoyée à {{email}}.",
+    "list": "Membres de l'équipe",
+    "pending": "Invitation en attente",
+    "active": "Actif",
+    "quotaExceeded": "Quota d'utilisateurs atteint ({{used}} / {{limit}}).",
+    "emailTaken": "Cette adresse est déjà utilisée.",
+    "errors": {
+      "name": "Saisissez le nom.",
+      "email": "Adresse e-mail invalide.",
+      "role": "Choisissez un rôle."
+    }
+  },
+  "branding": {
+    "title": "Image de marque",
+    "text": "Votre logo et vos couleurs apparaissent sur l'application, les e-mails et les factures.",
+    "logo": "Logo",
+    "upload": "Choisir un logo",
+    "replace": "Remplacer le logo",
+    "uploadHint": "PNG, JPEG ou WebP, 5 Mo maximum.",
+    "primary": "Couleur principale",
+    "secondary": "Couleur secondaire",
+    "preview": "Aperçu",
+    "previewButton": "Réserver",
+    "previewHeading": "Bienvenue à l'hôtel",
+    "contrast": "Contraste faible avec le texte blanc : choisissez une couleur plus foncée."
+  },
+  "recap": {
+    "title": "Récapitulatif",
+    "text": "Voici ce que vous avez configuré. Tout reste modifiable dans les paramètres.",
+    "property": "Établissement",
+    "roomTypes": "Types de chambres",
+    "rooms": "Chambres",
+    "rates": "Tarifs",
+    "taxes": "Taxes",
+    "team": "Équipe",
+    "branding": "Image de marque",
+    "done": "Configuré",
+    "todo": "À faire",
+    "demo": "Charger des données de démonstration",
+    "demoText": "Ajoute quelques chambres, clients et produits fictifs pour explorer l'application. Vous pourrez les supprimer d'un clic depuis les paramètres.",
+    "demoQuota": "Les chambres de démonstration comptent dans votre quota de chambres.",
+    "finishing": "Finalisation…",
+    "demoLoaded": "Données de démonstration chargées."
+  },
+  "checklist": {
+    "title": "Terminer la configuration",
+    "text": "{{done}} étape(s) sur {{total}} terminée(s). Complétez votre établissement pour recevoir vos premiers clients.",
+    "resume": "Reprendre l'assistant",
+    "dismissed": "Assistant passé",
+    "items": {
+      "property": "Renseigner l'établissement",
+      "roomTypes": "Définir les types de chambres",
+      "rooms": "Créer les chambres",
+      "rates": "Fixer les tarifs",
+      "taxes": "Vérifier les taxes",
+      "team": "Inviter l'équipe",
+      "branding": "Ajouter votre logo"
+    },
+    "go": "Configurer"
+  },
+  "dashboard": {
+    "title": "Tableau de bord",
+    "welcome": "Bienvenue, {{name}}",
+    "placeholder": "Les indicateurs d'exploitation arriveront avec les modules de réservation."
+  },
+  "demo": {
+    "title": "Données de démonstration",
+    "text": "Données fictives chargées par l'assistant de configuration (chambres, clients, produits). Elles sont suivies une à une : la suppression ne touche jamais vos propres données.",
+    "loaded": "Chargées",
+    "notLoaded": "Aucune donnée de démonstration.",
+    "load": "Charger les données de démonstration",
+    "delete": "Supprimer les données de démo",
+    "deleteConfirm": "Supprimer les données de démonstration ?",
+    "deleteConfirmText": "Seules les données créées par la démonstration seront supprimées.",
+    "deleted": "Données de démonstration supprimées.",
+    "counts": "{{rooms}} chambres, {{roomTypes}} types, {{guests}} clients, {{products}} produits",
+    "restart": "Relancer l'assistant de configuration"
+  }
+}
