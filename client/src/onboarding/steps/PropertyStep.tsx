@@ -2,13 +2,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Col, Form, Input, Row, Skeleton } from 'antd';
 import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm, type Control } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 
 import { apiClient } from '../../auth/session';
 import { useApiError } from '../../auth/useApiError';
-import { Field, a11y, bind } from '../../components/Field';
+import { Field, a11y } from '../../components/Field';
 import { propertyKey, type PropertyDto, type StepProps } from './common';
 
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'onboarding:property.errors.time');
@@ -24,6 +24,44 @@ export const propertySchema = z.object({
   checkoutTime: hhmm,
 });
 type Values = z.infer<typeof propertySchema>;
+
+/** Controlled text input: values set by `reset()` must reach antd's own input state. */
+function TextField({
+  control,
+  name,
+  id,
+  label,
+  error,
+  required,
+  type,
+}: {
+  control: Control<Values>;
+  name: keyof Values;
+  id: string;
+  label: string;
+  error?: string | undefined;
+  required?: boolean;
+  type?: string;
+}) {
+  return (
+    <Field id={id} label={label} error={error} required={required}>
+      <Controller
+        name={name}
+        control={control}
+        render={({ field }) => (
+          <Input
+            {...a11y(id, error)}
+            type={type}
+            name={field.name}
+            value={field.value ?? ''}
+            onChange={field.onChange}
+            onBlur={field.onBlur}
+          />
+        )}
+      />
+    </Field>
+  );
+}
 
 /** Step 1: establishment identity (name, address, NIF / RCCM, check-in and check-out times). */
 export function PropertyStep({ propertyId, saveRef }: StepProps) {
@@ -48,7 +86,7 @@ export function PropertyStep({ propertyId, saveRef }: StepProps) {
       checkoutTime: '12:00',
     },
   });
-  const { register, reset, handleSubmit, formState } = form;
+  const { control, reset, handleSubmit, formState } = form;
   const errors = formState.errors;
 
   useEffect(() => {
@@ -100,52 +138,51 @@ export function PropertyStep({ propertyId, saveRef }: StepProps) {
         <Alert role="alert" type="error" showIcon message={error} style={{ marginBottom: 16 }} />
       ) : null}
       <Form layout="vertical" component={false}>
-        <Field id="p-name" label={t('property.name')} error={errors.name?.message} required>
-          <Input {...a11y('p-name', errors.name)} {...bind(register('name'))} />
-        </Field>
-        <Field id="p-address" label={t('property.address')}>
-          <Input {...a11y('p-address')} {...bind(register('address'))} />
-        </Field>
+        <TextField
+          control={control}
+          name="name"
+          id="p-name"
+          label={t('property.name')}
+          error={errors.name?.message}
+          required
+        />
+        <TextField control={control} name="address" id="p-address" label={t('property.address')} />
         <Row gutter={16}>
           <Col xs={24} md={12}>
-            <Field id="p-city" label={t('property.city')}>
-              <Input {...a11y('p-city')} {...bind(register('city'))} />
-            </Field>
+            <TextField control={control} name="city" id="p-city" label={t('property.city')} />
           </Col>
           <Col xs={24} md={12}>
-            <Field id="p-phone" label={t('property.phone')}>
-              <Input type="tel" {...a11y('p-phone')} {...bind(register('phone'))} />
-            </Field>
+            <TextField
+              control={control}
+              name="phone"
+              id="p-phone"
+              label={t('property.phone')}
+              type="tel"
+            />
           </Col>
           <Col xs={24} md={12}>
-            <Field id="p-taxid" label={t('property.taxId')}>
-              <Input {...a11y('p-taxid')} {...bind(register('taxId'))} />
-            </Field>
+            <TextField control={control} name="taxId" id="p-taxid" label={t('property.taxId')} />
           </Col>
           <Col xs={24} md={12}>
-            <Field id="p-rccm" label={t('property.rccm')}>
-              <Input {...a11y('p-rccm')} {...bind(register('rccm'))} />
-            </Field>
+            <TextField control={control} name="rccm" id="p-rccm" label={t('property.rccm')} />
           </Col>
           <Col xs={12}>
-            <Field id="p-checkin" label={t('property.checkin')} error={errors.checkinTime?.message}>
-              <Input
-                {...a11y('p-checkin', errors.checkinTime)}
-                {...bind(register('checkinTime'))}
-              />
-            </Field>
+            <TextField
+              control={control}
+              name="checkinTime"
+              id="p-checkin"
+              label={t('property.checkin')}
+              error={errors.checkinTime?.message}
+            />
           </Col>
           <Col xs={12}>
-            <Field
+            <TextField
+              control={control}
+              name="checkoutTime"
               id="p-checkout"
               label={t('property.checkout')}
               error={errors.checkoutTime?.message}
-            >
-              <Input
-                {...a11y('p-checkout', errors.checkoutTime)}
-                {...bind(register('checkoutTime'))}
-              />
-            </Field>
+            />
           </Col>
         </Row>
       </Form>

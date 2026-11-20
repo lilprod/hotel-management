@@ -232,19 +232,25 @@ export function SignupFormPage() {
               extra={<SlugStatus state={slugState} host={host} />}
               required
             >
-              <Input
-                {...a11y('slug', errors.slug ?? (slugBlocked ? true : undefined))}
-                {...bind(
-                  register('slug', {
-                    onChange: () => {
+              <Controller
+                name="slug"
+                control={control}
+                render={({ field }) => (
+                  <Input
+                    {...a11y('slug', errors.slug ?? (slugBlocked ? true : undefined))}
+                    name={field.name}
+                    value={field.value}
+                    onBlur={field.onBlur}
+                    onChange={(e) => {
                       slugTouched.current = true;
-                    },
-                  }),
+                      field.onChange(e.target.value.toLowerCase());
+                    }}
+                    addonAfter={`.${platformHost()}`}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                  />
                 )}
-                addonAfter={`.${platformHost()}`}
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
               />
             </Field>
             <Field id="city" label={t('signup:form.city')} error={errors.city?.message} required>
