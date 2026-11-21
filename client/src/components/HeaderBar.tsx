@@ -24,7 +24,7 @@ export function HeaderBar() {
   const { can } = useCan();
 
   const actions = [
-    { key: 'booking', label: t('newBooking'), path: '/reservations', icon: <PlusOutlined /> },
+    { key: 'booking', label: t('newBooking'), path: '/reservations/new', icon: <PlusOutlined /> },
     { key: 'check-in', label: t('checkIn'), path: '/front-desk', icon: <LoginOutlined /> },
     { key: 'check-out', label: t('checkOut'), path: '/front-desk', icon: <LogoutOutlined /> },
   ];

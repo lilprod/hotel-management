@@ -18,5 +18,7 @@
   "settings": "Settings",
   "security": "Security",
   "branding": "Branding",
-  "subscription": "Subscription"
+  "subscription": "Subscription",
+  "waitlist": "Waitlist",
+  "groups": "Groups"
 }

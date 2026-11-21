@@ -18,5 +18,7 @@
   "settings": "Paramètres",
   "security": "Sécurité",
   "branding": "Image de marque",
-  "subscription": "Abonnement"
+  "subscription": "Abonnement",
+  "waitlist": "Liste d'attente",
+  "groups": "Groupes"
 }

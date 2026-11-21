@@ -24,6 +24,10 @@ import { DashboardPage } from './onboarding/DashboardPage';
 import { OnboardingPage } from './onboarding/OnboardingPage';
 import { ModulePage } from './pages/ModulePage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { GroupsPage } from './reservations/GroupsPage';
+import { PlanningPage } from './reservations/PlanningPage';
+import { NewReservationPage, ReservationsPage } from './reservations/ReservationsPage';
+import { WaitlistPage } from './reservations/WaitlistPage';
 import { SecurityPage } from './pages/security/SecurityPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
 import { CheckEmailPage } from './signup/CheckEmailPage';
@@ -54,6 +58,30 @@ function moduleElement(m: (typeof modules)[number]) {
     return (
       <Guard {...guard}>
         <SecurityPage />
+      </Guard>
+    );
+  if (m.key === 'reservations')
+    return (
+      <Guard {...guard}>
+        <ReservationsPage />
+      </Guard>
+    );
+  if (m.key === 'calendar')
+    return (
+      <Guard {...guard}>
+        <PlanningPage />
+      </Guard>
+    );
+  if (m.key === 'waitlist')
+    return (
+      <Guard {...guard}>
+        <WaitlistPage />
+      </Guard>
+    );
+  if (m.key === 'groups')
+    return (
+      <Guard {...guard}>
+        <GroupsPage />
       </Guard>
     );
   if (m.key === 'subscription')
@@ -115,6 +143,14 @@ export function App() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="/account" element={<AccountPage />} />
             <Route path="/onboarding" element={<OnboardingPage />} />
+            <Route
+              path="/reservations/new"
+              element={
+                <Guard permission="reservations.create">
+                  <NewReservationPage />
+                </Guard>
+              }
+            />
             {modules.map((m) => (
               <Route
                 key={m.key}
