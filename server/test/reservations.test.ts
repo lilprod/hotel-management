@@ -9,7 +9,7 @@ import {
   runBookingReminders,
   runPendingExpiry,
 } from '../src/modules/reservations/index.js';
-import { QueueFactory, relayOutbox, runJob } from '../src/jobs/index.js';
+import { processDomainEvent, QueueFactory, relayOutbox, runJob } from '../src/jobs/index.js';
 import { waitlistMatchJob } from '../src/modules/waitlist/index.js';
 import type { RealtimeEmitter } from '../src/realtime/socket.js';
 import { eventually } from './helpers/auth.js';
@@ -567,7 +567,25 @@ describe('waitlist', () => {
     });
     const released = (await outbox('inventory.released')).at(-1)!;
     expect(released.payload).toMatchObject({ propertyId: A.propertyId, cause: 'cancel' });
-    expect(env.services.modules.events('inventory.released').some((e) => e.handler)).toBe(true);
+    // The domain-events worker turns the release into a `waitlist-match` job.
+    await processDomainEvent(env.services, {
+      id: 'evt',
+      data: {
+        id: released.id,
+        tenantId: A.tenantId,
+        type: released.type,
+        payload: released.payload,
+        createdAt: released.createdAt.toISOString(),
+      },
+    } as never);
+    const q = new QueueFactory(env.services.config.REDIS_URL);
+    try {
+      const queued = await q.queue('reservations').getJob(`waitlist-match-${released.id}`);
+      expect(queued?.data).toEqual({ tenantId: A.tenantId, propertyId: A.propertyId });
+      await queued?.remove();
+    } finally {
+      await q.close();
+    }
 
     sent.length = 0;
     const job = {

@@ -35,7 +35,7 @@ export async function onInventoryReleased(event: DomainEvent, services: Services
     queuesOf(services),
     waitlistMatchJob,
     { propertyId: payload.propertyId },
-    // Releases close together are matched once (job id per event).
-    { jobId: `waitlist-match:${event.id}` },
+    // A re-delivered event enqueues the match once (job id per event).
+    { jobId: `waitlist-match-${event.id}` },
   );
 }
