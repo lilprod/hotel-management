@@ -6,15 +6,23 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': { target: 'http://localhost:4000', changeOrigin: true },
-      '/socket.io': { target: 'http://localhost:4000', changeOrigin: true, ws: true },
+      '/api': { target: `http://localhost:${process.env['API_PORT'] ?? 4000}`, changeOrigin: true },
+      '/socket.io': {
+        target: `http://localhost:${process.env['API_PORT'] ?? 4000}`,
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
   preview: {
     port: 4173,
     proxy: {
-      '/api': { target: 'http://localhost:4000', changeOrigin: true },
-      '/socket.io': { target: 'http://localhost:4000', changeOrigin: true, ws: true },
+      '/api': { target: `http://localhost:${process.env['API_PORT'] ?? 4000}`, changeOrigin: true },
+      '/socket.io': {
+        target: `http://localhost:${process.env['API_PORT'] ?? 4000}`,
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
   test: {

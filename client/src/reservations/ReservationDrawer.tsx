@@ -27,7 +27,7 @@ import { useApiError } from '../auth/useApiError';
 import { useCan } from '../auth/useCan';
 import { formatMoney } from '../pages/settings/util';
 import { conflictDetails, formatDayLong, get, keys, nightsBetween, post, qs } from './api';
-import type { AuditEntry, Reservation, ReservationResult, ReservationRoom } from './api';
+import type { AuditEntry, Reservation, ReservationRoom } from './api';
 import { usePenaltyPreview } from './penalty';
 import { useCustomFieldDefs, useLabel, useLookup, useRoomTypes } from './refs';
 import { ReservationStatusTag } from './status';
@@ -54,7 +54,7 @@ export function ReservationDrawer({ id, onClose, onChanged }: Props) {
 
   const query = useQuery({
     queryKey: keys.reservation(id ?? ''),
-    queryFn: async () => (await get<ReservationResult>(`/reservations/${id}`)).reservation,
+    queryFn: () => get<Reservation>(`/reservations/${id}`),
     enabled: !!id,
   });
   const r = query.data;
@@ -69,10 +69,10 @@ export function ReservationDrawer({ id, onClose, onChanged }: Props) {
   };
 
   const confirm = useMutation({
-    mutationFn: () => post<ReservationResult>(`/reservations/${id}/confirm`, { notifyGuest: true }),
+    mutationFn: () => post<Reservation>(`/reservations/${id}/confirm`, { notifyGuest: true }),
     onSuccess: (res) => {
       void message.success(t('detail.confirmed'));
-      changed(res.reservation);
+      changed(res);
     },
     onError: (e) => void message.error(toMessage(e)),
   });
@@ -544,10 +544,10 @@ function DatesModal({
   const [departure, setDeparture] = useState(r.departure);
   const mode = departure > r.departure ? 'extend' : 'shorten';
   const run = useMutation({
-    mutationFn: () => post<ReservationResult>(`/reservations/${r.id}/${mode}`, { departure }),
+    mutationFn: () => post<Reservation>(`/reservations/${r.id}/${mode}`, { departure }),
     onSuccess: (res) => {
       void message.success(t(mode === 'extend' ? 'dates.extended' : 'dates.shortened'));
-      onDone(res.reservation);
+      onDone(res);
     },
   });
   return (
@@ -614,11 +614,10 @@ function AssignModal({
     enabled: open && !!line,
   });
   const run = useMutation({
-    mutationFn: () =>
-      post<ReservationResult>(`/reservations/${r.id}/rooms/${lineId}/assign`, { roomId }),
+    mutationFn: () => post<Reservation>(`/reservations/${r.id}/rooms/${lineId}/assign`, { roomId }),
     onSuccess: (res) => {
       void message.success(t('assign.done'));
-      onDone(res.reservation);
+      onDone(res);
     },
   });
   return (

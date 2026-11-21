@@ -311,7 +311,7 @@ describe('ReservationDrawer: cancellation', () => {
           posted.push({ url: path, body: JSON.parse(init.body as string) });
           return json(200, { reservation: { ...reservation, status: 'CANCELLED' }, penalty: {} });
         }
-        if (path.endsWith('/reservations/r1')) return json(200, { reservation, warnings: [] });
+        if (path.endsWith('/reservations/r1')) return json(200, reservation);
         if (path.endsWith('/lodging/properties/p1'))
           return json(200, { id: 'p1', businessDate: today });
         if (path.endsWith('/pricing/rate-plans'))
