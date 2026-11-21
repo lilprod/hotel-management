@@ -62,7 +62,7 @@ export function ReservationDrawer({ id, onClose, onChanged }: Props) {
   const typeName = (tid: string) => roomTypes.data?.find((x) => x.id === tid)?.name ?? '';
 
   const changed = (res?: Reservation) => {
-    if (res) qc.setQueryData(keys.reservation(res.id), { reservation: res, warnings: [] });
+    if (res) qc.setQueryData(keys.reservation(res.id), res);
     void qc.invalidateQueries({ queryKey: keys.reservation(id ?? '') });
     void qc.invalidateQueries({ queryKey: keys.reservations });
     onChanged?.();
