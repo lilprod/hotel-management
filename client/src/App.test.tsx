@@ -31,6 +31,8 @@ describe('client shell', () => {
       'dashboard',
       'reservations',
       'calendar',
+      'waitlist',
+      'groups',
       'front-desk',
       'guests',
       'billing',
