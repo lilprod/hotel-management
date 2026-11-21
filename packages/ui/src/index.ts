@@ -6,3 +6,5 @@ export * from './EmptyState';
 export * from './controls';
 export * from './AppShell';
 export * from './TotpSetup';
+export * from './timeline/ResourceTimeline';
+export * as timelineMath from './timeline/math';
