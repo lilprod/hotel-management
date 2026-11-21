@@ -8,7 +8,7 @@
 | UI | **Ant Design 5** (tokens de thème par tenant, ConfigProvider, mode sombre via `theme.darkAlgorithm`) | Composants denses en données |
 | État | **Zustand** (UI, session) + **TanStack Query** (données serveur) | Pas de Redux |
 | Routage, formulaires | React Router v6, React Hook Form + Zod | Schémas partagés depuis `packages/shared` |
-| Graphiques, calendrier | **Recharts**, **FullCalendar** (resource timeline, Premium Scheduler) | Vérifier la licence FullCalendar Premium pour la timeline des ressources, sinon utiliser `react-calendar-timeline` (MIT) |
+| Graphiques, calendrier | **Recharts** ; **planning maison** `ResourceTimeline` dans `packages/ui` (grille ressources × jours/créneaux, virtualisée, glisser-déposer, sans dépendance payante) pour chambres, praticiens/cabines et tables ; **FullCalendar** édition gratuite (MIT) uniquement pour les vues agenda simples | Décision client (2026-11-21) : pas de licence FullCalendar Premium |
 | i18n | i18next (FR, EN) | Montants au format `Intl.NumberFormat` avec XOF |
 | Backend | **Node.js 20 + Express 4 + TypeScript** | Architecture modulaire en couches (§3) |
 | Validation et documentation | **Zod** + `@asteasolutions/zod-to-openapi` → **Swagger UI** (`/api/docs`) | Une seule source de vérité |

@@ -2,7 +2,7 @@
 
 - Langue du code : anglais. Langue de l'interface et des documents : FR (+ EN via i18next).
 - Monorepo pnpm/Turborepo : `client` (staff), `portal` (clients), `admin` (Super Admin), `server`, `database`, `packages/{shared,ui,config}`.
-- Stack figée : React 18 + Vite + TypeScript, Ant Design 5, Zustand, TanStack Query, React Hook Form + Zod, Recharts, FullCalendar ; Express + TypeScript, Zod, Prisma, PostgreSQL 16, BullMQ (pas de node-cron), Socket.io + adapter Redis, Winston, Helmet. Aucune alternative sans accord de l'orchestrateur.
+- Stack figée : React 18 + Vite + TypeScript, Ant Design 5, Zustand, TanStack Query, React Hook Form + Zod, Recharts, planning maison `ResourceTimeline` (packages/ui ; FullCalendar édition gratuite seulement pour les agendas simples, jamais les modules Premium) ; Express + TypeScript, Zod, Prisma, PostgreSQL 16, BullMQ (pas de node-cron), Socket.io + adapter Redis, Winston, Helmet. Aucune alternative sans accord de l'orchestrateur.
 - Backend découpé par module : `server/src/modules/<m>/{routes,controller,service,repository,schemas,events}.ts`.
 - Ne lire que les documents cités dans la fiche de mission (`docs/0X §Y`). Ne pas modifier `database/prisma/schema.prisma` ni `packages/shared` hors lot L0 sans accord.
 - Multi-tenancy : toute table métier a `tenant_id` + RLS. Le `tenant_id` vient toujours du contexte (AsyncLocalStorage), jamais du client. Rooms Socket.io jointes côté serveur uniquement.

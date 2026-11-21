@@ -44,7 +44,7 @@
 | L4 Branding & onboarding | Thème par tenant, documents, modèles, domaine personnalisé, assistant de démarrage, inscription | TN-01/02, TN-20…25 | Sonnet | L1 | S3–S4 |
 | L5 Paramétrage hébergement | Établissements, types, unités, plans tarifaires, saisons, taxes, politiques, produits, séquences | OP-01…08 | Sonnet (+ Haiku pour les CRUD simples) | L1 | S3–S4 |
 | **L6 Moteur de réservation** ★ | Disponibilités, calcul du prix, `unit_nights`, cycle de vie, politiques, **liste d'attente**, dossier multi-services, `pending-expiry`, rappels | OP-10…18 | **Opus** (back) | L5 | S4–S6 |
-| L6b Calendrier & UI réservations | Timeline FullCalendar, glisser-déposer, temps réel, formulaires | OP-10, OP-12 | Sonnet | L6 (API) | S5–S6 |
+| L6b Calendrier & UI réservations | Planning maison `ResourceTimeline` (packages/ui), glisser-déposer, temps réel, formulaires | OP-10, OP-12 | Sonnet | L6 (API) | S5–S6 |
 | L7 Réception | Arrivées et départs, check-in avec fiche de police, walk-in, changements, check-out | OP-20…23 | Sonnet | L6 | S6–S7 |
 | **L8 Folio, encaissements, caisse, factures** ★ | Folio unifié, postes, taxes, encaissements (7 modes + référence), caisse, factures et avoirs PDF, comptes débiteurs | OP-90…96 | **Opus** (règles) / Sonnet (UI) | L6 | S6–S7 |
 | **L8b Audit de nuit** ★ | Clôture, nuitées, date d'exploitation | OP-24 | **Opus** | L7, L8 | S8 |

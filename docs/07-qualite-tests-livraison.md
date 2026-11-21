@@ -38,7 +38,7 @@
 | Dérive de périmètre (« tout l'opérationnel ») | Élevé | Priorités M/S/P2 du doc 01, jalons |
 | Intégrateur de paiement à venir | Faible | Abstraction `PaymentProvider` dès la v1 |
 | Planning de 12 semaines tendu (9 modules + SaaS + portail) | Élevé | Parallélisation par lots, contrats figés en S2, périmètre de repli (doc 06 §4) |
-| Licence FullCalendar Premium (timeline des ressources) | Moyen | Achat de la licence, ou alternative MIT (`react-calendar-timeline`) décidée en S1 |
+| Planning des ressources sans licence payante | Moyen | Décidé : composant maison `ResourceTimeline` (virtualisé, testé à 150 unités × 31 jours) |
 | Points de fidélité utilisés comme paiement (dette comptable) | Moyen | Registre immuable, valeur du point paramétrée, rapport des points en circulation |
 | Conformité des données (pièces d'identité) | Moyen | Chiffrement, rétention, purge, journalisation |
 
@@ -50,7 +50,7 @@
 5. Durées de grâce, de suspension et de purge.
 6. Besoin d'une facture normalisée ou certifiée (système de facturation électronique OTR, si applicable).
 7. Règles de fidélité : points par XOF, valeur d'un point, paliers, expiration.
-8. Licence FullCalendar Premium : acceptée ou non.
+8. ~~Licence FullCalendar Premium~~ → **décidé : alternative gratuite** (planning maison `ResourceTimeline`).
 9. Réservation sur le portail : acompte obligatoire ou paiement à l'hôtel.
 10. ~~Facture électronique : pays prioritaire~~ → **validé : connecteur OTR Togo prioritaire** (spécifications à obtenir de l'OTR) ; Bénin et Côte d'Ivoire en P2.
 11. Logiciel comptable cible pour l'export SYSCOHADA (Sage, Odoo, autre).
