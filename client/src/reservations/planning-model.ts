@@ -28,6 +28,12 @@ export function segmentFlags(s: Pick<PlanningSegment, 'status' | 'colorKey'>) {
   return { draggable: editable, resizable: editable || checkedIn };
 }
 
+/** Display name of a segment: the server only sends a neutral `kind`, the label is translated here. */
+export const segmentName = (
+  s: Pick<PlanningSegment, 'kind' | 'guestName' | 'number'>,
+  allotmentLabel = s.number,
+) => (s.kind === 'allotment' ? allotmentLabel : s.guestName || s.number);
+
 /** Greedy lane packing of the segments of a type that have no room yet. */
 function packLanes(list: PlanningSegment[]): Map<string, number> {
   const lanes: string[] = [];
@@ -45,7 +51,7 @@ function packLanes(list: PlanningSegment[]): Map<string, number> {
 
 export function buildPlanningModel(
   data: PlanningData,
-  opts: { typeIds?: readonly string[]; unassignedLabel: string },
+  opts: { typeIds?: readonly string[]; unassignedLabel: string; allotmentLabel?: string },
 ): PlanningModel {
   const wanted = opts.typeIds?.length ? new Set(opts.typeIds) : null;
   const types = data.roomTypes.filter((t) => !wanted || wanted.has(t.id));
@@ -90,8 +96,8 @@ export function buildPlanningModel(
         resourceId: s.roomId ?? `${UNASSIGNED_PREFIX}${t.id}:${lane ?? 0}`,
         start: s.arrival,
         end: s.departure,
-        label: s.guestName || s.number,
-        ariaLabel: `${s.guestName || s.number}, ${s.arrival} - ${s.departure}`,
+        label: segmentName(s, opts.allotmentLabel),
+        ariaLabel: `${segmentName(s, opts.allotmentLabel)}, ${s.arrival} - ${s.departure}`,
         colorKey: s.colorKey,
         ...segmentFlags(s),
         data: s,

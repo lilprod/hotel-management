@@ -74,6 +74,7 @@ const planning = (): PlanningData => ({
       adults: 2,
       children: 0,
       groupId: null,
+      kind: 'reservation',
       colorKey: 'confirmed',
     },
   ],

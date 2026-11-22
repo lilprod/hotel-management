@@ -28,6 +28,7 @@ import {
   applyOp,
   buildPlanningModel,
   isUnassignedResource,
+  segmentName,
   unassignedTypeOf,
 } from './planning-model';
 import type { PlanningOp } from './planning-model';
@@ -98,7 +99,14 @@ export function PlanningPage() {
   const data = query.data;
 
   const model = useMemo(
-    () => (data ? buildPlanningModel(data, { typeIds, unassignedLabel: t('unassigned') }) : null),
+    () =>
+      data
+        ? buildPlanningModel(data, {
+            typeIds,
+            unassignedLabel: t('unassigned'),
+            allotmentLabel: t('detail.allotment'),
+          })
+        : null,
     [data, typeIds, t],
   );
   // Without edit rights the segments are read-only.
@@ -409,7 +417,7 @@ export function PlanningPage() {
 function tooltipOf(s: PlanningSegment, t: TFunction): ReactNode {
   return (
     <div>
-      <strong>{s.guestName || s.number}</strong>
+      <strong>{segmentName(s, t('detail.allotment'))}</strong>
       <div>
         {s.number} - {t(`status.${s.status}`, { defaultValue: s.status })}
       </div>

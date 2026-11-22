@@ -101,6 +101,7 @@ export const planningSchema = z.object({
       adults: z.number().int(),
       children: z.number().int(),
       groupId: uuid.nullable(),
+      kind: z.enum(['reservation', 'group', 'allotment']),
       colorKey: z.string(),
     }),
   ),

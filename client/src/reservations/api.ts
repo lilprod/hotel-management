@@ -130,6 +130,7 @@ export interface PlanningSegment {
   adults: number;
   children: number;
   groupId: string | null;
+  kind: 'reservation' | 'group' | 'allotment';
   colorKey: string;
 }
 export interface PlanningBlock {

@@ -789,6 +789,7 @@ describe('isolation, permissions, realtime and planning', () => {
     );
     expect(seg).toMatchObject({
       guestName: 'Ama Mensah',
+      kind: 'reservation',
       status: 'CONFIRMED',
       colorKey: 'confirmed',
     });

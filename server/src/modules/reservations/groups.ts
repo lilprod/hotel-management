@@ -251,7 +251,7 @@ export async function createGroup(
         ),
         status: 'CONFIRMED',
         channel: 'FRONT_DESK',
-        notes: input.notes ?? `Allotment ${input.name}`,
+        notes: input.notes,
         notifyGuest: false,
         joinWaitlistIfUnavailable: false,
       },

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { computePenalty } from './penalty';
-import { applyOp, buildPlanningModel, segmentFlags } from './planning-model';
+import { applyOp, buildPlanningModel, segmentFlags, segmentName } from './planning-model';
 import type { PlanningData } from './api';
 
 describe('penalty preview (mirror of the server computePenalty)', () => {
@@ -86,6 +86,7 @@ function seg(
     adults: 1,
     children: 0,
     groupId: null,
+    kind: 'reservation' as const,
     colorKey: status.toLowerCase(),
   };
 }
@@ -145,5 +146,19 @@ describe('planning model: one segment per reservation_room', () => {
       if (s.roomId) expect(placed[0]!.resourceId).toBe(s.roomId);
       else expect(placed[0]!.resourceId.startsWith('un:t1:')).toBe(true);
     }
+  });
+});
+
+describe('segment names', () => {
+  it('an allotment is labelled by the client, never by the server', () => {
+    const a = {
+      ...seg('x', null, '2026-03-01', '2026-03-02', 'CONFIRMED'),
+      guestName: '',
+      kind: 'allotment' as const,
+    };
+    expect(segmentName(a, 'Bloc groupe')).toBe('Bloc groupe');
+    expect(segmentName(seg('y', 'a', '2026-03-01', '2026-03-02', 'CONFIRMED'), 'Bloc groupe')).toBe(
+      'y',
+    );
   });
 });
