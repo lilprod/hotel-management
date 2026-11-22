@@ -1,4 +1,3 @@
-import { runWithTenant } from '@hm/database';
 import type { Services } from '../../core/container.js';
 import { QueueFactory } from '../../jobs/queue.js';
 import { notify, type NotifyChannel } from '../notifications/service.js';
@@ -64,24 +63,6 @@ const defaultNotifier: BillingNotifier = async (services, notice) => {
   if (!q) {
     q = new QueueFactory(services.config.REDIS_URL);
     queues.set(services, q);
-  }
-  if (notice.templateCode === 'payment_declaration_rejected') {
-    // No message template for this notice yet (report): in-app notification of the owner.
-    if (!who.owner) return;
-    const reason = typeof notice.data.reason === 'string' ? notice.data.reason : '';
-    await runWithTenant(notice.tenantId, () =>
-      services.db.notification.create({
-        data: {
-          tenantId: notice.tenantId,
-          userId: who.owner!.id,
-          type: notice.templateCode,
-          title: 'Déclaration de paiement rejetée',
-          body: reason.slice(0, 1000),
-          link: '/settings/subscription',
-        },
-      }),
-    );
-    return;
   }
   const channels: NotifyChannel[] = notice.sms ? ['email', 'sms'] : ['email'];
   await notify(services, q, {

@@ -12,7 +12,7 @@ import { createReservation, requireProperty, settingAt } from '../reservations/s
 import { reservationSettings } from '../reservations/settings.js';
 import type { acceptBody, createEntryBody, EntryDto, listEntriesQuery } from './schemas.js';
 
-/** Guest template of the offer (not in the default catalogue yet: reported gap). */
+/** Guest template of the offer (default catalogue of @hm/templates). */
 export const WAITLIST_OFFER_TEMPLATE = 'waitlist_offer';
 
 const entryInclude = {

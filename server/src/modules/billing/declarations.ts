@@ -177,7 +177,14 @@ export async function rejectDeclaration(
     tenantId: d.tenantId,
     templateCode: 'payment_declaration_rejected',
     idempotencyKey: `declaration-rejected:${d.id}`,
-    data: { reason: row.rejectReason, declaration: { id: d.id } },
+    data: {
+      reason: row.rejectReason,
+      declaration: {
+        id: d.id,
+        reason: row.rejectReason ?? '',
+        amount: { amount: Number(row.amount), currency: row.currency },
+      },
+    },
   });
   return serializeDeclaration(row);
 }

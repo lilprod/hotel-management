@@ -1,3 +1,4 @@
+import { renderMessage } from '@hm/templates';
 import type { Express } from 'express';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -398,6 +399,18 @@ describe('reservation lifecycle', () => {
     });
     expect(c.status, JSON.stringify(c.body)).toBe(200);
     expect(c.body.penalty).toEqual(preview.body);
+    // the cancellation notice carries the penalty and renders with the default template
+    const notice = sent.filter((x) => x.templateCode === 'reservation_cancelled').at(-1)!;
+    expect(notice.data).toMatchObject({ penalty: { applies: true } });
+    for (const channel of ['EMAIL', 'SMS'] as const) {
+      const r = await renderMessage({
+        code: 'reservation_cancelled',
+        channel,
+        locale: 'fr',
+        data: notice.data,
+      });
+      expect(r.text).toMatch(/30\D000/);
+    }
     expect(c.body.penalty).toMatchObject({
       kind: 'CANCELLATION',
       amount: 30_000,
@@ -613,6 +626,12 @@ describe('waitlist', () => {
     };
     expect(m1.offered).toEqual([e1]);
     expect(sent.find((s) => s.templateCode === 'waitlist_offer')?.to.email).toBe('yao@example.com');
+    const offer = sent.find((s) => s.templateCode === 'waitlist_offer')!;
+    for (const channel of ['EMAIL', 'SMS'] as const) {
+      const r = await renderMessage({ code: 'waitlist_offer', channel, data: offer.data });
+      expect(r.text).not.toMatch(/\{\{|undefined/);
+      expect(r.text).toMatch(/2026|2027/); // dates rendered
+    }
     let list = await asA('get', '/waitlist').query({ propertyId: A.propertyId });
     const byId = (id: string) => list.body.items.find((x: { id: string }) => x.id === id);
     expect(byId(e1)).toMatchObject({ status: 'OFFERED' });

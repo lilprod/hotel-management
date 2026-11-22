@@ -1,3 +1,4 @@
+import { renderMessage } from '@hm/templates';
 import type { Express } from 'express';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -53,6 +54,18 @@ async function registered(host: string, email: string) {
     .send({ email, password: GUEST_PW, firstName: 'Ama', lastName: 'Mensah' });
   expect(reg.status).toBe(202);
   const token = tokenFrom(mail, GUEST_VERIFICATION_TEMPLATE);
+  // the real send path renders with the default template (no unknown template, no empty gaps)
+  const sent = mail.filter((m) => m.templateCode === GUEST_VERIFICATION_TEMPLATE).at(-1)!;
+  for (const channel of ['EMAIL', 'SMS'] as const) {
+    const r = await renderMessage({
+      code: sent.templateCode,
+      channel,
+      locale: sent.locale ?? 'fr',
+      data: sent.data,
+    });
+    if (channel === 'EMAIL') expect(r.text).toContain('Ama');
+    expect(r.text).toContain(token);
+  }
   return token;
 }
 

@@ -580,4 +580,138 @@ export const DEFAULT_TEMPLATES: readonly DefaultTemplateDef[] = [
       },
     },
   },
+  {
+    code: 'waitlist_offer',
+    audience: 'guest',
+    mandatory: false,
+    variables: [
+      ...G,
+      'reservation.checkIn',
+      'reservation.checkOut',
+      'reservation.roomType',
+      'offer.expiresAt',
+    ],
+    content: {
+      fr: {
+        subject: 'Une chambre s’est libérée à {{hotel.name}}',
+        title: 'Une chambre est disponible pour vous',
+        paragraphs: [
+          'Bonjour {{guest.firstName}},',
+          'Bonne nouvelle : une chambre ({{reservation.roomType}}) s’est libérée à {{hotel.name}} du {{date reservation.checkIn}} au {{date reservation.checkOut}}, comme vous l’aviez demandé.',
+          'Cette proposition est réservée pour vous jusqu’au {{date offer.expiresAt}}. Contactez-nous au {{hotel.phone}} pour la confirmer avant cette date, passé ce délai elle sera proposée au client suivant.',
+        ],
+        sms: '{{hotel.name}} : une chambre {{reservation.roomType}} est libre du {{date reservation.checkIn}} au {{date reservation.checkOut}}. Offre valable jusqu au {{date offer.expiresAt}}. Appelez le {{hotel.phone}}',
+      },
+      en: {
+        subject: 'A room has become available at {{hotel.name}}',
+        title: 'A room is available for you',
+        paragraphs: [
+          'Hello {{guest.firstName}},',
+          'Good news: a room ({{reservation.roomType}}) has become available at {{hotel.name}} from {{date reservation.checkIn}} to {{date reservation.checkOut}}, as you requested.',
+          'This offer is held for you until {{date offer.expiresAt}}. Call us on {{hotel.phone}} to confirm it before then, after which it will be offered to the next guest.',
+        ],
+        sms: '{{hotel.name}}: a {{reservation.roomType}} room is free from {{date reservation.checkIn}} to {{date reservation.checkOut}}. Offer valid until {{date offer.expiresAt}}. Call {{hotel.phone}}',
+      },
+    },
+  },
+  {
+    code: 'reservation_cancelled',
+    audience: 'guest',
+    mandatory: false,
+    variables: [
+      ...G,
+      'reservation.number',
+      'reservation.checkIn',
+      'reservation.checkOut',
+      'reservation.roomType',
+      'penalty.applies',
+      'penalty.amount',
+    ],
+    content: {
+      fr: {
+        subject: 'Annulation de votre réservation {{reservation.number}} - {{hotel.name}}',
+        title: 'Votre réservation est annulée',
+        paragraphs: [
+          'Bonjour {{guest.firstName}},',
+          'Votre réservation {{reservation.number}} à {{hotel.name}} ({{reservation.roomType}}, du {{date reservation.checkIn}} au {{date reservation.checkOut}}) a bien été annulée.',
+          '{{#if penalty.applies}}Conformément aux conditions d’annulation, des frais de {{money penalty.amount}} sont dus.{{else}}Aucun frais d’annulation ne vous est facturé.{{/if}}',
+          'Pour toute question, appelez-nous au {{hotel.phone}}.',
+        ],
+        sms: '{{hotel.name}} : reservation {{reservation.number}} annulee. {{#if penalty.applies}}Frais d annulation : {{money penalty.amount}}.{{else}}Aucun frais.{{/if}} Info : {{hotel.phone}}',
+      },
+      en: {
+        subject: 'Your booking {{reservation.number}} is cancelled - {{hotel.name}}',
+        title: 'Your booking is cancelled',
+        paragraphs: [
+          'Hello {{guest.firstName}},',
+          'Your booking {{reservation.number}} at {{hotel.name}} ({{reservation.roomType}}, {{date reservation.checkIn}} to {{date reservation.checkOut}}) has been cancelled.',
+          '{{#if penalty.applies}}As per the cancellation policy, a fee of {{money penalty.amount}} is due.{{else}}No cancellation fee is charged.{{/if}}',
+          'For any question, call us on {{hotel.phone}}.',
+        ],
+        sms: '{{hotel.name}}: booking {{reservation.number}} cancelled. {{#if penalty.applies}}Cancellation fee: {{money penalty.amount}}.{{else}}No fee.{{/if}} Info: {{hotel.phone}}',
+      },
+    },
+  },
+  {
+    code: 'guest_email_verification',
+    audience: 'guest',
+    mandatory: true,
+    variables: ['guest.firstName', 'hotel.name', 'verification.url', 'verification.expiresInHours'],
+    content: {
+      fr: {
+        subject: 'Confirmez votre adresse e-mail - {{hotel.name}}',
+        title: 'Confirmez votre adresse e-mail',
+        paragraphs: [
+          'Bonjour {{guest.firstName}},',
+          'Merci d’avoir créé votre compte client {{hotel.name}}. Confirmez votre adresse e-mail pour gérer vos réservations en ligne. Ce lien est valable {{verification.expiresInHours}} heures.',
+          'Si vous n’êtes pas à l’origine de cette inscription, ignorez ce message.',
+        ],
+        cta: { label: 'Confirmer mon adresse e-mail', url: 'verification.url' },
+        sms: '{{hotel.name}} : confirmez votre e-mail : {{verification.url}}',
+      },
+      en: {
+        subject: 'Confirm your e-mail address - {{hotel.name}}',
+        title: 'Confirm your e-mail address',
+        paragraphs: [
+          'Hello {{guest.firstName}},',
+          'Thank you for creating your {{hotel.name}} guest account. Confirm your e-mail address to manage your bookings online. This link is valid for {{verification.expiresInHours}} hours.',
+          'If you did not sign up, please ignore this message.',
+        ],
+        cta: { label: 'Confirm my e-mail address', url: 'verification.url' },
+        sms: '{{hotel.name}}: confirm your e-mail: {{verification.url}}',
+      },
+    },
+  },
+  {
+    code: 'payment_declaration_rejected',
+    audience: 'tenant_owner',
+    mandatory: true,
+    variables: [...O, 'declaration.amount', 'declaration.reason', 'billing.url'],
+    content: {
+      fr: {
+        subject: 'Votre déclaration de paiement n’a pas pu être validée - {{hotel.name}}',
+        title: 'Déclaration de paiement rejetée',
+        paragraphs: [
+          'Bonjour {{owner.name}},',
+          'Nous n’avons pas pu valider votre déclaration de paiement de {{money declaration.amount}} pour {{hotel.name}}.',
+          'Motif : {{declaration.reason}}',
+          'Vous pouvez effectuer une nouvelle déclaration depuis votre espace abonnement.',
+        ],
+        cta: { label: 'Voir mon abonnement', url: 'billing.url' },
+        sms: '{{hotel.name}} : votre declaration de paiement a ete rejetee. Motif : {{declaration.reason}}',
+      },
+      en: {
+        subject: 'Your payment declaration could not be validated - {{hotel.name}}',
+        title: 'Payment declaration rejected',
+        paragraphs: [
+          'Hello {{owner.name}},',
+          'We could not validate your payment declaration of {{money declaration.amount}} for {{hotel.name}}.',
+          'Reason: {{declaration.reason}}',
+          'You can submit a new declaration from your subscription page.',
+        ],
+        cta: { label: 'View my subscription', url: 'billing.url' },
+        sms: '{{hotel.name}}: your payment declaration was rejected. Reason: {{declaration.reason}}',
+      },
+    },
+  },
 ];

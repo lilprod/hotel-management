@@ -27,7 +27,7 @@ const data = {
 describe('default templates', () => {
   it('ships every expected code in FR and EN with whitelisted variables only', () => {
     const codes = DEFAULT_TEMPLATES.map((t) => t.code);
-    expect(codes).toHaveLength(17);
+    expect(codes).toHaveLength(21);
     for (const t of DEFAULT_TEMPLATES)
       for (const l of ['fr', 'en'] as const) {
         const c = t.content[l];
@@ -219,5 +219,88 @@ describe('documents', () => {
     });
     expect(p).toContain('FICHE DE POLICE');
     expect(p).toContain('M&lt;');
+  });
+});
+
+describe('guest and billing notices wired by the modules', () => {
+  const hotel = { name: 'Hôtel du Lac', phone: '+228 90 00 00 00' };
+  const guest = { firstName: 'Kossi', lastName: 'Mensah' };
+  const samples: Record<string, Record<string, unknown>> = {
+    waitlist_offer: {
+      guest,
+      hotel,
+      reservation: { checkIn: '2026-12-01', checkOut: '2026-12-04', roomType: 'Double' },
+      offer: { expiresAt: '2026-11-26T10:00:00.000Z' },
+    },
+    reservation_cancelled: {
+      guest,
+      hotel,
+      reservation: {
+        number: 'R-42',
+        checkIn: '2026-12-01',
+        checkOut: '2026-12-04',
+        roomType: 'Double',
+      },
+      penalty: { applies: true, amount: { amount: 45000, currency: 'XOF' } },
+    },
+    guest_email_verification: {
+      guest,
+      hotel,
+      verification: { url: 'https://hotel.example/verify-email?token=abc', expiresInHours: 48 },
+    },
+    payment_declaration_rejected: {
+      owner: { name: 'Ama Kodjo' },
+      hotel: { name: 'Hôtel du Lac' },
+      billing: { url: 'https://hotel.example/settings/subscription' },
+      declaration: { amount: { amount: 50000, currency: 'XOF' }, reason: 'Référence introuvable' },
+    },
+  };
+
+  it.each(Object.keys(samples))(
+    '%s renders in FR and EN, e-mail and SMS, with branding',
+    async (code) => {
+      for (const locale of ['fr', 'en'] as const)
+        for (const channel of ['EMAIL', 'SMS'] as const) {
+          const r = await renderMessage({
+            code,
+            channel,
+            locale,
+            data: samples[code]!,
+            branding: { displayName: 'Hôtel du Lac', primaryColor: '#112233' },
+          });
+          expect(r.source).toBe('default');
+          expect(r.locale).toBe(locale);
+          expect(r.text).not.toMatch(/\{\{|undefined|NaN/);
+          expect(r.text).toContain('Hôtel du Lac');
+          if (channel === 'EMAIL') {
+            expect(r.subject).toBeTruthy();
+            expect(r.html).toContain('#112233');
+          }
+        }
+    },
+  );
+
+  it('reservation_cancelled states the penalty, or its absence', async () => {
+    const withFee = await renderMessage({
+      code: 'reservation_cancelled',
+      channel: 'EMAIL',
+      locale: 'fr',
+      data: samples['reservation_cancelled']!,
+    });
+    expect(withFee.text).toContain(formatMoney(money(45000, 'XOF')));
+    const free = await renderMessage({
+      code: 'reservation_cancelled',
+      channel: 'SMS',
+      locale: 'en',
+      data: { ...samples['reservation_cancelled']!, penalty: { applies: false } },
+    });
+    expect(free.text).toContain('No fee');
+  });
+
+  it('the verification and rejection templates are mandatory, the offer is optional', () => {
+    const by = new Map(DEFAULT_TEMPLATES.map((t) => [t.code, t]));
+    expect(by.get('guest_email_verification')?.mandatory).toBe(true);
+    expect(by.get('payment_declaration_rejected')?.mandatory).toBe(true);
+    expect(by.get('waitlist_offer')?.mandatory).toBe(false);
   });
 });

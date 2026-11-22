@@ -36,7 +36,7 @@ import {
 export const GUEST_PASSWORD_RULES = { minLength: 8, requireClasses: 2 } as const;
 export const VERIFY_TTL_S = 48 * 3600;
 export const GUEST_RESET_TTL_S = 30 * 60;
-/** No template exists yet for e-mail verification (reported gap in @hm/templates). */
+/** E-mail verification template (default catalogue of @hm/templates). */
 export const GUEST_VERIFICATION_TEMPLATE = 'guest_email_verification';
 const LOCK_THRESHOLD = 5;
 const LOCK_MINUTES = 15;

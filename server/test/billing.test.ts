@@ -1,3 +1,4 @@
+import { renderMessage } from '@hm/templates';
 import type { Express } from 'express';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -594,11 +595,27 @@ describe('payment declarations and tenant administration', () => {
     });
     expect(ko.status).toBe(200);
     expect(ko.body.status).toBe('REJECTED');
-    expect(
-      notices.some(
-        (n) => n.templateCode === 'payment_declaration_rejected' && n.tenantId === E.tenantId,
-      ),
-    ).toBe(true);
+    const rejected = notices.find(
+      (n) => n.templateCode === 'payment_declaration_rejected' && n.tenantId === E.tenantId,
+    );
+    expect(rejected).toBeDefined();
+    // the notice renders with the default template (billing fills owner / hotel / url as notify())
+    for (const locale of ['fr', 'en'])
+      for (const channel of ['EMAIL', 'SMS'] as const) {
+        const r = await renderMessage({
+          code: 'payment_declaration_rejected',
+          channel,
+          locale,
+          data: {
+            owner: { name: 'Owner' },
+            hotel: { name: 'Hôtel E' },
+            billing: { url: 'https://e.example/settings/subscription' },
+            ...rejected!.data,
+          },
+        });
+        expect(r.text).toContain('Référence introuvable');
+        if (channel === 'EMAIL') expect(r.text).toMatch(/5\D000/);
+      }
   });
 
   it('proof attachment: signed URL + mime for declarations and payments, tenant name in the queue', async () => {

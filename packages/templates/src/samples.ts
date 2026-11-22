@@ -47,4 +47,9 @@ export const VARIABLE_SAMPLES: Readonly<Record<string, string>> = {
   'subscription.planName': 'Premium',
   'trial.endDate': '2026-12-10',
   'trial.daysLeft': '3',
+  'offer.expiresAt': '2026-11-26',
+  'penalty.applies': 'true',
+  'penalty.amount': '45 000 FCFA',
+  'declaration.amount': '50 000 FCFA',
+  'declaration.reason': 'Référence de paiement introuvable',
 };

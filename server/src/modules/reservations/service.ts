@@ -604,6 +604,48 @@ export async function sendConfirmation(ctx: RCtx, dto: ReservationDto, prop: Pro
   }
 }
 
+/** Cancellation notice to the booker, with the penalty actually charged (0 when waived). */
+export async function sendCancellation(
+  ctx: RCtx,
+  dto: ReservationDto,
+  prop: PropertyInfo,
+  penalty: PenaltyDto,
+) {
+  const b = dto.booker;
+  if (!b || (!b.email && !b.phone)) return;
+  try {
+    const channels = await settingAt(ctx, reservationSettings.reminderChannels, prop.id);
+    const roomType = await ctx.db.roomType.findUnique({
+      where: { id: dto.rooms[0]!.roomTypeId },
+      select: { name: true },
+    });
+    await sendGuestNotice(ctx.services, {
+      tenantId: ctx.tenantId,
+      channels,
+      to: { ...(b.email ? { email: b.email } : {}), ...(b.phone ? { phone: b.phone } : {}) },
+      templateCode: 'reservation_cancelled',
+      guestId: b.id,
+      data: {
+        guest: { firstName: b.firstName, lastName: b.lastName },
+        hotel: { name: prop.name, phone: prop.phone ?? '' },
+        reservation: {
+          number: dto.number,
+          checkIn: dto.arrival,
+          checkOut: dto.departure,
+          roomType: roomType?.name ?? '',
+        },
+        penalty: {
+          applies: penalty.amount > 0,
+          amount: { amount: penalty.amount, currency: penalty.currency },
+        },
+      },
+      idempotencyKey: `reservation:${dto.id}:cancelled`,
+    });
+  } catch (err) {
+    ctx.services.logger.warn('cancellation notice not sent', { err, reservationId: dto.id });
+  }
+}
+
 // ───────────────────────────── read ─────────────────────────────
 
 export async function getReservation(ctx: RCtx, id: string): Promise<ReservationDto> {
@@ -1363,10 +1405,15 @@ async function closeReservation(
 export async function cancelReservation(
   ctx: RCtx,
   id: string,
-  input: { reasonCode: string; note?: string | undefined; waivePenalty: boolean },
+  input: {
+    reasonCode: string;
+    note?: string | undefined;
+    waivePenalty: boolean;
+    notifyGuest?: boolean | undefined;
+  },
 ) {
   const cur = await loadForWrite(ctx, id);
-  const { facts } = await transitionFacts(ctx, cur);
+  const { prop, facts } = await transitionFacts(ctx, cur);
   assertGuard(cur.status, 'CANCELLED', facts);
   await requireLookupCode(ctx.db, 'cancel_reason', input.reasonCode, 'reasonCode');
   const penalty = await computeReservationPenalty(
@@ -1382,6 +1429,7 @@ export async function cancelReservation(
     penalty,
     action: 'cancel',
   });
+  if (input.notifyGuest ?? true) await sendCancellation(ctx, reservation, prop, penalty);
   return { reservation, penalty };
 }
 
