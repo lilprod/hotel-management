@@ -103,6 +103,8 @@ export interface TimelineLabels {
   expand: (group: string) => string;
   collapse: (group: string) => string;
   resizeHandle: string;
+  /** Left-edge handle (defaults to `resizeHandle`). */
+  resizeHandleStart?: string;
 }
 
 const defaultLabels: TimelineLabels = {
@@ -996,6 +998,7 @@ export function ResourceTimeline(props: ResourceTimelineProps) {
               dimmed={dragging ? ghost?.segmentId === s.id : grabbedId === s.id}
               grabbed={grabbedId === s.id}
               resizeLabel={labels.resizeHandle}
+              resizeStartLabel={labels.resizeHandleStart ?? labels.resizeHandle}
               onPointerDown={onSegPointerDown}
               onKeyDown={onSegKeyDown}
               onTip={setTip}
@@ -1191,6 +1194,7 @@ interface SegmentViewProps {
   dimmed: boolean;
   grabbed: boolean;
   resizeLabel: string;
+  resizeStartLabel: string;
   describedBy: string;
   onPointerDown: (
     e: ReactPointerEvent<HTMLElement>,
@@ -1252,7 +1256,7 @@ const SegmentView = memo(function SegmentView(p: SegmentViewProps) {
         <span
           data-tl-handle="start"
           aria-hidden
-          title={p.resizeLabel}
+          title={p.resizeStartLabel}
           onPointerDown={(e) => p.onPointerDown(e, s, 'resize-start')}
           style={{
             position: 'absolute',

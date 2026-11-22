@@ -18,6 +18,7 @@ import type { MoveEvent, ResizeEvent, SelectEvent, TimelineSegment } from '@hm/u
 
 import { useApiError } from '../auth/useApiError';
 import { useCan } from '../auth/useCan';
+import { formatMoney } from '../pages/settings/util';
 import { NewReservationWizard } from './NewReservationWizard';
 import type { WizardInitial } from './NewReservationWizard';
 import { ReservationDrawer } from './ReservationDrawer';
@@ -59,12 +60,16 @@ interface MoveVars {
   seg: PlanningSegment;
   roomId: string | null;
   changeRoomType: boolean;
+  /** Unassigned drop on a lane of another room type (re-quoted, confirmed beforehand). */
+  roomTypeId?: string;
+  /** Left-edge resize: only the dates change, the room (or lane) stays. */
+  keepRoom?: boolean;
 }
 
 /** Planning of the property (OP-10): resource timeline with drag & drop, resize, quick create. */
 export function PlanningPage() {
   const { t, i18n } = useTranslation('reservations');
-  const { message } = AntApp.useApp();
+  const { message, modal } = AntApp.useApp();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const toMessage = useApiError();
@@ -116,6 +121,7 @@ export function PlanningPage() {
         ...s,
         draggable: !!s.draggable && canMove,
         resizable: !!s.resizable && canUpdate,
+        resizableStart: !!s.resizableStart && canMove,
         tooltip: tooltipOf(s.data as PlanningSegment, t),
       })),
     [model, canMove, canUpdate, t],
@@ -140,13 +146,22 @@ export function PlanningPage() {
   );
 
   const mutation = useMutation({
-    mutationFn: async ({ op, seg, roomId, changeRoomType }: MoveVars) => {
+    mutationFn: async ({ op, seg, roomId, changeRoomType, roomTypeId, keepRoom }: MoveVars) => {
       if (op.kind === 'resize') {
         const mode = op.departure > op.fromDeparture ? 'extend' : 'shorten';
         return post(`/reservations/${seg.reservationId}/${mode}`, { departure: op.departure });
       }
       const base = `/reservations/${seg.reservationId}/rooms/${seg.id}`;
       const datesChanged = op.arrival !== seg.arrival || op.departure !== seg.departure;
+      if (keepRoom) return post(`${base}/move`, { arrival: op.arrival, departure: op.departure });
+      if (roomTypeId)
+        return post(`${base}/move`, {
+          roomId: null,
+          roomTypeId,
+          changeRoomType: true,
+          requote: true,
+          ...(datesChanged ? { arrival: op.arrival, departure: op.departure } : {}),
+        });
       if (!roomId && !datesChanged) return post(`${base}/unassign`);
       return post(`${base}/move`, {
         roomId,
@@ -176,19 +191,118 @@ export function PlanningPage() {
     return m;
   }, [data]);
 
+  const typeName = (id: string) => data?.roomTypes.find((x) => x.id === id)?.name ?? '';
   const onMove = (e: MoveEvent) => {
     const seg = e.segment.data as PlanningSegment;
     const roomId = isUnassignedResource(e.resourceId) ? null : e.resourceId;
+    const op: PlanningOp = {
+      kind: 'move',
+      segmentId: seg.id,
+      roomId,
+      arrival: e.start,
+      departure: e.end,
+    };
+    const toType = roomId === null ? unassignedTypeOf(e.resourceId) : undefined;
+    if (toType && toType !== seg.roomTypeId) {
+      void confirmTypeChange(seg, toType, e);
+      return;
+    }
     const targetType = roomId ? typeOfRoom.get(roomId) : seg.roomTypeId;
     mutation.mutate({
       seg,
       roomId,
       changeRoomType: !!targetType && targetType !== seg.roomTypeId,
-      op: { kind: 'move', segmentId: seg.id, roomId, arrival: e.start, departure: e.end },
+      op,
     });
+  };
+  /** Drop on an unassigned lane of another room type: re-quote first, commit on confirmation. */
+  const confirmTypeChange = async (seg: PlanningSegment, toType: string, e: MoveEvent) => {
+    const base = `/reservations/${seg.reservationId}/rooms/${seg.id}`;
+    const body = {
+      roomId: null,
+      roomTypeId: toType,
+      changeRoomType: true,
+      requote: true,
+      arrival: e.start,
+      departure: e.end,
+    };
+    try {
+      const q = await post<{
+        currency: string;
+        currentTotal: number;
+        newTotal: number;
+        delta: number;
+      }>(`${base}/move-preview`, body);
+      const sign = q.delta > 0 ? '+' : '';
+      modal.confirm({
+        title: t('planning.typeChange.title'),
+        content: (
+          <div data-testid="type-change-quote">
+            <p>
+              {t('planning.typeChange.body', {
+                guest: segmentName(seg, t('detail.allotment')),
+                from: typeName(seg.roomTypeId),
+                to: typeName(toType),
+              })}
+            </p>
+            <p>
+              <strong>
+                {t('planning.typeChange.total', {
+                  current: formatMoney(q.currentTotal, q.currency),
+                  next: formatMoney(q.newTotal, q.currency),
+                  delta: `${sign}${formatMoney(q.delta, q.currency)}`,
+                })}
+              </strong>
+            </p>
+          </div>
+        ),
+        okText: t('planning.typeChange.confirm'),
+        cancelText: t('close'),
+        onOk: () =>
+          mutation
+            .mutateAsync({
+              seg,
+              roomId: null,
+              roomTypeId: toType,
+              changeRoomType: true,
+              op: {
+                kind: 'move',
+                segmentId: seg.id,
+                roomId: null,
+                roomTypeId: toType,
+                arrival: e.start,
+                departure: e.end,
+              },
+            })
+            .catch(() => undefined),
+      });
+    } catch (err) {
+      // Not available (409) or not allowed: same clear message as a refused drop.
+      const lines = conflictLines(err, t, data, i18n.language);
+      if (conflictDetails(err)) setConflict(lines.length ? lines : [toMessage(err)]);
+      else void message.error(toMessage(err));
+    }
   };
   const onResize = (e: ResizeEvent) => {
     const seg = e.segment.data as PlanningSegment;
+    if (e.edge === 'start') {
+      if (e.start === seg.arrival) return;
+      // Arrival changes: one room line, dates only (availability checked, 409 rolls back).
+      mutation.mutate({
+        seg,
+        roomId: seg.roomId,
+        changeRoomType: false,
+        keepRoom: true,
+        op: {
+          kind: 'move',
+          segmentId: seg.id,
+          roomId: seg.roomId,
+          arrival: e.start,
+          departure: seg.departure,
+        },
+      });
+      return;
+    }
     if (e.end === seg.departure) return;
     mutation.mutate({
       seg,
@@ -215,9 +329,6 @@ export function PlanningPage() {
       ...(unassigned ? {} : { roomId: e.resourceId }),
     });
   };
-  const canDrop = (seg: TimelineSegment, target: { resourceId: string }) =>
-    !isUnassignedResource(target.resourceId) ||
-    unassignedTypeOf(target.resourceId) === (seg.data as PlanningSegment).roomTypeId;
 
   const monthStart = (shift: number) => {
     const d = new Date(`${from}T00:00:00Z`);
@@ -271,7 +382,6 @@ export function PlanningPage() {
         onResize={onResize}
         onSelectRange={canCreate ? onSelectRange : undefined}
         onSegmentClick={(s) => setDetailId((s.data as PlanningSegment).reservationId)}
-        canDrop={canDrop}
         labels={{
           hint: t('planning.keyboardHint'),
           grabbed: (s) => t('planning.grabbed', { s }),
@@ -281,6 +391,7 @@ export function PlanningPage() {
           expand: (g) => t('planning.expand', { g }),
           collapse: (g) => t('planning.collapse', { g }),
           resizeHandle: t('planning.resize'),
+          resizeHandleStart: t('planning.resizeStart'),
         }}
       />
     );

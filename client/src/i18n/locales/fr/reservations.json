@@ -43,7 +43,7 @@
   },
   "planning": {
     "title": "Planning des chambres",
-    "subtitle": "Glissez une réservation pour la déplacer, tirez son bord droit pour la prolonger ou la raccourcir, glissez sur une case libre pour créer.",
+    "subtitle": "Glissez une réservation pour la déplacer, tirez son bord gauche ou droit pour changer l'arrivée ou le départ, glissez sur une case libre pour créer.",
     "aria": "Planning des chambres par type et par nuit",
     "rooms": "{{count}} chambres",
     "occupancy": "Taux d'occupation : {{pct}} %",
@@ -54,7 +54,15 @@
     "cancelled": "Annulé",
     "expand": "Déplier {{g}}",
     "collapse": "Replier {{g}}",
-    "resize": "Modifier la date de départ"
+    "resize": "Modifier la date de départ",
+    "resizeStart": "Modifier la date d'arrivée",
+    "typeChange": {
+      "title": "Changer de type de chambre ?",
+      "body": "{{guest}} passera de {{from}} à {{to}} (non assignée). Le séjour est recalculé aux tarifs du nouveau type.",
+      "total": "Total actuel : {{current}}. Nouveau total : {{next}} ({{delta}}).",
+      "confirm": "Confirmer le changement",
+      "unavailable": "Changement impossible"
+    }
   },
   "nav": {
     "today": "Aujourd'hui",

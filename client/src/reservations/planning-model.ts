@@ -25,7 +25,8 @@ export function segmentFlags(s: Pick<PlanningSegment, 'status' | 'colorKey'>) {
   const editable =
     s.colorKey !== 'allotment' && (s.status === 'PENDING' || s.status === 'CONFIRMED');
   const checkedIn = s.status === 'CHECKED_IN';
-  return { draggable: editable, resizable: editable || checkedIn };
+  // The arrival of an in-house stay cannot change: only the end edge is resizable.
+  return { draggable: editable, resizable: editable || checkedIn, resizableStart: editable };
 }
 
 /** Display name of a segment: the server only sends a neutral `kind`, the label is translated here. */
@@ -81,7 +82,8 @@ export function buildPlanningModel(
       });
     const loose = (byType.get(t.id) ?? []).filter((s) => !s.roomId);
     const lanes = packLanes(loose);
-    const laneCount = loose.length ? Math.max(...lanes.values()) + 1 : 0;
+    // Always at least one lane: it is the drop target to unassign / change the room type.
+    const laneCount = loose.length ? Math.max(...lanes.values()) + 1 : 1;
     for (let i = 0; i < laneCount; i++)
       resources.push({
         id: `${UNASSIGNED_PREFIX}${t.id}:${i}`,
@@ -134,7 +136,15 @@ export function buildPlanningModel(
 }
 
 export type PlanningOp =
-  | { kind: 'move'; segmentId: string; roomId: string | null; arrival: string; departure: string }
+  | {
+      kind: 'move';
+      segmentId: string;
+      roomId: string | null;
+      /** Unassigned drop on another room type. */
+      roomTypeId?: string;
+      arrival: string;
+      departure: string;
+    }
   | {
       kind: 'resize';
       segmentId: string;
@@ -160,7 +170,7 @@ export function applyOp(data: PlanningData, op: PlanningOp): PlanningData {
       return {
         ...s,
         roomId: op.roomId,
-        roomTypeId: type ?? s.roomTypeId,
+        roomTypeId: type ?? op.roomTypeId ?? s.roomTypeId,
         arrival: op.arrival,
         departure: op.departure,
       };

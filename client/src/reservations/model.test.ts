@@ -76,10 +76,12 @@ describe('planning model', () => {
     expect(segmentFlags({ status: 'CHECKED_IN', colorKey: 'checked_in' })).toEqual({
       draggable: false,
       resizable: true,
+      resizableStart: false,
     });
     expect(segmentFlags({ status: 'CONFIRMED', colorKey: 'allotment' })).toEqual({
       draggable: false,
       resizable: false,
+      resizableStart: false,
     });
   });
 

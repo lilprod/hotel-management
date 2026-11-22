@@ -193,14 +193,145 @@ describe('PlanningPage', () => {
       }),
     );
     const { container } = setup(<PlanningPage />);
-    await waitFor(() => expect(container.querySelector('[data-tl-handle]')).toBeInTheDocument());
-    const handle = container.querySelector('[data-tl-handle]')!;
+    await waitFor(() =>
+      expect(container.querySelector('[data-tl-handle="end"]')).toBeInTheDocument(),
+    );
+    const handle = container.querySelector('[data-tl-handle="end"]')!;
     mouse(handle, 'pointerdown', 150 + 5 * 44 - 3, ROW_101_Y);
     mouse(window, 'pointermove', 150 + 7 * 44, ROW_101_Y);
     mouse(window, 'pointerup', 150 + 7 * 44, ROW_101_Y);
     await waitFor(() => expect(calls).toHaveLength(1));
     expect(calls[0]!.url).toMatch(/\/reservations\/r1\/extend$/);
     expect(calls[0]!.body).toEqual({ departure: addDays(today, 5) });
+  });
+
+  it('changes the arrival when the start edge is dragged (move API, dates only)', async () => {
+    const calls: { url: string; body?: unknown }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const path = url.split('?')[0]!;
+        if (path.endsWith('/planning')) return json(200, planning());
+        if (init?.method === 'POST') {
+          calls.push({ url: path, body: JSON.parse(init.body as string) });
+          return json(200, { reservation: {}, warnings: [] });
+        }
+        return json(404, {});
+      }),
+    );
+    const { container } = setup(<PlanningPage />);
+    await waitFor(() =>
+      expect(container.querySelector('[data-tl-handle="start"]')).toBeInTheDocument(),
+    );
+    const handle = container.querySelector('[data-tl-handle="start"]')!;
+    // segment starts on slot 2 (today): pull its left edge one night earlier
+    mouse(handle, 'pointerdown', 150 + 2 * 44 + 3, ROW_101_Y);
+    mouse(window, 'pointermove', 150 + 1 * 44 + 10, ROW_101_Y);
+    mouse(window, 'pointerup', 150 + 1 * 44 + 10, ROW_101_Y);
+    await waitFor(() => expect(calls).toHaveLength(1));
+    expect(calls[0]!.url).toMatch(/\/reservations\/r1\/rooms\/s1\/move$/);
+    expect(calls[0]!.body).toEqual({ arrival: addDays(today, -1), departure: addDays(today, 3) });
+  });
+
+  it('rolls a refused left-edge resize back (409)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const path = url.split('?')[0]!;
+        if (path.endsWith('/planning')) return json(200, planning());
+        if (init?.method === 'POST')
+          return json(409, {
+            title: 'Conflict',
+            code: 'CONFLICT',
+            detail: 'The requested unit is not available on some nights',
+            meta: {
+              reason: 'UNIT_UNAVAILABLE',
+              clashes: [{ roomId: 'room101', date: addDays(today, -1), reason: 'OCCUPIED' }],
+              short: [],
+            },
+          });
+        return json(404, {});
+      }),
+    );
+    const { container } = setup(<PlanningPage />);
+    await waitFor(() =>
+      expect(container.querySelector('[data-tl-handle="start"]')).toBeInTheDocument(),
+    );
+    mouse(
+      container.querySelector('[data-tl-handle="start"]')!,
+      'pointerdown',
+      150 + 2 * 44 + 3,
+      ROW_101_Y,
+    );
+    mouse(window, 'pointermove', 150 + 1 * 44 + 10, ROW_101_Y);
+    mouse(window, 'pointerup', 150 + 1 * 44 + 10, ROW_101_Y);
+    expect(await screen.findByText(/Déplacement impossible/)).toBeInTheDocument();
+    const seg = container.querySelector('[data-tl-seg="s1"]') as HTMLElement;
+    expect(seg.getAttribute('aria-label')).toContain(`${today} - ${addDays(today, 3)}`);
+  });
+
+  it('drop on an unassigned lane of another room type: re-quote first, commit on confirmation', async () => {
+    const calls: { url: string; body?: unknown }[] = [];
+    const data = planning();
+    data.roomTypes.push({
+      id: 't2',
+      code: 'DLX',
+      name: 'Deluxe',
+      rooms: [{ id: 'room201', number: '201', floor: '2', building: null, hkStatus: 'CLEAN' }],
+      freeByNight: [],
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const path = url.split('?')[0]!;
+        if (path.endsWith('/planning')) return json(200, data);
+        if (init?.method === 'POST') {
+          calls.push({ url: path, body: JSON.parse(init.body as string) });
+          if (path.endsWith('/move-preview'))
+            return json(200, {
+              currency: 'XOF',
+              currentTotal: 90000,
+              newTotal: 150000,
+              delta: 60000,
+            });
+          return json(200, {});
+        }
+        return json(404, {});
+      }),
+    );
+    const { container } = setup(<PlanningPage />);
+    await waitFor(() => expect(container.querySelector('[data-tl-seg="s1"]')).toBeInTheDocument());
+    expect(container.querySelector('[data-tl-row="un:t2:0"]')).toBeInTheDocument();
+    // rows: group 28, 101, 102, un:t1:0, group 28, 201, un:t2:0
+    const unassignedT2 = 62 + 28 + 34 * 3 + 28 + 34 + 17;
+    mouse(container.querySelector('[data-tl-seg="s1"]')!, 'pointerdown', cellX(2), ROW_101_Y);
+    mouse(window, 'pointermove', cellX(2), unassignedT2);
+    mouse(window, 'pointerup', cellX(2), unassignedT2);
+
+    // preview only, the new total is shown BEFORE anything is committed
+    const quote = await screen.findByTestId('type-change-quote');
+    expect(quote).toHaveTextContent(/150\D000/);
+    expect(quote).toHaveTextContent(/90\D000/);
+    expect(calls.map((c) => c.url.split('/').pop())).toEqual(['move-preview']);
+    expect(calls[0]!.body).toEqual({
+      roomId: null,
+      roomTypeId: 't2',
+      changeRoomType: true,
+      requote: true,
+      arrival: today,
+      departure: addDays(today, 3),
+    });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Confirmer le changement' }));
+    await waitFor(() => expect(calls).toHaveLength(2));
+    expect(calls[1]!.url).toMatch(/\/reservations\/r1\/rooms\/s1\/move$/);
+    expect(calls[1]!.body).toEqual({
+      roomId: null,
+      roomTypeId: 't2',
+      changeRoomType: true,
+      requote: true,
+    });
   });
 
   it('refetches the planning when planning.changed arrives for the property', async () => {

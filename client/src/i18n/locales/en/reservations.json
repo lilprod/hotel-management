@@ -43,7 +43,7 @@
   },
   "planning": {
     "title": "Room planning",
-    "subtitle": "Drag a booking to move it, pull its right edge to extend or shorten it, drag across free cells to create one.",
+    "subtitle": "Drag a booking to move it, pull its left or right edge to change arrival or departure, drag across free cells to create one.",
     "aria": "Room planning by type and night",
     "rooms": "{{count}} rooms",
     "occupancy": "Occupancy: {{pct}}%",
@@ -54,7 +54,15 @@
     "cancelled": "Cancelled",
     "expand": "Expand {{g}}",
     "collapse": "Collapse {{g}}",
-    "resize": "Change departure date"
+    "resize": "Change departure date",
+    "resizeStart": "Change arrival date",
+    "typeChange": {
+      "title": "Change room type?",
+      "body": "{{guest}} moves from {{from}} to {{to}} (unassigned). The stay is re-quoted at the rates of the new type.",
+      "total": "Current total: {{current}}. New total: {{next}} ({{delta}}).",
+      "confirm": "Confirm change",
+      "unavailable": "Change not possible"
+    }
   },
   "nav": {
     "today": "Today",
