@@ -378,11 +378,26 @@ describe('reservation lifecycle', () => {
     const id = r.body.reservation.id;
     const bad = await asA('post', `/reservations/${id}/cancel`).send({ reasonCode: 'UNKNOWN' });
     expect(bad.status).toBe(422);
+    // Preview: same maths as the action, read-only, permission reservations.cancel, tenant scoped.
+    const preview = await asA('get', `/reservations/${id}/cancellation-preview`);
+    expect(preview.status, JSON.stringify(preview.body)).toBe(200);
+    expect(preview.body).toMatchObject({ kind: 'CANCELLATION', amount: 30_000, waived: false });
+    expect(
+      (await call('get', A, tokReader, `/reservations/${id}/cancellation-preview`)).status,
+    ).toBe(403);
+    expect((await call('get', B, tokB, `/reservations/${id}/cancellation-preview`)).status).toBe(
+      404,
+    );
+    const noShowPreview = await asA('get', `/reservations/${id}/cancellation-preview`).query({
+      kind: 'NO_SHOW',
+    });
+    expect(noShowPreview.status).toBe(409); // arrival is not the business date yet
     const c = await asA('post', `/reservations/${id}/cancel`).send({
       reasonCode: 'GUEST_REQUEST',
       note: 'changed plans',
     });
     expect(c.status, JSON.stringify(c.body)).toBe(200);
+    expect(c.body.penalty).toEqual(preview.body);
     expect(c.body.penalty).toMatchObject({
       kind: 'CANCELLATION',
       amount: 30_000,

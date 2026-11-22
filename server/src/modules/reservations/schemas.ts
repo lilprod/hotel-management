@@ -115,6 +115,9 @@ export const cancelBody = z.object({
   /** Waive the computed penalty (still stored, with the waiver). */
   waivePenalty: z.boolean().default(false),
 });
+export const penaltyPreviewQuery = z.object({
+  kind: z.enum(['CANCELLATION', 'NO_SHOW']).default('CANCELLATION'),
+});
 export const noShowBody = z.object({ waivePenalty: z.boolean().default(false) });
 export const confirmBody = z.object({ notifyGuest: z.boolean().default(true) });
 

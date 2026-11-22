@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query';
 import { ApiError } from '@hm/ui';
 
 import { apiClient } from '../auth/session';
@@ -337,3 +338,29 @@ export function conflictDetails(err: unknown): ConflictDetails | null {
 }
 
 export { ApiError };
+
+/**
+ * Penalty PREVIEW shown before cancelling / marking a no-show (OP-14): the server computes it with
+ * the same policy and maths as the action itself (`GET /reservations/:id/cancellation-preview`).
+ * `null` data when the preview cannot be read (the modal then says it is unknown).
+ */
+export function usePenaltyPreview(
+  reservation: Reservation | undefined,
+  kind: 'CANCELLATION' | 'NO_SHOW',
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: ['penalty-preview', reservation?.id, reservation?.updatedAt, kind],
+    enabled: enabled && !!reservation,
+    retry: false,
+    queryFn: async () => {
+      try {
+        return await get<Penalty>(
+          `/reservations/${reservation!.id}/cancellation-preview${qs({ kind })}`,
+        );
+      } catch {
+        return null;
+      }
+    },
+  });
+}

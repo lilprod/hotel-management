@@ -1,35 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { computePenalty } from './penalty';
 import { applyOp, buildPlanningModel, segmentFlags, segmentName } from './planning-model';
 import type { PlanningData } from './api';
-
-describe('penalty preview (mirror of the server computePenalty)', () => {
-  const rules = {
-    tiers: [
-      { daysBefore: 7, penaltyPercent: 0 },
-      { daysBefore: 2, penaltyPercent: 50 },
-    ],
-    noShowPercent: 100,
-    firstNightMinimum: true,
-  };
-  const base = { today: '2026-03-01', stayTotal: 100000, firstNight: 40000 };
-  it('applies the tier reached, the late rate, the no-show rate and the first night minimum', () => {
-    expect(computePenalty(rules, { ...base, arrival: '2026-03-10' }).amount).toBe(0);
-    expect(computePenalty(rules, { ...base, arrival: '2026-03-04' }).amount).toBe(50000);
-    expect(computePenalty(rules, { ...base, arrival: '2026-03-02' }).amount).toBe(100000);
-    expect(computePenalty(rules, { ...base, arrival: '2026-03-10', noShow: true }).amount).toBe(
-      100000,
-    );
-    expect(
-      computePenalty(
-        { ...rules, tiers: [{ daysBefore: 2, penaltyPercent: 10 }] },
-        { ...base, arrival: '2026-03-04' },
-      ).amount,
-    ).toBe(40000);
-    expect(computePenalty(null, { ...base, arrival: '2026-03-04' }).amount).toBe(0);
-  });
-});
 
 const data: PlanningData = {
   propertyId: 'p',

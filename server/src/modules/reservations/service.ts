@@ -1312,6 +1312,14 @@ export async function cancelReservation(
   return { reservation, penalty };
 }
 
+/** Read-only penalty the cancellation / no-show would cost right now (same policy and maths). */
+export async function previewPenalty(ctx: RCtx, id: string, kind: 'CANCELLATION' | 'NO_SHOW') {
+  const cur = await loadForWrite(ctx, id);
+  const { facts } = await transitionFacts(ctx, cur);
+  assertGuard(cur.status, kind === 'NO_SHOW' ? 'NO_SHOW' : 'CANCELLED', facts);
+  return computeReservationPenalty(ctx, cur, facts.businessDate, kind, false);
+}
+
 export async function markNoShow(ctx: RCtx, id: string, waivePenalty: boolean) {
   const cur = await loadForWrite(ctx, id);
   const { facts } = await transitionFacts(ctx, cur);

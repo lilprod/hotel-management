@@ -315,30 +315,24 @@ describe('ReservationDrawer: cancellation', () => {
         if (path.endsWith('/reservations/r1')) return json(200, reservation);
         if (path.endsWith('/lodging/properties/p1'))
           return json(200, { id: 'p1', businessDate: today });
-        if (path.endsWith('/pricing/rate-plans'))
+        if (path.endsWith('/reservations/r1/cancellation-preview'))
           return json(200, {
-            items: [
-              { id: 'rp1', code: 'BB', name: 'BB', cancellationPolicyId: 'pol1', isActive: true },
-            ],
-            nextCursor: null,
-          });
-        if (path.endsWith('/pricing/policies'))
-          return json(200, {
-            items: [
+            kind: 'CANCELLATION',
+            amount: 50000,
+            computedAmount: 50000,
+            waived: false,
+            currency: 'XOF',
+            businessDate: today,
+            lines: [
               {
-                id: 'pol1',
-                kind: 'CANCELLATION',
-                rules: {
-                  tiers: [
-                    { daysBefore: 7, penaltyPercent: 0 },
-                    { daysBefore: 2, penaltyPercent: 50 },
-                  ],
-                  noShowPercent: 100,
-                  firstNightMinimum: false,
-                },
+                reservationRoomId: 'rr1',
+                policyId: 'pol1',
+                percent: 50,
+                amount: 50000,
+                daysBefore: 3,
+                tier: 2,
               },
             ],
-            nextCursor: null,
           });
         if (path.endsWith('/lookups/cancel_reason'))
           return json(200, {

@@ -26,9 +26,17 @@ import { useTranslation } from 'react-i18next';
 import { useApiError } from '../auth/useApiError';
 import { useCan } from '../auth/useCan';
 import { formatMoney } from '../pages/settings/util';
-import { conflictDetails, formatDayLong, get, keys, nightsBetween, post, qs } from './api';
+import {
+  conflictDetails,
+  formatDayLong,
+  get,
+  keys,
+  nightsBetween,
+  post,
+  qs,
+  usePenaltyPreview,
+} from './api';
 import type { AuditEntry, Reservation, ReservationRoom } from './api';
-import { usePenaltyPreview } from './penalty';
 import { useCustomFieldDefs, useLabel, useLookup, useRoomTypes } from './refs';
 import { ReservationStatusTag } from './status';
 
@@ -459,6 +467,8 @@ function CancelModal({
     },
   });
   const p = preview.data;
+  const percent = Math.max(0, ...(p?.lines.map((l) => l.percent) ?? []));
+  const daysBefore = p?.lines[0]?.daysBefore ?? 0;
   return (
     <Modal
       open={open}
@@ -484,10 +494,10 @@ function CancelModal({
                 : t('penalty.none')
             }
             description={
-              p.percent > 0
+              percent > 0
                 ? t('penalty.detail', {
-                    percent: p.percent,
-                    days: p.daysBefore,
+                    percent,
+                    days: daysBefore,
                     amount: formatMoney(p.amount, p.currency),
                   })
                 : undefined

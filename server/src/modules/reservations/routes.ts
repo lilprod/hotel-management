@@ -16,6 +16,8 @@ import {
   listReservationsQuery,
   moveBody,
   noShowBody,
+  penaltyPreviewQuery,
+  penaltySchema,
   reservationPage,
   reservationResult,
   reservationSchema,
@@ -112,6 +114,18 @@ export const reservationsRouter = createModuleRouter()
     responses: { 200: { description: 'Cancelled', schema: cancelResult } },
     handler: (req) =>
       withRCtx(req, (ctx) => service.cancelReservation(ctx, req.valid.params.id, req.valid.body)),
+  })
+  .route({
+    method: 'get',
+    path: '/:id/cancellation-preview',
+    summary: 'Penalty the cancellation (or no-show) would cost now, same computation as the action',
+    middleware: [can('reservations.cancel'), feature],
+    request: { params: idParams, query: penaltyPreviewQuery },
+    responses: { 200: { description: 'Penalty preview', schema: penaltySchema } },
+    handler: (req) =>
+      withRCtx(req, (ctx) =>
+        service.previewPenalty(ctx, req.valid.params.id, req.valid.query.kind),
+      ),
   })
   .route({
     method: 'post',
