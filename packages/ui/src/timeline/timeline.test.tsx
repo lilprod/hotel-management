@@ -160,7 +160,7 @@ describe('ResourceTimeline', () => {
     const { container } = render(
       <ResourceTimeline {...baseProps} segments={[seg()]} onResize={onResize} />,
     );
-    const handle = container.querySelector('[data-tl-handle]')!;
+    const handle = container.querySelector('[data-tl-handle="end"]')!;
     down(handle, LABEL + 5 * CELL - 2, R1_Y); // end boundary = slot 5 (03-06)
     move(LABEL + 7 * CELL, R1_Y);
     expect(container.querySelector('[data-tl-ghost="resize"]')).toBeInTheDocument();
@@ -173,6 +173,39 @@ describe('ResourceTimeline', () => {
     move(LABEL + 0 * CELL, R1_Y);
     up(LABEL + 0 * CELL, R1_Y);
     expect(onResize).toHaveBeenLastCalledWith(expect.objectContaining({ end: '2026-03-04' }));
+  });
+
+  it('resizes the start edge (earlier / later arrival), never past the end, and can be disabled', () => {
+    const onResize = vi.fn();
+    const { container, rerender } = render(
+      <ResourceTimeline {...baseProps} segments={[seg()]} onResize={onResize} />,
+    );
+    const handle = container.querySelector('[data-tl-handle="start"]')!;
+    down(handle, LABEL + 2 * CELL + 2, R1_Y); // start boundary = slot 2 (03-03)
+    move(LABEL + 0 * CELL, R1_Y);
+    expect(container.querySelector('[data-tl-ghost="resize"]')).toBeInTheDocument();
+    up(LABEL + 0 * CELL, R1_Y);
+    expect(onResize).toHaveBeenLastCalledWith(
+      expect.objectContaining({ edge: 'start', start: '2026-03-01', end: '2026-03-06' }),
+    );
+
+    down(handle, LABEL + 2 * CELL + 2, R1_Y);
+    move(LABEL + 9 * CELL, R1_Y); // past the end: keeps one slot
+    up(LABEL + 9 * CELL, R1_Y);
+    expect(onResize).toHaveBeenLastCalledWith(
+      expect.objectContaining({ edge: 'start', start: '2026-03-05', end: '2026-03-06' }),
+    );
+
+    onResize.mockClear();
+    rerender(
+      <ResourceTimeline
+        {...baseProps}
+        segments={[seg({ resizableStart: false })]}
+        onResize={onResize}
+      />,
+    );
+    expect(container.querySelector('[data-tl-handle="start"]')).not.toBeInTheDocument();
+    expect(container.querySelector('[data-tl-handle="end"]')).toBeInTheDocument();
   });
 
   it('selects a range by dragging on empty cells (inclusive cells, exclusive end)', () => {

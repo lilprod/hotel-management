@@ -60,6 +60,8 @@ export interface TimelineSegment {
   colorKey?: string;
   draggable?: boolean;
   resizable?: boolean;
+  /** Left edge (start) can be dragged too; defaults to `resizable`. */
+  resizableStart?: boolean;
   tooltip?: ReactNode;
   data?: unknown;
 }
@@ -82,6 +84,8 @@ export interface MoveEvent {
 }
 export interface ResizeEvent {
   segment: TimelineSegment;
+  /** Edge that was dragged: `start` changes the arrival, `end` the departure. */
+  edge: 'start' | 'end';
   start: string;
   end: string;
 }
@@ -163,6 +167,8 @@ interface Ghost {
 
 interface DragState {
   kind: 'move' | 'resize' | 'select';
+  /** For `resize`: which edge is dragged. */
+  edge?: 'start' | 'end';
   segment?: TimelineSegment;
   startX: number;
   startY: number;
@@ -364,6 +370,23 @@ export function ResourceTimeline(props: ResourceTimelineProps) {
         return { kind: 'select', resourceId: d.resourceId, start: lo, end: hi + 1, valid: true };
       }
       const seg = d.segment!;
+      if (d.kind === 'resize' && d.edge === 'start') {
+        const start = clamp(Math.round(px / snap) * snap, 0, d.segEnd - snap);
+        const valid =
+          latest.current.canDrop?.(seg, {
+            resourceId: seg.resourceId,
+            start: toValue(start),
+            end: toValue(d.segEnd),
+          }) ?? true;
+        return {
+          kind: 'resize',
+          resourceId: seg.resourceId,
+          start,
+          end: d.segEnd,
+          valid,
+          segmentId: seg.id,
+        };
+      }
       if (d.kind === 'resize') {
         const end = Math.max(d.segStart + snap, Math.round(px / snap) * snap);
         const valid =
@@ -415,8 +438,13 @@ export function ResourceTimeline(props: ResourceTimelineProps) {
       }
       const seg = d.segment!;
       if (g.kind === 'resize') {
-        if (g.end !== d.segEnd)
-          cb.onResize?.({ segment: seg, start: toValue(g.start), end: toValue(g.end) });
+        if (g.end !== d.segEnd || g.start !== d.segStart)
+          cb.onResize?.({
+            segment: seg,
+            edge: d.edge ?? 'end',
+            start: toValue(g.start),
+            end: toValue(g.end),
+          });
         return;
       }
       if (g.start !== d.segStart || g.resourceId !== seg.resourceId)
@@ -509,15 +537,23 @@ export function ResourceTimeline(props: ResourceTimelineProps) {
   useEffect(() => () => stopDrag.current(), []);
 
   const onSegPointerDown = useCallback(
-    (e: ReactPointerEvent<HTMLElement>, seg: TimelineSegment, mode: 'move' | 'resize') => {
+    (
+      e: ReactPointerEvent<HTMLElement>,
+      seg: TimelineSegment,
+      mode: 'move' | 'resize' | 'resize-start',
+    ) => {
       if (e.button !== 0) return;
       if (mode === 'move' && !seg.draggable) return;
       if (mode === 'resize' && !seg.resizable) return;
+      if (mode === 'resize-start' && !(seg.resizableStart ?? seg.resizable)) return;
       e.stopPropagation();
       const { px } = locate(e.clientX, e.clientY);
       const start = toSlots(seg.start);
       beginDrag({
-        kind: mode,
+        kind: mode === 'move' ? 'move' : 'resize',
+        ...(mode === 'move'
+          ? {}
+          : { edge: mode === 'resize' ? ('end' as const) : ('start' as const) }),
         segment: seg,
         startX: e.clientX,
         startY: e.clientY,
@@ -640,7 +676,12 @@ export function ResourceTimeline(props: ResourceTimelineProps) {
           (g.resourceId === seg.resourceId && g.start === orig.start && g.end !== orig.end)
         ) {
           if (g.end !== orig.end)
-            cb.onResize?.({ segment: seg, start: toValue(g.start), end: toValue(g.end) });
+            cb.onResize?.({
+              segment: seg,
+              edge: 'end',
+              start: toValue(g.start),
+              end: toValue(g.end),
+            });
         } else if (g.resourceId !== seg.resourceId || g.start !== orig.start || g.end !== orig.end)
           cb.onMove?.({ segment: seg, ...target });
         setAnnounce(labels.dropped(segText));
@@ -1154,7 +1195,7 @@ interface SegmentViewProps {
   onPointerDown: (
     e: ReactPointerEvent<HTMLElement>,
     seg: TimelineSegment,
-    mode: 'move' | 'resize',
+    mode: 'move' | 'resize' | 'resize-start',
   ) => void;
   onKeyDown: (e: KeyboardEvent<HTMLElement>, seg: TimelineSegment) => void;
   onTip: (t: { x: number; y: number; content: ReactNode } | null) => void;
@@ -1207,9 +1248,25 @@ const SegmentView = memo(function SegmentView(p: SegmentViewProps) {
       }}
     >
       {s.label}
+      {(s.resizableStart ?? s.resizable) && !clippedStart ? (
+        <span
+          data-tl-handle="start"
+          aria-hidden
+          title={p.resizeLabel}
+          onPointerDown={(e) => p.onPointerDown(e, s, 'resize-start')}
+          style={{
+            position: 'absolute',
+            insetBlock: 0,
+            insetInlineStart: 0,
+            width: 8,
+            cursor: 'ew-resize',
+            background: 'color-mix(in srgb, currentColor 30%, transparent)',
+          }}
+        />
+      ) : null}
       {s.resizable && !clippedEnd ? (
         <span
-          data-tl-handle
+          data-tl-handle="end"
           aria-hidden
           title={p.resizeLabel}
           onPointerDown={(e) => p.onPointerDown(e, s, 'resize')}
