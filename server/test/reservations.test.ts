@@ -842,6 +842,83 @@ describe('planning segments appear exactly once', () => {
   });
 });
 
+describe('planning: start-edge resize and drop on another room type', () => {
+  const lineOf = async (id: string) =>
+    (await asA('get', `/reservations/${id}`)).body as {
+      roomTotal: number;
+      arrival: string;
+      rooms: { id: string; roomTypeId: string; roomId: string | null; arrival: string }[];
+    };
+
+  it('previews the re-quote without writing, then moves to an unassigned slot of another type', async () => {
+    const r = await book('2027-04-10', '2027-04-13', [{ roomTypeId: S.std }]);
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+    const id = r.body.reservation.id as string;
+    const line = r.body.reservation.rooms[0].id as string;
+    const before = r.body.reservation.roomTotal as number;
+    const url = `/reservations/${id}/rooms/${line}`;
+    const body = { roomId: null, roomTypeId: S.dlx, changeRoomType: true };
+
+    const prev = await asA('post', `${url}/move-preview`).send(body);
+    expect(prev.status, JSON.stringify(prev.body)).toBe(200);
+    expect(prev.body).toMatchObject({ currentTotal: before, newTotal: 150_000 });
+    expect(prev.body.delta).toBe(150_000 - before);
+    // nothing written
+    expect((await lineOf(id)).rooms[0]).toMatchObject({ roomTypeId: S.std, roomId: null });
+    expect((await lineOf(id)).roomTotal).toBe(before);
+
+    expect((await asA('post', `${url}/move`).send({ ...body, changeRoomType: false })).status).toBe(
+      422,
+    );
+    expect((await call('post', A, tokReader, `${url}/move-preview`).send(body)).status).toBe(403);
+    expect((await call('post', B, tokB, `${url}/move-preview`).send(body)).status).toBe(404);
+
+    const done = await asA('post', `${url}/move`).send(body);
+    expect(done.status, JSON.stringify(done.body)).toBe(200);
+    expect(done.body.roomTotal).toBe(150_000);
+    expect(done.body.rooms[0]).toMatchObject({ roomTypeId: S.dlx, roomId: null });
+  });
+
+  it('refuses a preview that is not available, as the move would', async () => {
+    const hold = await book('2027-05-10', '2027-05-12', [
+      { roomTypeId: S.sgl, roomId: S.rooms['301'], adults: 1 },
+    ]);
+    const r = await book('2027-05-10', '2027-05-12', [{ roomTypeId: S.std, adults: 1 }]);
+    expect(hold.status).toBe(201);
+    const id = r.body.reservation.id as string;
+    const url = `/reservations/${id}/rooms/${r.body.reservation.rooms[0].id}`;
+    const body = { roomId: null, roomTypeId: S.sgl, changeRoomType: true };
+    expect((await asA('post', `${url}/move-preview`).send(body)).status).toBe(409);
+    expect((await asA('post', `${url}/move`).send(body)).status).toBe(409);
+  });
+
+  it('start-edge resize: an earlier arrival prices the new night, a later one releases it', async () => {
+    const r = await book('2027-06-10', '2027-06-13', [
+      { roomTypeId: S.std, roomId: S.rooms['101'] },
+    ]);
+    expect(r.status).toBe(201);
+    const id = r.body.reservation.id as string;
+    const line = r.body.reservation.rooms[0].id as string;
+    const url = `/reservations/${id}/rooms/${line}/move`;
+    const earlier = await asA('post', url).send({ arrival: '2027-06-09', departure: '2027-06-13' });
+    expect(earlier.status, JSON.stringify(earlier.body)).toBe(200);
+    expect(earlier.body.arrival).toBe('2027-06-09');
+    expect(earlier.body.rooms[0].dailyPrices).toHaveLength(4);
+    expect(earlier.body.rooms[0].roomId).toBe(S.rooms['101']);
+    // another stay holds 101 on 06-08: arriving one more day earlier clashes (409, nothing changed)
+    const other = await book('2027-06-07', '2027-06-09', [
+      { roomTypeId: S.std, roomId: S.rooms['101'] },
+    ]);
+    expect(other.status).toBe(201);
+    const clash = await asA('post', url).send({ arrival: '2027-06-08', departure: '2027-06-13' });
+    expect(clash.status).toBe(409);
+    expect((await lineOf(id)).arrival).toBe('2027-06-09');
+    const later = await asA('post', url).send({ arrival: '2027-06-11', departure: '2027-06-13' });
+    expect(later.status).toBe(200);
+    expect(later.body.rooms[0].dailyPrices).toHaveLength(2);
+  });
+});
+
 describe('planning performance', () => {
   it('150 rooms × 31 days in < 300 ms', async () => {
     const { admin, config } = env.services;

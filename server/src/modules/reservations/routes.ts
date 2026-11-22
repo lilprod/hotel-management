@@ -15,6 +15,7 @@ import {
   idParams,
   listReservationsQuery,
   moveBody,
+  movePreview,
   noShowBody,
   penaltyPreviewQuery,
   penaltySchema,
@@ -197,5 +198,17 @@ export const reservationsRouter = createModuleRouter()
     handler: (req) =>
       withRCtx(req, (ctx) =>
         service.moveRoom(ctx, req.valid.params.id, req.valid.params.roomLineId, req.valid.body),
+      ),
+  })
+  .route({
+    method: 'post',
+    path: '/:id/rooms/:roomLineId/move-preview',
+    summary: 'Re-quote of a move (same body as move): new total and difference, nothing is written',
+    middleware: [can('reservations.assign'), feature],
+    request: { params: roomParams, body: moveBody },
+    responses: { 200: { description: 'Preview', schema: movePreview } },
+    handler: (req) =>
+      withRCtx(req, (ctx) =>
+        service.previewMove(ctx, req.valid.params.id, req.valid.params.roomLineId, req.valid.body),
       ),
   });

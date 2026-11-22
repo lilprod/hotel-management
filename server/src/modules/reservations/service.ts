@@ -696,6 +696,15 @@ export interface RebookOptions {
   sys?: SysData;
   /** Only the departure may change (CHECKED_IN extension / early departure). */
   departureOnly?: boolean;
+  /** Computes prices and checks availability, then stops (nothing written): see MovePreviewSignal. */
+  dryRun?: boolean;
+}
+
+/** Thrown by a dry-run rebook with the re-quoted totals; never reaches the HTTP layer. */
+class MovePreviewSignal {
+  constructor(
+    readonly preview: { currency: string; currentTotal: number; newTotal: number; delta: number },
+  ) {}
 }
 
 /** Loads a reservation for a write and checks scope + status. */
@@ -842,6 +851,30 @@ export async function rebook(
   ];
   if (!afterLines.length)
     throw invalid('rooms', 'A reservation keeps at least one room (cancel it instead)');
+
+  if (opts.dryRun) {
+    if (changed.length) {
+      const { from, to } = spanOf(changed);
+      const inv = await loadInventory(ctx.db as never, {
+        propertyId: prop.id,
+        from,
+        to,
+        roomTypeIds: [...new Set(changed.map((l) => l.roomTypeId))],
+        exclude: touchedIds,
+        allowance,
+      });
+      assertDemands(inv, changed.map(demandOf));
+    }
+    const newTotal = afterLines
+      .filter((l) => isHolding(l.status))
+      .reduce((s, l) => s + sumNights(l.dailyPrices), 0);
+    throw new MovePreviewSignal({
+      currency: afterLines[0]?.currency ?? before.currency,
+      currentTotal: before.roomTotal,
+      newTotal,
+      delta: newTotal - before.roomTotal,
+    });
+  }
 
   await ctx.db.$transaction(async (tx) => {
     await lockInventory(
@@ -1064,16 +1097,34 @@ export async function moveRoom(
   roomLineId: string,
   input: {
     roomId?: string | null | undefined;
+    roomTypeId?: string | undefined;
     arrival?: string | undefined;
     departure?: string | undefined;
     changeRoomType: boolean;
     requote: boolean;
   },
+  dryRun = false,
 ) {
   const cur = await loadForWrite(ctx, id);
   const rr = lineOf(cur, roomLineId);
   const change: LineChange = { id: rr.id, keepPrices: !input.requote };
-  if (input.roomId !== undefined) {
+  if (input.roomTypeId && !input.roomId && input.roomTypeId !== rr.roomTypeId) {
+    if (!input.changeRoomType)
+      throw invalid(
+        'roomTypeId',
+        'The room type changes (set changeRoomType)',
+        'ROOM_TYPE_MISMATCH',
+      );
+    must(
+      await ctx.db.roomType.findFirst({
+        where: { id: input.roomTypeId, propertyId: cur.propertyId, deletedAt: null },
+      }),
+      'Room type',
+    );
+    change.roomTypeId = input.roomTypeId;
+    change.roomId = null;
+    change.keepPrices = false; // another room type is re-quoted
+  } else if (input.roomId !== undefined) {
     change.roomId = input.roomId;
     if (input.roomId) {
       const room = must(
@@ -1096,7 +1147,29 @@ export async function moveRoom(
     const len = nightsOf(formatDay(rr.arrival), formatDay(rr.departure)).length;
     change.departure = input.departure ?? addDays(input.arrival, len);
   } else if (input.departure) change.departure = input.departure;
-  return rebook(ctx, id, [change], { action: 'move', requote: input.requote });
+  if (!dryRun) return rebook(ctx, id, [change], { action: 'move', requote: input.requote });
+  try {
+    await rebook(ctx, id, [change], { action: 'move', requote: input.requote, dryRun: true });
+  } catch (err) {
+    if (err instanceof MovePreviewSignal) return err.preview;
+    throw err;
+  }
+  throw new Error('Dry run did not stop');
+}
+
+/** Re-quote shown before a risky planning move (room type change): nothing is written. */
+export async function previewMove(
+  ctx: RCtx,
+  id: string,
+  roomLineId: string,
+  input: Parameters<typeof moveRoom>[3],
+) {
+  return (await moveRoom(ctx, id, roomLineId, input, true)) as {
+    currency: string;
+    currentTotal: number;
+    newTotal: number;
+    delta: number;
+  };
 }
 
 /** Extension / early departure: every room leaving on the dossier departure follows. */

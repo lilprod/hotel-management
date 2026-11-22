@@ -102,12 +102,20 @@ export const assignBody = z.object({
 export const moveBody = z
   .object({
     roomId: uuid.nullish(),
+    /** With `roomId: null`: stay unassigned but on this room type (needs `changeRoomType`, re-quoted). */
+    roomTypeId: uuid.optional(),
     arrival: dayString.optional(),
     departure: dayString.optional(),
     changeRoomType: z.boolean().default(false),
     requote: z.boolean().default(false),
   })
   .superRefine(datesRefine);
+export const movePreview = z.object({
+  currency: z.string(),
+  currentTotal: z.number().int(),
+  newTotal: z.number().int(),
+  delta: z.number().int(),
+});
 export const datesBody = z.object({ departure: dayString });
 export const cancelBody = z.object({
   reasonCode: lookupCode,
