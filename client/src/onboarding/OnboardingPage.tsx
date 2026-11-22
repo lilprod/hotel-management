@@ -1,16 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import {
-  Alert,
-  Button,
-  Card,
-  Flex,
-  Grid,
-  Popconfirm,
-  Progress,
-  Skeleton,
-  Steps,
-  Typography,
-} from 'antd';
+import { Alert, Button, Card, Flex, Grid, Popconfirm, Progress, Skeleton, Typography } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -31,6 +20,7 @@ import {
   type StatePatch,
 } from './api';
 import { markRedirected } from './redirect';
+import { ResponsiveSteps } from './ResponsiveSteps';
 import { BrandingStep } from './steps/BrandingStep';
 import type { StepSave } from './steps/common';
 import { PropertyStep } from './steps/PropertyStep';
@@ -184,17 +174,7 @@ export function OnboardingPage() {
           aria-label={t('progress')}
           format={() => `${step + 1} / ${TOTAL_STEPS}`}
         />
-        {screens.md ? (
-          <Steps
-            size="small"
-            current={step}
-            style={{ margin: '16px 0 24px' }}
-            items={STEP_KEYS.map((k, i) => ({
-              title: t(`steps.${k}`),
-              status: i < step ? 'finish' : i === step ? 'process' : 'wait',
-            }))}
-          />
-        ) : null}
+        <ResponsiveSteps labels={STEP_KEYS.map((k) => t(`steps.${k}`))} current={step} />
         <Card
           title={
             <>

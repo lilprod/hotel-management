@@ -76,7 +76,8 @@ export function checklistOf(v: OnboardingView): Record<Exclude<StepKey, 'recap'>
     rates: c.has(3) || v.facts.rates > 0,
     taxes: c.has(4) || v.facts.taxes > 0,
     team: c.has(5) || v.facts.team,
-    branding: c.has(6) || v.facts.branding,
+    // Only an uploaded logo counts: passing or finishing the step without one does not.
+    branding: v.facts.branding,
   };
 }
 

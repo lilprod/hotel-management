@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import i18n from '../i18n';
 import { json, signIn, signOut, stubApi } from '../test-utils';
 import { DemoDataPanel } from './DemoDataPanel';
+import { ResponsiveSteps } from './ResponsiveSteps';
 import { DashboardPage } from './DashboardPage';
 import { OnboardingPage } from './OnboardingPage';
 import { resetRedirect } from './redirect';
@@ -334,6 +335,25 @@ describe('dashboard checklist', () => {
     );
   });
 
+  it('counts "Ajouter votre logo" as done only when a logo was uploaded', async () => {
+    // the branding step was passed / finished (6 completed) but no logo exists
+    server(view({ status: 'skipped', completedSteps: [6] }));
+    const first = renderDashboard();
+    const card = await screen.findByTestId('onboarding-checklist');
+    expect(within(card).getByText(/2 étape\(s\) sur 7 terminée\(s\)/)).toBeInTheDocument();
+    expect(within(card).getByRole('button', { name: /Ajouter votre logo/ })).toBeInTheDocument();
+    first.unmount();
+    vi.unstubAllGlobals();
+
+    const withLogo = view({ status: 'skipped', completedSteps: [] });
+    withLogo.facts.branding = true;
+    server(withLogo);
+    renderDashboard();
+    const card2 = await screen.findByTestId('onboarding-checklist');
+    expect(within(card2).getByText(/3 étape\(s\) sur 7 terminée\(s\)/)).toBeInTheDocument();
+    expect(within(card2).queryByRole('button', { name: /Ajouter votre logo/ })).toBeNull();
+  });
+
   it('does not query the wizard for users without settings.manage', async () => {
     signIn({ permissions: ['reservations.read'] });
     const api = server(view());
@@ -381,5 +401,25 @@ describe('demo data settings panel', () => {
       api.calls.some((c) => c.method === 'DELETE' && c.url.endsWith('/onboarding/demo-data')),
     ).toBe(true);
     expect(await screen.findByText('Données de démonstration supprimées.')).toBeInTheDocument();
+  });
+});
+
+describe('ResponsiveSteps', () => {
+  const labels = ['Établissement', 'Types de chambre', 'Image de marque'];
+  it('shows the full labels in the wide layout and numbered dots with tooltips when compact', () => {
+    const wide = render(<ResponsiveSteps labels={labels} current={1} compact={false} />);
+    for (const l of labels) expect(wide.getByText(l)).toBeInTheDocument();
+    wide.unmount();
+    const small = render(<ResponsiveSteps labels={labels} current={1} compact />);
+    expect(small.getByTestId('steps-compact')).toBeInTheDocument();
+    expect(small.getByRole('img', { name: 'Types de chambre' })).toBeInTheDocument();
+    expect(small.getByText('3')).toBeInTheDocument();
+    expect(small.getByRole('img', { name: 'Image de marque' }).closest('li')).not.toHaveAttribute(
+      'aria-current',
+    );
+    expect(small.getByRole('img', { name: 'Types de chambre' }).closest('li')).toHaveAttribute(
+      'aria-current',
+      'step',
+    );
   });
 });
