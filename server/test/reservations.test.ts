@@ -795,6 +795,37 @@ describe('isolation, permissions, realtime and planning', () => {
   });
 });
 
+describe('planning segments appear exactly once', () => {
+  it('an assigned room only on its room, an unassigned one only on its type (no duplicate segment)', async () => {
+    const assigned = await book('2027-02-01', '2027-02-04', [
+      { roomTypeId: S.std, roomId: S.rooms['101'] },
+    ]);
+    const loose = await book('2027-02-01', '2027-02-04', [{ roomTypeId: S.std }]);
+    expect(assigned.status, JSON.stringify(assigned.body)).toBe(201);
+    expect(loose.status, JSON.stringify(loose.body)).toBe(201);
+    const res = await asA('get', '/planning').query({
+      propertyId: A.propertyId,
+      from: '2027-01-30',
+      to: '2027-02-10',
+    });
+    expect(res.status).toBe(200);
+    const segs = res.body.segments as {
+      id: string;
+      reservationId: string;
+      roomId: string | null;
+      roomTypeId: string;
+    }[];
+    const ids = segs.map((x) => x.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    const a = segs.filter((x) => x.reservationId === assigned.body.reservation.id);
+    const l = segs.filter((x) => x.reservationId === loose.body.reservation.id);
+    expect(a).toHaveLength(1);
+    expect(a[0]).toMatchObject({ roomId: S.rooms['101'], roomTypeId: S.std });
+    expect(l).toHaveLength(1);
+    expect(l[0]).toMatchObject({ roomId: null, roomTypeId: S.std });
+  });
+});
+
 describe('planning performance', () => {
   it('150 rooms × 31 days in < 300 ms', async () => {
     const { admin, config } = env.services;

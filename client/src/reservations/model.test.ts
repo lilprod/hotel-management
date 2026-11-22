@@ -133,3 +133,17 @@ describe('planning model', () => {
     expect(data.segments.find((s) => s.id === 's1')?.departure).toBe('2026-03-03'); // immutable
   });
 });
+
+describe('planning model: one segment per reservation_room', () => {
+  it('an assigned segment sits on its room only, an unassigned one in a lane of its type only', () => {
+    const m = buildPlanningModel(data, { unassignedLabel: 'NA' });
+    expect(m.segments).toHaveLength(data.segments.length);
+    expect(new Set(m.segments.map((s) => s.id)).size).toBe(data.segments.length);
+    for (const s of data.segments) {
+      const placed = m.segments.filter((x) => x.id === s.id);
+      expect(placed).toHaveLength(1);
+      if (s.roomId) expect(placed[0]!.resourceId).toBe(s.roomId);
+      else expect(placed[0]!.resourceId.startsWith('un:t1:')).toBe(true);
+    }
+  });
+});
