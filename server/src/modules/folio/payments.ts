@@ -58,13 +58,11 @@ const notInPlan = (feature: string) =>
 export const changeReason = (paymentId: string) => `Rendu de monnaie — paiement ${paymentId}`;
 
 async function checkReference(
-  ctx: FCtx,
   tx: Tx,
-  propertyId: string,
+  patterns: Record<string, string>,
   method: FolioPaymentMethod,
   reference: string,
 ) {
-  const patterns = await setting(ctx, folioSettings.referencePatterns, propertyId);
   const re = patterns[method];
   if (re && !new RegExp(re).test(reference))
     throw invalid('reference', `Invalid ${method} reference format`, 'REFERENCE_FORMAT');
@@ -108,6 +106,12 @@ export async function recordPayment(ctx: FCtx, folioId: string, input: PaymentIn
       throw invalid('tenderedAmount', 'A city-ledger transfer has no tender');
   }
   const reference = input.reference?.trim() || null;
+  // Settings are read before the transaction (they use their own connection).
+  const [patterns, maxAge, rounding] = await Promise.all([
+    setting(ctx, folioSettings.referencePatterns, f0.propertyId),
+    setting(ctx, folioSettings.fxMaxRateAgeDays, f0.propertyId),
+    setting(ctx, folioSettings.fxRounding, f0.propertyId),
+  ]);
   const out = await ctx.db.$transaction(async (tx) => {
     const folio = await lockFolio(tx, f0.id);
     assertOpen(folio);
@@ -126,14 +130,7 @@ export async function recordPayment(ctx: FCtx, folioId: string, input: PaymentIn
       const rate =
         currency === folio.currency
           ? '1'
-          : await rateFor(
-              tx,
-              currency,
-              folio.currency,
-              prop.businessDate,
-              await setting(ctx, folioSettings.fxMaxRateAgeDays, folio.propertyId),
-            );
-      const rounding = await setting(ctx, folioSettings.fxRounding, folio.propertyId);
+          : await rateFor(tx, currency, folio.currency, prop.businessDate, maxAge);
       let converted: bigint;
       try {
         converted = convertMinor(BigInt(input.tenderedAmount), rate, currency, folio.currency, rounding);
@@ -161,7 +158,7 @@ export async function recordPayment(ctx: FCtx, folioId: string, input: PaymentIn
     const change = tender ? tender.converted - applied : 0n;
     if (change > 0n && input.method !== 'CASH')
       throw invalid('tenderedAmount', 'Change can only be given on a cash payment', 'NO_CHANGE');
-    if (reference) await checkReference(ctx, tx, folio.propertyId, input.method, reference);
+    if (reference) await checkReference(tx, patterns, input.method, reference);
 
     let company: Awaited<ReturnType<typeof ensureCompanyFolio>> | null = null;
     if (input.method === 'CITY_LEDGER') {

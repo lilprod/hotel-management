@@ -198,6 +198,8 @@ async function stayInfo(tx: Tx, reservationRoomId: string | null) {
  */
 export async function issueInvoice(ctx: FCtx, input: z.infer<typeof issueBody>) {
   const f0 = await loadFolio(ctx, input.folioId);
+  // Read before the transaction: settings use their own connection.
+  const pattern = await setting(ctx, invoicingSettings.invoicePattern, f0.propertyId);
   const id = await ctx.db.$transaction(async (tx) => {
     const folio = await lockFolio(tx, f0.id);
     if (folio.status !== 'OPEN')
@@ -228,7 +230,6 @@ export async function issueInvoice(ctx: FCtx, input: z.infer<typeof issueBody>) 
       throw invalid('customer', 'A company invoice requires the company NIF (tax id)', 'NIF_REQUIRED');
     const prop = await loadProperty(tx, folio.propertyId);
     const year = Number(prop.businessDate.slice(0, 4));
-    const pattern = await setting(ctx, invoicingSettings.invoicePattern, folio.propertyId);
     const seq = await nextSequence(tx, sequenceScope(ctx.tenantId, folio.propertyId), 'invoice', { year });
     const number = formatSequence(pattern, seq, year);
     const payments = await paymentSummary(tx, folio.id);
@@ -432,6 +433,7 @@ export async function issueCreditNote(ctx: FCtx, invoiceId: string, input: z.inf
   const inv0 = await loadInvoice(ctx, invoiceId);
   if (inv0.creditNoteOfId) throw conflict('A credit note cannot be credited', { reason: 'IS_CREDIT_NOTE' });
   if (inv0.status === 'CREDITED') throw conflict('The invoice is already fully credited', { reason: 'ALREADY_CREDITED' });
+  const pattern = await setting(ctx, invoicingSettings.creditNotePattern, inv0.propertyId);
   const id = await ctx.db.$transaction(async (tx) => {
     const folio = await lockFolio(tx, inv0.folioId);
     const inv = await tx.invoice.findUniqueOrThrow({ where: { id: inv0.id } });
@@ -445,7 +447,6 @@ export async function issueCreditNote(ctx: FCtx, invoiceId: string, input: z.inf
     if (!selected.length) throw conflict('Nothing left to credit on this invoice', { reason: 'NOTHING_TO_CREDIT' });
     const prop = await loadProperty(tx, folio.propertyId);
     const year = Number(prop.businessDate.slice(0, 4));
-    const pattern = await setting(ctx, invoicingSettings.creditNotePattern, folio.propertyId);
     const seq = await nextSequence(tx, sequenceScope(ctx.tenantId, folio.propertyId), 'credit_note', { year });
     const number = formatSequence(pattern, seq, year);
     const reversals: LineRow[] = [];
