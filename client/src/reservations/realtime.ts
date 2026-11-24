@@ -50,12 +50,13 @@ function release() {
 }
 
 /**
- * Calls `onChange` for every `planning.changed` of `propertyId` (relayed envelope
- * `{ type, payload }` on the `event` channel, or a bare `planning.changed` event).
+ * Calls `onChange` for every `type` event of `propertyId` (relayed envelope `{ type, payload }`
+ * on the `event` channel, or a bare event named `type`).
  */
-export function usePlanningRealtime(
+export function useRealtimeEvent<T extends { propertyId: string }>(
+  type: string,
   propertyId: string | null,
-  onChange: (change: PlanningChange) => void,
+  onChange: (change: T) => void,
 ): void {
   const cb = useRef(onChange);
   useEffect(() => {
@@ -64,18 +65,37 @@ export function usePlanningRealtime(
   useEffect(() => {
     if (!propertyId) return;
     const s = acquire();
-    const handle = (payload: PlanningChange | undefined) => {
+    const handle = (payload: T | undefined) => {
       if (payload && payload.propertyId === propertyId) cb.current(payload);
     };
-    const onEnvelope = (msg: { type?: string; payload?: PlanningChange }) => {
-      if (msg?.type === PLANNING_CHANGED) handle(msg.payload);
+    const onEnvelope = (msg: { type?: string; payload?: T }) => {
+      if (msg?.type === type) handle(msg.payload);
     };
     s.on(ENVELOPE, onEnvelope);
-    s.on(PLANNING_CHANGED, handle);
+    s.on(type, handle);
     return () => {
       s.off(ENVELOPE, onEnvelope);
-      s.off(PLANNING_CHANGED, handle);
+      s.off(type, handle);
       release();
     };
-  }, [propertyId]);
+  }, [propertyId, type]);
+}
+
+export function usePlanningRealtime(
+  propertyId: string | null,
+  onChange: (change: PlanningChange) => void,
+): void {
+  useRealtimeEvent<PlanningChange>(PLANNING_CHANGED, propertyId, onChange);
+}
+
+export interface FolioChange {
+  propertyId: string;
+  folioId: string;
+  action?: string;
+}
+export const FOLIO_CHANGED = 'folio.changed';
+
+/** Live refresh of folios: `onChange` for every `folio.changed` of the property. */
+export function useFolioRealtime(propertyId: string | null, onChange: (change: FolioChange) => void): void {
+  useRealtimeEvent<FolioChange>(FOLIO_CHANGED, propertyId, onChange);
 }
