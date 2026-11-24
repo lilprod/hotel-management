@@ -1,3 +1,4 @@
+import { SYSTEM_ROLE_PERMISSIONS } from '@hm/shared';
 import type { Express } from 'express';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -26,6 +27,7 @@ let tokB: string;
 let tokDesk: string; // front desk without override_dirty / checkout_with_balance / guests.export
 let tokExport: string; // desk + guests.export + checkout_with_balance
 let tokReader: string; // front_desk.read only
+let tokRole: string; // the real FRONT_DESK system role grants
 const sent: NotifyInput[] = [];
 const PDF = Buffer.from('%PDF-1.4 fake');
 
@@ -206,6 +208,7 @@ beforeAll(async () => {
   tokDesk = await mk(DESK_PERMS);
   tokExport = await mk([...DESK_PERMS, 'guests.export', 'front_desk.checkout_with_balance']);
   tokReader = await mk(['front_desk.read', 'reservations.read']);
+  tokRole = await mk([...SYSTEM_ROLE_PERMISSIONS.FRONT_DESK, 'invoices.read']);
 });
 
 afterAll(async () => {
@@ -213,6 +216,18 @@ afterAll(async () => {
   overrideNotificationDeps({});
   if (env) await closeReservationQueues(env.services);
   await env?.close();
+});
+
+describe('FRONT_DESK system role', () => {
+  it('cannot override a dirty room nor check out with a balance (sensitive permissions)', async () => {
+    const dirty = await newRoom('DIRTY');
+    const b = await book({ roomId: dirty.id });
+    const ci = await api('post', '/front-desk/stays', tokRole).send(checkInBody(b.rrId, { overrideDirty: true }));
+    expect(ci.status).toBe(403);
+    const s = await checkedIn({ departure: addDay(BD, 1) });
+    const co = await api('post', `/front-desk/stays/${s.stayId}/checkout`, tokRole).send({ overrideReason: 'Client parti sans payer' });
+    expect(co.status).toBe(403);
+  });
 });
 
 describe('day lists and KPIs', () => {

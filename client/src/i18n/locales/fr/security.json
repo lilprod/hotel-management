@@ -208,6 +208,8 @@
     "check_out": "Check-out",
     "move": "Déplacer",
     "police_form": "Fiche de police",
+    "override_dirty": "Forcer un check-in sur chambre non prête",
+    "checkout_with_balance": "Check-out avec solde dû",
     "post": "Poster une charge",
     "pay": "Encaisser",
     "charge_room": "Mettre sur chambre",

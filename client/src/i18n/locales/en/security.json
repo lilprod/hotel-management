@@ -208,6 +208,8 @@
     "check_out": "Check-out",
     "move": "Move",
     "police_form": "Police form",
+    "override_dirty": "Check in a room that is not ready",
+    "checkout_with_balance": "Check out with a balance due",
     "post": "Post a charge",
     "pay": "Take payment",
     "charge_room": "Charge to room",

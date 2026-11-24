@@ -17,6 +17,8 @@ const SENSITIVE = [
   'folio.reverse',
   'invoices.credit_note',
   'cash.close_with_variance',
+  'front_desk.override_dirty',
+  'front_desk.checkout_with_balance',
   'pos.void',
   'night_audit.run',
   'loyalty.adjust',
