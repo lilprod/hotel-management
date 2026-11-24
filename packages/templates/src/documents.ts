@@ -4,7 +4,13 @@ import { escapeHtml, safeHttpUrl } from './escape.js';
 import { baseLocale, DEFAULT_LOCALE, type Locale } from './locale.js';
 
 /** Printable documents (HTML -> PDF through Gotenberg). Every value is HTML-escaped. */
-export const DOCUMENT_TYPES = ['invoice', 'receipt', 'ticket', 'police_form'] as const;
+export const DOCUMENT_TYPES = [
+  'invoice',
+  'receipt',
+  'ticket',
+  'police_form',
+  'police_register',
+] as const;
 export type DocumentType = (typeof DOCUMENT_TYPES)[number];
 
 export type MoneyValue = { amount: number; currency: string };
@@ -87,9 +93,39 @@ export interface PoliceFormData {
     idType?: string;
     idNumber?: string;
     idIssuedBy?: string;
+    idIssuedOn?: string;
   };
-  stay: { checkIn: string; checkOut: string; room?: string; reservation?: string };
+  stay: {
+    checkIn: string;
+    checkOut: string;
+    room?: string;
+    reservation?: string;
+    provenance?: string;
+    destination?: string;
+    purpose?: string;
+  };
   companions?: { lastName: string; firstName: string; birthDate?: string }[];
+}
+
+/** Travellers register of a period (OP-25): one table row per police record. */
+export interface PoliceRegisterData {
+  hotel: DocParty;
+  period: { from: string; to: string };
+  /** Sensitive fields (document number, birth date, address) are masked in `rows`. */
+  masked?: boolean;
+  rows: {
+    name: string;
+    birth?: string;
+    nationality?: string;
+    profession?: string;
+    address?: string;
+    idDoc?: string;
+    arrival: string;
+    departure: string;
+    room?: string;
+    provenance?: string;
+    destination?: string;
+  }[];
 }
 
 export type DocumentData = {
@@ -97,6 +133,7 @@ export type DocumentData = {
   receipt: ReceiptData;
   ticket: TicketData;
   police_form: PoliceFormData;
+  police_register: PoliceRegisterData;
 };
 
 const L = {
@@ -311,14 +348,58 @@ function ticketHtml(d: TicketData, b: Branding, lang: Locale): string {
   return shell(`Ticket ${d.number}`, css, body, lang);
 }
 
+const POLICE_EXTRA = {
+  fr: {
+    issuedOn: 'Délivrée le',
+    provenance: 'Provenance',
+    destination: 'Destination',
+    purpose: 'Motif du séjour',
+    register: 'REGISTRE DES VOYAGEURS',
+    period: 'Période',
+    name: 'Nom et prénoms',
+    birth: 'Naissance',
+    masked: 'Données sensibles masquées',
+  },
+  en: {
+    issuedOn: 'Issued on',
+    provenance: 'Coming from',
+    destination: 'Going to',
+    purpose: 'Purpose of stay',
+    register: 'GUEST REGISTER',
+    period: 'Period',
+    name: 'Name',
+    birth: 'Birth',
+    masked: 'Sensitive data masked',
+  },
+} satisfies Record<Locale, Record<string, string>>;
+
+function policeRegisterHtml(d: PoliceRegisterData, b: Branding, lang: Locale): string {
+  const t = L[lang];
+  const x = POLICE_EXTRA[lang];
+  const head = [x.name, x.birth, t.nat, t.job, t.addr, t.idDoc, t.arrival, t.departure, t.room, x.provenance, x.destination];
+  const rows = d.rows
+    .map(
+      (r) =>
+        `<tr>${[r.name, r.birth, r.nationality, r.profession, r.address, r.idDoc, r.arrival, r.departure, r.room, r.provenance, r.destination]
+          .map((v) => `<td>${e(v ?? '')}</td>`)
+          .join('')}</tr>`,
+    )
+    .join('');
+  const body = `<div style="padding:10mm">${logo(b)}<h1 style="margin-top:8px">${x.register}</h1><p>${e(d.hotel.name)}${d.hotel.address ? ` - ${e(d.hotel.address)}` : ''}<br/>${x.period} : ${e(d.period.from)} → ${e(d.period.to)}${d.masked ? ` <span class="muted">(${x.masked})</span>` : ''}</p>
+<table style="font-size:9px"><tr>${head.map((h) => `<th>${e(h)}</th>`).join('')}</tr>${rows}</table></div>`;
+  return shell(x.register, BASE_CSS(b, 'A4 landscape'), body, lang);
+}
+
 function policeHtml(d: PoliceFormData, b: Branding, lang: Locale): string {
   const t = L[lang];
+  const x = POLICE_EXTRA[lang];
   const g = d.guest;
   const field = (label: string, v?: string): string =>
     `<tr><td style="width:35%" class="muted">${label}</td><td>${e(v ?? '')}</td></tr>`;
   const body = `<div style="padding:15mm">${logo(b)}<h1 style="margin-top:10px">${t.police}</h1><p>${e(d.hotel.name)}${d.hotel.address ? ` - ${e(d.hotel.address)}` : ''}</p>
 <table>${field(t.last, g.lastName)}${field(t.first, g.firstName)}${field(t.birth, g.birthDate)}${field(t.place, g.birthPlace)}${field(t.nat, g.nationality)}${field(t.job, g.profession)}${field(t.addr, g.address)}${field(t.idDoc, g.idType)}${field(t.idNo, g.idNumber)}${field(t.issued, g.idIssuedBy)}</table>
-<table style="margin-top:12px">${field(t.arrival, d.stay.checkIn)}${field(t.departure, d.stay.checkOut)}${field(t.room, d.stay.room)}${field(t.ref, d.stay.reservation)}</table>
+${g.idIssuedOn ? `<table style="margin-top:12px">${field(x.issuedOn, g.idIssuedOn)}</table>` : ''}
+<table style="margin-top:12px">${field(t.arrival, d.stay.checkIn)}${field(t.departure, d.stay.checkOut)}${field(t.room, d.stay.room)}${field(t.ref, d.stay.reservation)}${field(x.provenance, d.stay.provenance)}${field(x.destination, d.stay.destination)}${field(x.purpose, d.stay.purpose)}</table>
 ${d.companions?.length ? `<h3>${t.companions}</h3><table>${d.companions.map((c) => `<tr><td>${e(c.lastName)} ${e(c.firstName)}</td><td>${e(c.birthDate ?? '')}</td></tr>`).join('')}</table>` : ''}
 <p style="margin-top:40px">${t.sign} : ______________________</p></div>`;
   return shell(`${t.police}`, BASE_CSS(b, 'A4'), body, lang);
@@ -329,6 +410,7 @@ export const DOCUMENT_PAPER: Record<DocumentType, 'A4' | 'ticket80'> = {
   receipt: 'A4',
   ticket: 'ticket80',
   police_form: 'A4',
+  police_register: 'A4',
 };
 
 /** Pure HTML rendering of a printable document. The PDF step (Gotenberg) lives in the server. */
@@ -349,6 +431,8 @@ export function renderDocumentHtml<T extends DocumentType>(
       return ticketHtml(data as TicketData, b, lang);
     case 'police_form':
       return policeHtml(data as PoliceFormData, b, lang);
+    case 'police_register':
+      return policeRegisterHtml(data as PoliceRegisterData, b, lang);
     default:
       throw new Error(`Unknown document type ${String(type)}`);
   }

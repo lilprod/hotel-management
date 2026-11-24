@@ -830,8 +830,8 @@ export async function rebook(
     if (spec.departure <= spec.arrival)
       throw invalid(`${path}.departure`, 'Departure must be after arrival');
     if (checkedIn) {
-      if (spec.departure <= prop.businessDate)
-        throw invalid(`${path}.departure`, 'Departure must be after the business date');
+      if (spec.departure < prop.businessDate)
+        throw invalid(`${path}.departure`, 'Departure cannot be before the business date');
     } else if ((!old || spec.arrival !== old.arrival) && spec.arrival < prop.businessDate)
       throw invalid(
         `${path}.arrival`,
@@ -905,7 +905,14 @@ export async function rebook(
         exclude: touchedIds,
         allowance,
       });
-      assertDemands(inv, changed.map(demandOf));
+      assertDemands(
+        inv,
+        changed.map((l) =>
+          checkedIn && l.arrival < prop.businessDate
+            ? { ...demandOf(l), arrival: prop.businessDate }
+            : demandOf(l),
+        ),
+      );
     }
     const newTotal = afterLines
       .filter((l) => isHolding(l.status))
@@ -934,7 +941,14 @@ export async function rebook(
         exclude: touchedIds,
         allowance,
       });
-      assertDemands(inv, changed.map(demandOf));
+      assertDemands(
+        inv,
+        changed.map((l) =>
+          checkedIn && l.arrival < prop.businessDate
+            ? { ...demandOf(l), arrival: prop.businessDate }
+            : demandOf(l),
+        ),
+      );
     }
     if (removed.length) await tx.reservationRoom.deleteMany({ where: { id: { in: removed } } });
     const written: { id: string; roomId: string | null; arrival: string; departure: string }[] = [];
@@ -952,7 +966,13 @@ export async function rebook(
       };
       let id = l.id;
       if (id) {
-        await tx.unitNight.deleteMany({ where: { reservationRoomId: id } });
+        // In-house: nights already spent stay on the unit(s) that hosted them (room changes).
+        await tx.unitNight.deleteMany({
+          where: {
+            reservationRoomId: id,
+            ...(checkedIn ? { night: { gte: parseDay(prop.businessDate) } } : {}),
+          },
+        });
         await tx.reservationRoom.update({ where: { id }, data });
         const old = oldSpecs.get(id)!;
         if (old.guestIds.join() !== l.guestIds.join()) {
@@ -972,7 +992,12 @@ export async function rebook(
         id = rr.id;
         await writeGuests(tx, ctx.tenantId, id, l.guestIds);
       }
-      written.push({ id, roomId: l.roomId, arrival: l.arrival, departure: l.departure });
+      written.push({
+        id,
+        roomId: l.roomId,
+        arrival: checkedIn && l.arrival < prop.businessDate ? prop.businessDate : l.arrival,
+        departure: l.departure,
+      });
     }
     await insertUnitNights(tx, ctx.tenantId, written);
     const header: Prisma.ReservationUncheckedUpdateInput = {

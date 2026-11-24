@@ -5,6 +5,7 @@ import { idParams, uuid } from '../property/common.js';
 export const CUSTOM_FIELD_ENTITIES = [
   'guest',
   'reservation',
+  'police_record',
   'room',
   'employee',
   'product',
