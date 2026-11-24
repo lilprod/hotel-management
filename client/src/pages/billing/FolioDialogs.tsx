@@ -119,7 +119,9 @@ export function DiscountDialog({
         style={{ width: '100%' }}
         addonAfter={kind === 'percent' ? '%' : folio.currency}
       />
-      {line ? <span>{t('discount.on', { amount: money(line.amount, folio.currency) })}</span> : null}
+      {line ? (
+        <span>{t('discount.on', { amount: money(line.amount, folio.currency) })}</span>
+      ) : null}
     </ReasonModal>
   );
 }
@@ -171,7 +173,8 @@ export function ChargeDialog({
     },
     onError: (e) => setFailure(toMessage(e)),
   });
-  const valid = mode === 'product' ? !!productId : label.trim().length > 0 && !!amount && amount > 0 && !!dept;
+  const valid =
+    mode === 'product' ? !!productId : label.trim().length > 0 && !!amount && amount > 0 && !!dept;
   return (
     <Modal
       open={open}
@@ -209,7 +212,12 @@ export function ChargeDialog({
         ) : (
           <>
             <Form.Item label={t('folio.label')}>
-              <Input aria-label={t('folio.label')} value={label} onChange={(e) => setLabel(e.target.value)} maxLength={200} />
+              <Input
+                aria-label={t('folio.label')}
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                maxLength={200}
+              />
             </Form.Item>
             <Form.Item label={t('charge.unitAmount', { currency: folio.currency })}>
               <InputNumber
@@ -233,7 +241,13 @@ export function ChargeDialog({
           </>
         )}
         <Form.Item label={t('charge.qty')}>
-          <InputNumber aria-label={t('charge.qty')} min={0.001} max={10000} value={qty} onChange={(v) => setQty(v ?? 1)} />
+          <InputNumber
+            aria-label={t('charge.qty')}
+            min={0.001}
+            max={10000}
+            value={qty}
+            onChange={(v) => setQty(v ?? 1)}
+          />
         </Form.Item>
       </Form>
       {failure ? <Alert type="error" showIcon message={failure} /> : null}

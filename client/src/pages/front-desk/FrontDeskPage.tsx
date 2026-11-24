@@ -6,6 +6,7 @@ import {
   PrinterOutlined,
   SwapOutlined,
   CalendarOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -161,6 +162,14 @@ export function FrontDeskPage() {
         </Tooltip>,
       );
     }
+    if ((tab === 'in-house' || tab === 'departures') && can('folio.read'))
+      out.push(
+        <Tooltip key="folio" title={t('actions.folio')}>
+          <Link to={`/folios/by-room/${row.reservationRoomId}`} aria-label={t('actions.folio')}>
+            <Button size="small" icon={<FileTextOutlined />} />
+          </Link>
+        </Tooltip>,
+      );
     if (tab === 'in-house' && can('front_desk.police_form'))
       out.push(
         <Tooltip key="police" title={t('actions.policeForm')}>

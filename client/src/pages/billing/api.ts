@@ -4,7 +4,14 @@ import { get, post, qs } from '../../reservations/api';
 
 /** Billing API (`/api/v1/t`: folios, invoices, cash sessions, city ledger, exchange rates). Types mirror the server Zod schemas (L7b). */
 
-export const PAY_METHODS = ['CASH', 'CARD', 'BANK_TRANSFER', 'MIXX', 'MOOV_MONEY', 'CITY_LEDGER'] as const;
+export const PAY_METHODS = [
+  'CASH',
+  'CARD',
+  'BANK_TRANSFER',
+  'MIXX',
+  'MOOV_MONEY',
+  'CITY_LEDGER',
+] as const;
 export type PayMethod = (typeof PAY_METHODS)[number];
 export const TENDER_METHODS = ['CASH', 'CARD', 'BANK_TRANSFER', 'MIXX', 'MOOV_MONEY'] as const;
 export type TenderMethod = (typeof TENDER_METHODS)[number];
@@ -124,9 +131,21 @@ export interface Invoice {
   pdfFileId: string | null;
   totals: {
     lineIds?: string[];
-    lines?: { lineId: string; description: string; quantity: number; unitAmount: number; net: number; taxRate: string }[];
+    lines?: {
+      lineId: string;
+      description: string;
+      quantity: number;
+      unitAmount: number;
+      net: number;
+      taxRate: string;
+    }[];
   };
-  fiscal: { provider: string; status: string; fiscalNumber: string | null; qrCode: string | null } | null;
+  fiscal: {
+    provider: string;
+    status: string;
+    fiscalNumber: string | null;
+    qrCode: string | null;
+  } | null;
   createdAt: string;
 }
 
@@ -169,7 +188,9 @@ export interface CashReport {
     out: { currency: string; amount: number; count: number }[];
   };
   expected: { method: string; currency: string; expected: number }[];
-  counted: { method: string; currency: string; expected: number; counted: number; variance: number }[] | null;
+  counted:
+    | { method: string; currency: string; expected: number; counted: number; variance: number }[]
+    | null;
 }
 
 export interface ExchangeRate {
@@ -269,7 +290,8 @@ export function useProducts(propertyId: string | null, enabled: boolean) {
 
 /** Opens a signed document URL (invoice PDF, receipt) in a new tab. */
 export async function openDocument(path: string, method: 'get' | 'post' = 'get'): Promise<string> {
-  const doc = method === 'get' ? await get<{ url: string }>(path) : await post<{ url: string }>(path);
+  const doc =
+    method === 'get' ? await get<{ url: string }>(path) : await post<{ url: string }>(path);
   window.open(doc.url, '_blank', 'noopener');
   return doc.url;
 }

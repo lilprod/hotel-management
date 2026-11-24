@@ -16,7 +16,11 @@ import { fromMinor, money, tenderSummary, toMinor } from './model';
 const { Text } = Typography;
 
 /** Latest known rate `base -> quote` (the API enforces the real business-date rule and max age). */
-export function latestRate(rates: readonly ExchangeRate[], base: string, quote: string): ExchangeRate | null {
+export function latestRate(
+  rates: readonly ExchangeRate[],
+  base: string,
+  quote: string,
+): ExchangeRate | null {
   return (
     [...rates]
       .filter((r) => r.base === base && r.quote === quote)
@@ -40,13 +44,17 @@ export function PaymentForm({ folio, onPaid }: Props) {
   const toMessage = useApiError();
   const cur = folio.currency;
   const [method, setMethod] = useState<PayMethod>('CASH');
-  const [amount, setAmount] = useState<number | null>(folio.balance > 0 ? fromMinor(folio.balance, cur) : null);
+  const [amount, setAmount] = useState<number | null>(
+    folio.balance > 0 ? fromMinor(folio.balance, cur) : null,
+  );
   const [reference, setReference] = useState('');
   const [tenderCur, setTenderCur] = useState(cur);
   const [tendered, setTendered] = useState<number | null>(null);
   const [company, setCompany] = useState<string | null>(null);
   const [companySearch, setCompanySearch] = useState('');
-  const [fieldError, setFieldError] = useState<{ reference?: string; tender?: string } | null>(null);
+  const [fieldError, setFieldError] = useState<{ reference?: string; tender?: string } | null>(
+    null,
+  );
   const [failure, setFailure] = useState<string | null>(null);
   const [noSession, setNoSession] = useState(false);
   const key = useRef(crypto.randomUUID());
@@ -54,7 +62,8 @@ export function PaymentForm({ folio, onPaid }: Props) {
   const methods = PAY_METHODS.filter((m) => m !== 'CITY_LEDGER' || has('city_ledger'));
   const rates = useQuery({
     queryKey: bkKeys.rates,
-    queryFn: () => get<{ items: ExchangeRate[] }>(`/exchange-rates${qs({ quote: cur, limit: 200 })}`),
+    queryFn: () =>
+      get<{ items: ExchangeRate[] }>(`/exchange-rates${qs({ quote: cur, limit: 200 })}`),
     staleTime: 60_000,
   });
   const foreign = useMemo(
@@ -89,7 +98,9 @@ export function PaymentForm({ folio, onPaid }: Props) {
           method,
           ...(amountMinor !== null && method !== 'CITY_LEDGER' ? { amount: amountMinor } : {}),
           ...(method === 'CITY_LEDGER' && company ? { companyId: company } : {}),
-          ...(tenderMinor !== null ? { tenderedCurrency: tenderCur, tenderedAmount: tenderMinor } : {}),
+          ...(tenderMinor !== null
+            ? { tenderedCurrency: tenderCur, tenderedAmount: tenderMinor }
+            : {}),
           ...(reference.trim() ? { reference: reference.trim() } : {}),
         },
         { 'Idempotency-Key': key.current },
@@ -126,11 +137,7 @@ export function PaymentForm({ folio, onPaid }: Props) {
     (tenderCur !== cur && (tenderMinor === null || !rate));
 
   return (
-    <Form
-      layout="vertical"
-      onFinish={() => pay.mutate()}
-      aria-label={t('pay.title')}
-    >
+    <Form layout="vertical" onFinish={() => pay.mutate()} aria-label={t('pay.title')}>
       <Form.Item label={t('pay.method')}>
         <Radio.Group
           value={method}
@@ -170,7 +177,7 @@ export function PaymentForm({ folio, onPaid }: Props) {
           />
         </Form.Item>
       )}
-      {cashOnly && method !== 'CITY_LEDGER' && foreign.length > 0 ? (
+      {cashOnly && foreign.length > 0 ? (
         <Space align="start" wrap>
           <Form.Item label={t('pay.tenderCurrency')}>
             <Select
@@ -205,13 +212,17 @@ export function PaymentForm({ folio, onPaid }: Props) {
       {tenderCur !== cur ? (
         <Space direction="vertical" size={2} style={{ marginBottom: 12 }}>
           {rate ? (
-            <Text type="secondary">{t('pay.rate', { base: tenderCur, rate: rate.rate, quote: cur, date: rate.validOn })}</Text>
+            <Text type="secondary">
+              {t('pay.rate', { base: tenderCur, rate: rate.rate, quote: cur, date: rate.validOn })}
+            </Text>
           ) : (
             <Text type="danger">{t('pay.noRate', { currency: tenderCur })}</Text>
           )}
           {sum ? (
             <>
-              <Text data-testid="converted">{t('pay.converted', { amount: money(sum.converted, cur) })}</Text>
+              <Text data-testid="converted">
+                {t('pay.converted', { amount: money(sum.converted, cur) })}
+              </Text>
               <Text strong data-testid="change">
                 {t('pay.change', { amount: money(sum.change, cur) })}
               </Text>
@@ -244,8 +255,15 @@ export function PaymentForm({ folio, onPaid }: Props) {
           action={<Link to="/cash">{t('pay.openCash')}</Link>}
         />
       ) : null}
-      {failure ? <Alert type="error" showIcon style={{ marginBottom: 12 }} message={failure} /> : null}
-      <Button type="primary" htmlType="submit" loading={pay.isPending} disabled={invalid || (sum?.tooLow ?? false)}>
+      {failure ? (
+        <Alert type="error" showIcon style={{ marginBottom: 12 }} message={failure} />
+      ) : null}
+      <Button
+        type="primary"
+        htmlType="submit"
+        loading={pay.isPending}
+        disabled={invalid || (sum?.tooLow ?? false)}
+      >
         {t('pay.submit')}
       </Button>
     </Form>

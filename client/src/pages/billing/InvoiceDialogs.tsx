@@ -1,5 +1,17 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Alert, Button, Checkbox, Descriptions, Input, Modal, Radio, Select, Space, Table, Typography } from 'antd';
+import {
+  Alert,
+  Button,
+  Checkbox,
+  Descriptions,
+  Input,
+  Modal,
+  Radio,
+  Select,
+  Space,
+  Table,
+  Typography,
+} from 'antd';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -16,7 +28,10 @@ const { Text } = Typography;
 export function useEmailInvoice() {
   return useMutation({
     mutationFn: (v: { id: string; email?: string }) =>
-      post<{ sent: boolean; to: string | null }>(`/invoices/${v.id}/email`, v.email ? { email: v.email } : {}),
+      post<{ sent: boolean; to: string | null }>(
+        `/invoices/${v.id}/email`,
+        v.email ? { email: v.email } : {},
+      ),
   });
 }
 
@@ -56,7 +71,9 @@ export function InvoiceDialog({
     mutationFn: () =>
       post<Invoice>('/invoices', {
         folioId: folio.id,
-        ...(to === 'company' && company ? { customer: { type: 'company', companyId: company } } : {}),
+        ...(to === 'company' && company
+          ? { customer: { type: 'company', companyId: company } }
+          : {}),
         sendEmail,
       }),
     onSuccess: (inv) => {
@@ -102,7 +119,9 @@ export function InvoiceDialog({
             description={money(issued.total, issued.currency)}
           />
           <Space>
-            <Button onClick={() => void openDocument(`/invoices/${issued.id}/pdf`)}>{t('invoice.pdf')}</Button>
+            <Button onClick={() => void openDocument(`/invoices/${issued.id}/pdf`)}>
+              {t('invoice.pdf')}
+            </Button>
             <Button
               loading={email.isPending}
               onClick={() => email.mutate({ id: issued.id })}
@@ -111,7 +130,9 @@ export function InvoiceDialog({
               {t('invoice.sendEmail')}
             </Button>
           </Space>
-          {email.isSuccess ? <Text type="success">{t('invoice.emailSent', { to: email.data.to ?? '' })}</Text> : null}
+          {email.isSuccess ? (
+            <Text type="success">{t('invoice.emailSent', { to: email.data.to ?? '' })}</Text>
+          ) : null}
           {email.isError ? <Text type="danger">{toMessage(email.error)}</Text> : null}
         </Space>
       ) : (
@@ -120,7 +141,12 @@ export function InvoiceDialog({
             value={to}
             onChange={(e) => setTo(e.target.value as 'guest' | 'company')}
             options={[
-              { value: 'guest', label: guestName ? t('invoice.toGuestNamed', { name: guestName }) : t('invoice.toGuest') },
+              {
+                value: 'guest',
+                label: guestName
+                  ? t('invoice.toGuestNamed', { name: guestName })
+                  : t('invoice.toGuest'),
+              },
               { value: 'company', label: t('invoice.toCompany') },
             ]}
           />
@@ -140,7 +166,9 @@ export function InvoiceDialog({
                   label: c.taxId ? `${c.name} - NIF ${c.taxId}` : c.name,
                 }))}
               />
-              {chosen && !chosen.taxId ? <Alert type="warning" showIcon message={t('invoice.noNif')} /> : null}
+              {chosen && !chosen.taxId ? (
+                <Alert type="warning" showIcon message={t('invoice.noNif')} />
+              ) : null}
               {chosen?.taxId ? <Text type="secondary">NIF {chosen.taxId}</Text> : null}
             </>
           ) : null}
@@ -151,8 +179,18 @@ export function InvoiceDialog({
             dataSource={rows}
             columns={[
               { title: t('invoice.rate'), dataIndex: 'label' },
-              { title: t('invoice.base'), dataIndex: 'base', align: 'right', render: (v: number) => money(v, cur) },
-              { title: t('invoice.tax'), dataIndex: 'amount', align: 'right', render: (v: number) => money(v, cur) },
+              {
+                title: t('invoice.base'),
+                dataIndex: 'base',
+                align: 'right',
+                render: (v: number) => money(v, cur),
+              },
+              {
+                title: t('invoice.tax'),
+                dataIndex: 'amount',
+                align: 'right',
+                render: (v: number) => money(v, cur),
+              },
             ]}
             summary={() => (
               <Table.Summary>
@@ -234,7 +272,9 @@ export function CreditNoteDialog({
     >
       <Space direction="vertical" style={{ width: '100%' }}>
         <Descriptions size="small" column={1}>
-          <Descriptions.Item label={t('invoices.customer')}>{invoice?.customer.name}</Descriptions.Item>
+          <Descriptions.Item label={t('invoices.customer')}>
+            {invoice?.customer.name}
+          </Descriptions.Item>
           <Descriptions.Item label={t('invoices.total')}>
             {invoice ? money(invoice.total, invoice.currency) : ''}
           </Descriptions.Item>

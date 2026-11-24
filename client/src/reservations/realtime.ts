@@ -96,6 +96,9 @@ export interface FolioChange {
 export const FOLIO_CHANGED = 'folio.changed';
 
 /** Live refresh of folios: `onChange` for every `folio.changed` of the property. */
-export function useFolioRealtime(propertyId: string | null, onChange: (change: FolioChange) => void): void {
+export function useFolioRealtime(
+  propertyId: string | null,
+  onChange: (change: FolioChange) => void,
+): void {
   useRealtimeEvent<FolioChange>(FOLIO_CHANGED, propertyId, onChange);
 }

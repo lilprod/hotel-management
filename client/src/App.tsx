@@ -31,6 +31,9 @@ import { PlanningPage } from './reservations/PlanningPage';
 import { NewReservationPage, ReservationsPage } from './reservations/ReservationsPage';
 import { WaitlistPage } from './reservations/WaitlistPage';
 import { SecurityPage } from './pages/security/SecurityPage';
+import { BillingPage } from './pages/billing/BillingPage';
+import { CashPage } from './pages/billing/CashPage';
+import { FolioByRoomPage, FolioPage } from './pages/billing/FolioPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
 import { CheckEmailPage } from './signup/CheckEmailPage';
 import { LandingPage } from './signup/LandingPage';
@@ -90,6 +93,18 @@ function moduleElement(m: (typeof modules)[number]) {
     return (
       <Guard {...guard}>
         <FrontDeskPage />
+      </Guard>
+    );
+  if (m.key === 'billing')
+    return (
+      <Guard {...guard}>
+        <BillingPage />
+      </Guard>
+    );
+  if (m.key === 'cash')
+    return (
+      <Guard {...guard}>
+        <CashPage />
       </Guard>
     );
   if (m.key === 'subscription')
@@ -164,6 +179,22 @@ export function App() {
               element={
                 <Guard permission="front_desk.police_form">
                   <PoliceRegisterPage />
+                </Guard>
+              }
+            />
+            <Route
+              path="/folios/by-room/:rrId"
+              element={
+                <Guard permission="folio.read">
+                  <FolioByRoomPage />
+                </Guard>
+              }
+            />
+            <Route
+              path="/folios/:id"
+              element={
+                <Guard permission="folio.read">
+                  <FolioPage />
                 </Guard>
               }
             />

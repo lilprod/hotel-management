@@ -84,13 +84,19 @@ export function ExchangeRatesPage() {
         size="small"
         rowKey="id"
         loading={list.isLoading}
-        dataSource={[...(list.data?.items ?? [])].sort((a, b) => b.validOn.localeCompare(a.validOn))}
+        dataSource={[...(list.data?.items ?? [])].sort((a, b) =>
+          b.validOn.localeCompare(a.validOn),
+        )}
         locale={{ emptyText: t('fx.empty') }}
         pagination={{ pageSize: 15, hideOnSinglePage: true }}
         columns={[
           { title: t('fx.validOn'), dataIndex: 'validOn' },
           { title: t('fx.currency'), dataIndex: 'base' },
-          { title: t('fx.rate'), dataIndex: 'rate', render: (r: string, x) => `1 ${x.base} = ${r} ${x.quote}` },
+          {
+            title: t('fx.rate'),
+            dataIndex: 'rate',
+            render: (r: string, x) => `1 ${x.base} = ${r} ${x.quote}`,
+          },
           {
             title: '',
             key: 'a',

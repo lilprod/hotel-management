@@ -10,6 +10,7 @@ import { DemoDataPanel } from '../../onboarding/DemoDataPanel';
 import { api, type Items, type Property } from './api';
 import { BrandingPage } from './branding/BrandingPage';
 import { CustomFieldsPage } from './custom-fields/CustomFieldsPage';
+import { ExchangeRatesPage } from './fx/ExchangeRatesPage';
 import { ListsPage } from './lists/ListsPage';
 import { PoliciesPage } from './policies/PoliciesPage';
 import { ProductsPage } from './products/ProductsPage';
@@ -39,6 +40,7 @@ export function SettingsPage() {
     { key: 'taxes', label: t('tabs.taxes'), children: <TaxesPage /> },
     { key: 'policies', label: t('tabs.policies'), children: <PoliciesPage /> },
     { key: 'products', label: t('tabs.products'), children: <ProductsPage /> },
+    { key: 'exchange-rates', label: t('tabs.exchangeRates'), children: <ExchangeRatesPage /> },
     { key: 'lists', label: t('tabs.lists'), children: <ListsPage /> },
     { key: 'branding', label: t('tabs.branding'), children: <BrandingPage /> },
     { key: 'custom-fields', label: t('tabs.customFields'), children: <CustomFieldsPage /> },

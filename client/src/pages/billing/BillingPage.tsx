@@ -85,7 +85,9 @@ export function InvoicesList() {
           ]}
         />
         <RangePicker
-          onChange={(d) => setRange(d?.[0] && d[1] ? [d[0].format('YYYY-MM-DD'), d[1].format('YYYY-MM-DD')] : null)}
+          onChange={(d) =>
+            setRange(d?.[0] && d[1] ? [d[0].format('YYYY-MM-DD'), d[1].format('YYYY-MM-DD')] : null)
+          }
         />
       </Space>
       <Table<Invoice>
@@ -97,7 +99,13 @@ export function InvoicesList() {
         pagination={{ pageSize: 20, hideOnSinglePage: true }}
         columns={[
           { title: t('invoices.number'), dataIndex: 'number' },
-          { title: t('invoices.kind'), dataIndex: 'kind', render: (k: string) => <Tag color={k === 'INVOICE' ? 'blue' : 'orange'}>{t(`invoices.kinds.${k}`)}</Tag> },
+          {
+            title: t('invoices.kind'),
+            dataIndex: 'kind',
+            render: (k: string) => (
+              <Tag color={k === 'INVOICE' ? 'blue' : 'orange'}>{t(`invoices.kinds.${k}`)}</Tag>
+            ),
+          },
           { title: t('invoices.date'), dataIndex: 'issueDate' },
           {
             title: t('invoices.customer'),
@@ -109,15 +117,31 @@ export function InvoicesList() {
               </span>
             ),
           },
-          { title: t('invoices.total'), dataIndex: 'total', align: 'right', render: (v: number, i) => money(v, i.currency) },
-          { title: t('invoices.status'), dataIndex: 'status', render: (s: string) => <Tag>{t(`invoices.statuses.${s}`, { defaultValue: s })}</Tag> },
+          {
+            title: t('invoices.total'),
+            dataIndex: 'total',
+            align: 'right',
+            render: (v: number, i) => money(v, i.currency),
+          },
+          {
+            title: t('invoices.status'),
+            dataIndex: 'status',
+            render: (s: string) => <Tag>{t(`invoices.statuses.${s}`, { defaultValue: s })}</Tag>,
+          },
           {
             title: '',
             key: 'a',
             render: (_: unknown, i) => (
               <Space size={4} wrap>
                 <Link to={`/folios/${i.folioId}`}>{t('invoices.folio')}</Link>
-                <Button size="small" onClick={() => void openDocument(`/invoices/${i.id}/pdf`).catch((e) => void message.error(toMessage(e)))}>
+                <Button
+                  size="small"
+                  onClick={() =>
+                    void openDocument(`/invoices/${i.id}/pdf`).catch(
+                      (e) => void message.error(toMessage(e)),
+                    )
+                  }
+                >
                   PDF
                 </Button>
                 {can('invoices.issue') ? (
@@ -127,7 +151,8 @@ export function InvoicesList() {
                       email.mutate(
                         { id: i.id },
                         {
-                          onSuccess: (r) => void message.success(t('invoice.emailSent', { to: r.to ?? '' })),
+                          onSuccess: (r) =>
+                            void message.success(t('invoice.emailSent', { to: r.to ?? '' })),
                           onError: (e) => void message.error(toMessage(e)),
                         },
                       )
@@ -180,9 +205,26 @@ export function CityLedgerTab() {
         columns={[
           { title: t('cl.company'), dataIndex: 'companyName' },
           { title: 'NIF', dataIndex: 'taxId' },
-          { title: t('cl.charges'), dataIndex: 'charges', align: 'right', render: (v: number, a) => money(v, a.currency) },
-          { title: t('cl.settlements'), dataIndex: 'settlements', align: 'right', render: (v: number, a) => money(v, a.currency) },
-          { title: t('cl.balance'), dataIndex: 'balance', align: 'right', render: (v: number, a) => <Text type={v > 0 ? 'danger' : undefined}>{money(v, a.currency)}</Text> },
+          {
+            title: t('cl.charges'),
+            dataIndex: 'charges',
+            align: 'right',
+            render: (v: number, a) => money(v, a.currency),
+          },
+          {
+            title: t('cl.settlements'),
+            dataIndex: 'settlements',
+            align: 'right',
+            render: (v: number, a) => money(v, a.currency),
+          },
+          {
+            title: t('cl.balance'),
+            dataIndex: 'balance',
+            align: 'right',
+            render: (v: number, a) => (
+              <Text type={v > 0 ? 'danger' : undefined}>{money(v, a.currency)}</Text>
+            ),
+          },
           {
             title: t('cl.creditLimit'),
             dataIndex: 'creditLimit',
@@ -214,11 +256,22 @@ export function CityLedgerTab() {
               align: 'right' as const,
               render: (_: unknown, r: Aging['items'][number]) => money(r.buckets[b]),
             })),
-            { title: t('cl.total'), dataIndex: 'total', align: 'right', render: (v: number) => <Text strong>{money(v)}</Text> },
+            {
+              title: t('cl.total'),
+              dataIndex: 'total',
+              align: 'right',
+              render: (v: number) => <Text strong>{money(v)}</Text>,
+            },
           ]}
         />
       </Card>
-      <Drawer open={!!chosen} onClose={() => setCompanyId(null)} width={720} destroyOnHidden title={chosen?.companyName}>
+      <Drawer
+        open={!!chosen}
+        onClose={() => setCompanyId(null)}
+        width={720}
+        destroyOnHidden
+        title={chosen?.companyName}
+      >
         {chosen ? <Account account={chosen} canManage={can('city_ledger.manage')} /> : null}
       </Drawer>
     </Space>
@@ -236,7 +289,10 @@ function Account({ account, canManage }: { account: CompanyAccount; canManage: b
   const [failure, setFailure] = useState<string | null>(null);
   const st = useQuery({
     queryKey: bkKeys.statement(account.companyId, account.propertyId),
-    queryFn: () => get<Statement>(`/city-ledger/accounts/${account.companyId}/statement${qs({ propertyId: account.propertyId })}`),
+    queryFn: () =>
+      get<Statement>(
+        `/city-ledger/accounts/${account.companyId}/statement${qs({ propertyId: account.propertyId })}`,
+      ),
   });
   const settle = useMutation({
     mutationFn: () =>
@@ -262,7 +318,9 @@ function Account({ account, canManage }: { account: CompanyAccount; canManage: b
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       <Descriptions size="small" column={2}>
         <Descriptions.Item label="NIF">{account.taxId ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label={t('cl.balance')}>{money(account.balance, account.currency)}</Descriptions.Item>
+        <Descriptions.Item label={t('cl.balance')}>
+          {money(account.balance, account.currency)}
+        </Descriptions.Item>
       </Descriptions>
       <Table
         size="small"
@@ -273,9 +331,24 @@ function Account({ account, canManage }: { account: CompanyAccount; canManage: b
         columns={[
           { title: t('folio.date'), dataIndex: 'date' },
           { title: t('folio.label'), dataIndex: 'label' },
-          { title: t('cl.debit'), dataIndex: 'debit', align: 'right', render: (v: number) => (v ? money(v, account.currency) : '') },
-          { title: t('cl.credit'), dataIndex: 'credit', align: 'right', render: (v: number) => (v ? money(v, account.currency) : '') },
-          { title: t('cl.balance'), dataIndex: 'balance', align: 'right', render: (v: number) => money(v, account.currency) },
+          {
+            title: t('cl.debit'),
+            dataIndex: 'debit',
+            align: 'right',
+            render: (v: number) => (v ? money(v, account.currency) : ''),
+          },
+          {
+            title: t('cl.credit'),
+            dataIndex: 'credit',
+            align: 'right',
+            render: (v: number) => (v ? money(v, account.currency) : ''),
+          },
+          {
+            title: t('cl.balance'),
+            dataIndex: 'balance',
+            align: 'right',
+            render: (v: number) => money(v, account.currency),
+          },
         ]}
       />
       {canManage ? (
@@ -290,12 +363,25 @@ function Account({ account, canManage }: { account: CompanyAccount; canManage: b
               />
             </Form.Item>
             <Form.Item label={t('pay.amount', { currency: account.currency })}>
-              <InputNumber aria-label={t('pay.amount', { currency: account.currency })} min={1} style={{ width: '100%' }} value={amount} onChange={setAmount} />
+              <InputNumber
+                aria-label={t('pay.amount', { currency: account.currency })}
+                min={1}
+                style={{ width: '100%' }}
+                value={amount}
+                onChange={setAmount}
+              />
             </Form.Item>
             <Form.Item label={t('pay.reference')}>
-              <Input aria-label={t('pay.reference')} value={reference} onChange={(e) => setReference(e.target.value)} maxLength={100} />
+              <Input
+                aria-label={t('pay.reference')}
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+                maxLength={100}
+              />
             </Form.Item>
-            {failure ? <Alert type="error" showIcon message={failure} style={{ marginBottom: 12 }} /> : null}
+            {failure ? (
+              <Alert type="error" showIcon message={failure} style={{ marginBottom: 12 }} />
+            ) : null}
             <Button type="primary" htmlType="submit" loading={settle.isPending} disabled={!amount}>
               {t('cl.settle')}
             </Button>
@@ -312,7 +398,9 @@ export function BillingPage() {
   const { has, can } = useCan();
   const [params, setParams] = useSearchParams();
   const tabs = [
-    ...(can('invoices.read') ? [{ key: 'invoices', label: t('tabs.invoices'), children: <InvoicesList /> }] : []),
+    ...(can('invoices.read')
+      ? [{ key: 'invoices', label: t('tabs.invoices'), children: <InvoicesList /> }]
+      : []),
     ...(has('city_ledger') && can('city_ledger.read')
       ? [{ key: 'city-ledger', label: t('tabs.cityLedger'), children: <CityLedgerTab /> }]
       : []),

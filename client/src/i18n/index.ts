@@ -4,6 +4,7 @@ import { initReactI18next } from 'react-i18next';
 import { errorMessages, useUiStore } from '@hm/ui';
 
 import enAuth from './locales/en/auth.json';
+import enBilling from './locales/en/billing.json';
 import enBranding from './locales/en/branding.json';
 import enCommon from './locales/en/common.json';
 import enFrontDesk from './locales/en/frontDesk.json';
@@ -15,6 +16,7 @@ import enSignup from './locales/en/signup.json';
 import enSettings from './locales/en/settings.json';
 import enSubscription from './locales/en/subscription.json';
 import frAuth from './locales/fr/auth.json';
+import frBilling from './locales/fr/billing.json';
 import frBranding from './locales/fr/branding.json';
 import frCommon from './locales/fr/common.json';
 import frFrontDesk from './locales/fr/frontDesk.json';
@@ -30,6 +32,7 @@ void i18n.use(initReactI18next).init({
   resources: {
     fr: {
       auth: frAuth,
+      billing: frBilling,
       branding: frBranding,
       common: frCommon,
       errors: errorMessages.fr,
@@ -44,6 +47,7 @@ void i18n.use(initReactI18next).init({
     },
     en: {
       auth: enAuth,
+      billing: enBilling,
       branding: enBranding,
       common: enCommon,
       errors: errorMessages.en,
@@ -62,6 +66,7 @@ void i18n.use(initReactI18next).init({
   supportedLngs: ['fr', 'en'],
   ns: [
     'auth',
+    'billing',
     'branding',
     'common',
     'errors',

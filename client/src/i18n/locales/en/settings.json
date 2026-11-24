@@ -21,7 +21,8 @@
     "products": "Products",
     "lists": "Lists",
     "customFields": "Custom fields",
-    "demo": "Demo data"
+    "demo": "Demo data",
+    "exchangeRates": "Exchange rates"
   },
   "f": {
     "name": "Name",

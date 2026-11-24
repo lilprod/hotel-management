@@ -154,9 +154,14 @@ export function FolioPage() {
   const res = reservation.data;
   const room = res?.rooms.find((r) => r.id === folio.reservationRoomId) ?? res?.rooms[0];
   const guest = res?.booker ? `${res.booker.firstName} ${res.booker.lastName}` : null;
-  const others = (siblings.data?.items ?? []).filter((f) => f.id !== folio.id && f.status === 'OPEN');
+  const others = (siblings.data?.items ?? []).filter(
+    (f) => f.id !== folio.id && f.status === 'OPEN',
+  );
   const departments = [
-    ...new Set([...(products.data?.items ?? []).map((p) => p.departmentCode), ...folio.lines.map((l) => l.departmentCode)]),
+    ...new Set([
+      ...(products.data?.items ?? []).map((p) => p.departmentCode),
+      ...folio.lines.map((l) => l.departmentCode),
+    ]),
   ].filter((d): d is string => !!d);
 
   const columns = [
@@ -164,21 +169,23 @@ export function FolioPage() {
       title: t('folio.label'),
       key: 'label',
       render: (_: unknown, r: Row) => {
-        if (r.kind === 'day')
-          return (
-            <Text strong>{formatDayLong(r.date, i18n.language)}</Text>
-          );
+        if (r.kind === 'day') return <Text strong>{formatDayLong(r.date, i18n.language)}</Text>;
         const l = r.kind === 'charge' ? r.node.line : r.line;
         const text = (
           <span
             style={{
               paddingInlineStart: r.kind === 'child' ? 24 : 0,
               textDecoration: l.reversedById ? 'line-through' : undefined,
-              color: r.kind === 'child' || l.reversedById ? 'var(--ant-color-text-secondary)' : undefined,
+              color:
+                r.kind === 'child' || l.reversedById
+                  ? 'var(--ant-color-text-secondary)'
+                  : undefined,
             }}
           >
             {l.label}
-            {l.reversalOfId ? <Tag style={{ marginInlineStart: 8 }}>{t('folio.reversal')}</Tag> : null}
+            {l.reversalOfId ? (
+              <Tag style={{ marginInlineStart: 8 }}>{t('folio.reversal')}</Tag>
+            ) : null}
           </span>
         );
         return text;
@@ -206,7 +213,11 @@ export function FolioPage() {
       width: 150,
       align: 'right' as const,
       render: (_: unknown, r: Row) =>
-        r.kind === 'day' ? <Text strong>{money(r.total, cur)}</Text> : money((r.kind === 'charge' ? r.node.line : r.line).amount, cur),
+        r.kind === 'day' ? (
+          <Text strong>{money(r.total, cur)}</Text>
+        ) : (
+          money((r.kind === 'charge' ? r.node.line : r.line).amount, cur)
+        ),
       onCell: (r: Row) => (r.kind === 'day' ? { colSpan: 1 } : {}),
     },
     {
@@ -242,11 +253,14 @@ export function FolioPage() {
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
           const lineId = e.dataTransfer.getData('text/plain');
-          if (lineId && f.id !== folio.id && f.status === 'OPEN') moveTo.mutate({ lineIds: [lineId], targetFolioId: f.id });
+          if (lineId && f.id !== folio.id && f.status === 'OPEN')
+            moveTo.mutate({ lineIds: [lineId], targetFolioId: f.id });
         }}
       >
         {f.number}
-        {f.status === 'CLOSED' ? <Tag style={{ marginInlineStart: 6 }}>{t('folio.closed')}</Tag> : null}
+        {f.status === 'CLOSED' ? (
+          <Tag style={{ marginInlineStart: 6 }}>{t('folio.closed')}</Tag>
+        ) : null}
       </span>
     ),
   }));
@@ -275,11 +289,17 @@ export function FolioPage() {
           <Col xs={24} md={16}>
             <Descriptions size="small" column={{ xs: 1, md: 2 }}>
               <Descriptions.Item label={t('folio.guest')}>{guest ?? '-'}</Descriptions.Item>
-              <Descriptions.Item label={t('folio.room')}>{room?.roomNumber ?? '-'}</Descriptions.Item>
-              <Descriptions.Item label={t('folio.stay')}>
-                {room ? `${formatDayLong(room.arrival, i18n.language)} - ${formatDayLong(room.departure, i18n.language)}` : '-'}
+              <Descriptions.Item label={t('folio.room')}>
+                {room?.roomNumber ?? '-'}
               </Descriptions.Item>
-              <Descriptions.Item label={t('folio.reservation')}>{folio.reservationNumber ?? '-'}</Descriptions.Item>
+              <Descriptions.Item label={t('folio.stay')}>
+                {room
+                  ? `${formatDayLong(room.arrival, i18n.language)} - ${formatDayLong(room.departure, i18n.language)}`
+                  : '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label={t('folio.reservation')}>
+                {folio.reservationNumber ?? '-'}
+              </Descriptions.Item>
               <Descriptions.Item label={t('folio.number')}>{folio.number}</Descriptions.Item>
               <Descriptions.Item label={t('folio.status')}>
                 <Tag color={open ? 'green' : 'default'}>{t(`folio.statuses.${folio.status}`)}</Tag>
@@ -290,10 +310,15 @@ export function FolioPage() {
             <Statistic
               title={t('folio.balance')}
               value={money(folio.balance, cur)}
-              valueStyle={{ color: folio.balance > 0 ? '#cf1322' : folio.balance < 0 ? '#d46b08' : '#389e0d' }}
+              valueStyle={{
+                color: folio.balance > 0 ? '#cf1322' : folio.balance < 0 ? '#d46b08' : '#389e0d',
+              }}
             />
             <Text type="secondary">
-              {t('folio.totals', { charges: money(folio.chargesTotal, cur), payments: money(folio.paymentsTotal, cur) })}
+              {t('folio.totals', {
+                charges: money(folio.chargesTotal, cur),
+                payments: money(folio.paymentsTotal, cur),
+              })}
             </Text>
           </Col>
         </Row>
@@ -344,7 +369,10 @@ export function FolioPage() {
                 onChange: (k) => setSelected(k as string[]),
                 getCheckboxProps: (r) => ({
                   disabled: r.kind !== 'charge' || !isLiveCharge(r.node.line),
-                  style: r.kind === 'charge' && isLiveCharge(r.node.line) ? undefined : { display: 'none' },
+                  style:
+                    r.kind === 'charge' && isLiveCharge(r.node.line)
+                      ? undefined
+                      : { display: 'none' },
                 }),
               }
             : undefined
@@ -389,8 +417,16 @@ export function FolioPage() {
               dataSource={folio.payments}
               locale={{ emptyText: t('folio.noPayments') }}
               columns={[
-                { title: t('folio.date'), dataIndex: 'paidAt', render: (v: string) => v.slice(0, 16).replace('T', ' ') },
-                { title: t('pay.method'), dataIndex: 'method', render: (m: string) => t(`methods.${m}`, { defaultValue: m }) },
+                {
+                  title: t('folio.date'),
+                  dataIndex: 'paidAt',
+                  render: (v: string) => v.slice(0, 16).replace('T', ' '),
+                },
+                {
+                  title: t('pay.method'),
+                  dataIndex: 'method',
+                  render: (m: string) => t(`methods.${m}`, { defaultValue: m }),
+                },
                 { title: t('pay.reference'), dataIndex: 'reference' },
                 {
                   title: t('folio.amount'),
@@ -401,7 +437,9 @@ export function FolioPage() {
                       {money(v, p.currency)}
                       {p.tenderedCurrency && p.tenderedAmount !== null ? (
                         <div>
-                          <Text type="secondary">{money(p.tenderedAmount, p.tenderedCurrency)}</Text>
+                          <Text type="secondary">
+                            {money(p.tenderedAmount, p.tenderedCurrency)}
+                          </Text>
                         </div>
                       ) : null}
                     </span>
@@ -420,12 +458,17 @@ export function FolioPage() {
                             { key: 'a4', label: t('receipt.a4') },
                           ],
                           onClick: ({ key }) =>
-                            void openDocument(`/folios/${folio.id}/payments/${p.id}/receipt?format=${key}`, 'post').catch(
-                              (e) => void message.error(toMessage(e)),
-                            ),
+                            void openDocument(
+                              `/folios/${folio.id}/payments/${p.id}/receipt?format=${key}`,
+                              'post',
+                            ).catch((e) => void message.error(toMessage(e))),
                         }}
                       >
-                        <Button size="small" icon={<PrinterOutlined />} aria-label={t('receipt.print')} />
+                        <Button
+                          size="small"
+                          icon={<PrinterOutlined />}
+                          aria-label={t('receipt.print')}
+                        />
                       </Dropdown>
                       {can('folio.reverse') && !isReversed(p) && p.amount > 0 && open ? (
                         <Button size="small" danger onClick={() => setReversePay(p)}>
@@ -447,13 +490,21 @@ export function FolioPage() {
                 dataSource={invoices.data!.items}
                 columns={[
                   { title: t('invoices.number'), dataIndex: 'number' },
-                  { title: t('invoices.total'), dataIndex: 'total', align: 'right', render: (v: number, i) => money(v, i.currency) },
+                  {
+                    title: t('invoices.total'),
+                    dataIndex: 'total',
+                    align: 'right',
+                    render: (v: number, i) => money(v, i.currency),
+                  },
                   {
                     title: '',
                     key: 'a',
                     render: (_: unknown, i) => (
                       <Space size={4}>
-                        <Button size="small" onClick={() => void openDocument(`/invoices/${i.id}/pdf`)}>
+                        <Button
+                          size="small"
+                          onClick={() => void openDocument(`/invoices/${i.id}/pdf`)}
+                        >
                           PDF
                         </Button>
                         {can('invoices.credit_note') && i.kind === 'INVOICE' ? (
@@ -477,7 +528,9 @@ export function FolioPage() {
                   type="success"
                   showIcon
                   style={{ marginBottom: 12 }}
-                  message={t('pay.changeGiven', { amount: money(lastPayment.change, lastPayment.currency) })}
+                  message={t('pay.changeGiven', {
+                    amount: money(lastPayment.change, lastPayment.currency),
+                  })}
                 />
               ) : null}
               <PaymentForm
@@ -546,7 +599,12 @@ export function FolioPage() {
           refresh();
         }}
       />
-      <InvoiceDialog folio={folio} open={invoiceOpen} guestName={guest ?? undefined} onClose={() => setInvoiceOpen(false)} />
+      <InvoiceDialog
+        folio={folio}
+        open={invoiceOpen}
+        guestName={guest ?? undefined}
+        onClose={() => setInvoiceOpen(false)}
+      />
       <CreditNoteDialog invoice={creditNote} onClose={() => setCreditNote(null)} />
     </>
   );

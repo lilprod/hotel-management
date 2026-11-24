@@ -49,7 +49,8 @@
     "dates": "Prolonger / raccourcir",
     "policeForm": "Fiche de police",
     "walkIn": "Client sans réservation",
-    "policeRegister": "Registre de police"
+    "policeRegister": "Registre de police",
+    "folio": "Folio"
   },
   "noShow": {
     "action": "Non-présentation",

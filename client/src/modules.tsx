@@ -20,6 +20,7 @@ import {
   SkinOutlined,
   TeamOutlined,
   ToolOutlined,
+  WalletOutlined,
 } from '@ant-design/icons';
 import type { NavModule } from '@hm/ui';
 import type { ReactElement } from 'react';
@@ -81,6 +82,14 @@ export const modules: readonly ModuleDef[] = [
     path: '/billing',
     requiredFeature: 'billing.core',
     requiredPermission: 'invoices.read',
+  },
+  {
+    key: 'cash',
+    labelKey: 'nav:cash',
+    icon: <WalletOutlined />,
+    path: '/cash',
+    requiredFeature: 'billing.core',
+    requiredPermission: 'cash.session',
   },
   {
     key: 'restaurant',

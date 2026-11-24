@@ -18,7 +18,8 @@ export interface DayGroup {
   total: number;
 }
 
-const isChild = (l: FolioLine) => (l.sourceType === 'tax' || l.sourceType === 'discount') && !!l.sourceId;
+const isChild = (l: FolioLine) =>
+  (l.sourceType === 'tax' || l.sourceType === 'discount') && !!l.sourceId;
 
 /** Lines grouped by business date (ascending), taxes and discounts nested under their charge. */
 export function groupLines(lines: readonly FolioLine[]): DayGroup[] {
@@ -34,7 +35,8 @@ export function groupLines(lines: readonly FolioLine[]): DayGroup[] {
   }
   const days = new Map<string, DayGroup>();
   const sorted = [...roots].sort(
-    (a, b) => a.businessDate.localeCompare(b.businessDate) || a.createdAt.localeCompare(b.createdAt),
+    (a, b) =>
+      a.businessDate.localeCompare(b.businessDate) || a.createdAt.localeCompare(b.createdAt),
   );
   for (const l of sorted) {
     const g = days.get(l.businessDate) ?? { date: l.businessDate, nodes: [], total: 0 };
@@ -81,8 +83,14 @@ export function tenderSummary(opts: {
 }) {
   if (opts.tendered === null || !opts.rate) return null;
   const converted = convertTender(opts.tendered, opts.rate, opts.from, opts.to);
-  const applied = opts.amount ?? (opts.balance > 0 && converted > opts.balance ? opts.balance : converted);
-  return { converted, applied, change: Math.max(converted - applied, 0), tooLow: converted < applied };
+  const applied =
+    opts.amount ?? (opts.balance > 0 && converted > opts.balance ? opts.balance : converted);
+  return {
+    converted,
+    applied,
+    change: Math.max(converted - applied, 0),
+    tooLow: converted < applied,
+  };
 }
 
 export const isReversed = (p: FolioPayment) => p.status === 'REVERSED' || !!p.reversedById;
