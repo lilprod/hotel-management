@@ -12,6 +12,7 @@ import {
 import { brandingModule, brandingPublicModule } from './branding/index.js';
 import { catalogModule } from './catalog/index.js';
 import { customFieldsModule } from './custom-fields/index.js';
+import { businessDateModule, folioModule } from './folio/index.js';
 import { guestsModule } from './guests/index.js';
 import { iamModule } from './iam/index.js';
 import { legalModule } from './legal/index.js';
@@ -77,4 +78,6 @@ export const MODULES: readonly ModuleDefinition[] = [
   reservationsModule,
   waitlistModule,
   groupsModule,
+  folioModule,
+  businessDateModule,
 ];
