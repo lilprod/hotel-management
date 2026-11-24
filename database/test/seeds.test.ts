@@ -7,6 +7,7 @@ import { seedId, SEED_BASE_DOMAIN } from '../seeds/common.js';
 import { LOME_SLUG } from '../seeds/demo-lome.js';
 import { KPALIME_SLUG } from '../seeds/demo-kpalime.js';
 import { JESS_SLUG } from '../seeds/demo-jess.js';
+import { utcDay } from '../seeds/demo-reservations.js';
 
 const { adminUrl, appUrl } = inject('pg');
 
@@ -29,6 +30,11 @@ let app: AppClient;
  */
 async function snapshot(db: AdminClient) {
   const inTenants = { tenantId: { in: SEEDED_TENANTS } };
+  const reservationsByStatus = await db.reservation.groupBy({
+    by: ['tenantId', 'status'],
+    where: inTenants,
+    _count: { _all: true },
+  });
   const plans = await db.plan.findMany({ where: { code: { in: [...DEFAULT_PLAN_CODES] } } });
   const planIds = plans.map((p) => p.id);
   return {
@@ -70,6 +76,16 @@ async function snapshot(db: AdminClient) {
     treatmentRooms: await db.treatmentRoom.count({ where: inTenants }),
     activities: await db.activity.count({ where: inTenants }),
     activitySlots: await db.activitySlot.count({ where: inTenants }),
+    reservations: await db.reservation.count({ where: inTenants }),
+    reservationsByStatus: reservationsByStatus
+      .map((r) => `${r.tenantId}:${r.status}=${r._count._all}`)
+      .sort(),
+    reservationRooms: await db.reservationRoom.count({ where: inTenants }),
+    reservationGuests: await db.reservationGuest.count({ where: inTenants }),
+    unitNights: await db.unitNight.count({ where: inTenants }),
+    groups: await db.group.count({ where: inTenants }),
+    waitlistEntries: await db.waitlistEntry.count({ where: inTenants }),
+    sequences: await db.sequence.count({ where: inTenants }),
   };
 }
 
@@ -153,6 +169,80 @@ describe('seeds', () => {
     expect(await admin.outlet.count({ where: { tenantId: KPALIME_ID } })).toBe(0);
     expect(await admin.room.count({ where: { tenantId: LOME_ID } })).toBe(60);
     expect(await admin.room.count({ where: { tenantId: KPALIME_ID } })).toBe(20);
+  });
+
+  it('seeds demo reservations with the expected counts per tenant and status', async () => {
+    const countsOf = async (tenantId: string) => {
+      const rows = await admin.reservation.groupBy({
+        by: ['status'],
+        where: { tenantId },
+        _count: { _all: true },
+      });
+      return Object.fromEntries(rows.map((r) => [r.status, r._count._all]));
+    };
+    expect(await countsOf(LOME_ID)).toEqual({
+      CONFIRMED: 11,
+      PENDING: 3,
+      CHECKED_IN: 4,
+      CHECKED_OUT: 3,
+      CANCELLED: 2,
+      NO_SHOW: 1,
+    });
+    expect(await countsOf(JESS_ID)).toEqual({ CONFIRMED: 4, PENDING: 2, CHECKED_IN: 2 });
+    expect(await countsOf(KPALIME_ID)).toEqual({ CONFIRMED: 3, PENDING: 1, CHECKED_IN: 1 });
+    expect(await admin.waitlistEntry.count({ where: { tenantId: LOME_ID } })).toBe(1);
+    const group = await admin.reservation.findMany({
+      where: { tenantId: LOME_ID, groupId: { not: null } },
+      include: { reservationRooms: true },
+    });
+    expect(group).toHaveLength(1);
+    expect(group[0]?.reservationRooms).toHaveLength(3);
+  });
+
+  it('never books a unit twice and writes unit nights only for active lines', async () => {
+    const overlaps = await admin.$queryRaw<{ n: bigint }[]>`
+      SELECT COUNT(*) AS n FROM (
+        SELECT unit_id, night FROM unit_nights GROUP BY unit_id, night HAVING COUNT(*) > 1
+      ) d`;
+    expect(Number(overlaps[0]?.n)).toBe(0);
+
+    const inactive = await admin.$queryRaw<{ n: bigint }[]>`
+      SELECT COUNT(*) AS n FROM unit_nights un
+      JOIN reservation_rooms rr ON rr.id = un.reservation_room_id
+      WHERE rr.status IN ('CHECKED_OUT', 'CANCELLED', 'NO_SHOW')`;
+    expect(Number(inactive[0]?.n)).toBe(0);
+
+    const today = utcDay();
+    const inHouse = await admin.reservation.findMany({
+      where: { tenantId: LOME_ID, status: 'CHECKED_IN' },
+    });
+    expect(inHouse).toHaveLength(4);
+    for (const r of inHouse) {
+      expect(r.arrival.toISOString().slice(0, 10) <= today).toBe(true);
+      expect(today < r.departure.toISOString().slice(0, 10)).toBe(true);
+    }
+  });
+
+  it('advances the reservation sequence above the seeded numbers', async () => {
+    const year = Number(utcDay().slice(0, 4));
+    for (const [tenantId, slug] of [
+      [LOME_ID, LOME_SLUG],
+      [JESS_ID, JESS_SLUG],
+      [KPALIME_ID, KPALIME_SLUG],
+    ] as const) {
+      const propertyId = seedId(`property:${slug}`);
+      const reservations = await admin.reservation.findMany({
+        where: { tenantId },
+        select: { number: true },
+      });
+      const numbers = reservations.map((r) => r.number);
+      expect(new Set(numbers).size).toBe(numbers.length);
+      const max = Math.max(...numbers.map((n) => Number(n.slice(-6))));
+      const seq = await admin.sequence.findFirstOrThrow({
+        where: { scope: `${tenantId}:${propertyId}`, key: 'reservation', year },
+      });
+      expect(seq.nextValue > BigInt(max)).toBe(true);
+    }
   });
 
   it('stores money as integer XOF amounts', async () => {
