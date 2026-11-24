@@ -276,7 +276,7 @@ export interface FolioLinks {
   reservationRoomId: string | null;
 }
 
-async function linksOf(db: Db, f: FolioRow): Promise<FolioLinks> {
+export async function linksOf(db: Db, f: FolioRow): Promise<FolioLinks> {
   if (f.companyId && f.number.startsWith(COMPANY_PREFIX))
     return { kind: 'COMPANY', reservationId: null, reservationNumber: null, reservationRoomId: null };
   if (f.groupId) return { kind: 'GROUP', reservationId: null, reservationNumber: null, reservationRoomId: null };
@@ -584,7 +584,7 @@ export async function postCharge(ctx: FCtx, folioId: string, input: ChargeInput)
 }
 
 /** Live lines attached to a charge: its tax lines, its discounts and their tax lines. */
-async function lineGroup(tx: Tx, folioId: string, root: LineRow): Promise<LineRow[]> {
+export async function lineGroup(tx: Tx, folioId: string, root: LineRow): Promise<LineRow[]> {
   const children = await tx.folioLine.findMany({
     where: {
       folioId,

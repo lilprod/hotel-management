@@ -11,10 +11,13 @@ import {
 } from './billing/index.js';
 import { brandingModule, brandingPublicModule } from './branding/index.js';
 import { catalogModule } from './catalog/index.js';
+import { cashierModule, exchangeRatesModule } from './cashier/index.js';
+import { cityLedgerModule } from './city-ledger/index.js';
 import { customFieldsModule } from './custom-fields/index.js';
 import { businessDateModule, folioModule } from './folio/index.js';
 import { guestsModule } from './guests/index.js';
 import { iamModule } from './iam/index.js';
+import { invoicingModule } from './invoicing/index.js';
 import { legalModule } from './legal/index.js';
 import { lookupsModule } from './lookups/index.js';
 import { notificationsModule } from './notifications/index.js';
@@ -80,4 +83,8 @@ export const MODULES: readonly ModuleDefinition[] = [
   groupsModule,
   folioModule,
   businessDateModule,
+  cashierModule,
+  exchangeRatesModule,
+  invoicingModule,
+  cityLedgerModule,
 ];
