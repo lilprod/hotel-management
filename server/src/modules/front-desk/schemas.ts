@@ -5,6 +5,8 @@ import { guestRef } from '../reservations/schemas.js';
 
 export { idParams };
 
+const nullableStr = z.string().nullable();
+
 const text = (max: number) => z.string().trim().max(max);
 const opt = (max: number) => text(max).nullish();
 
@@ -144,6 +146,17 @@ export const availableRoomsQuery = z.object({
   reservationRoomId: uuid.optional(),
 });
 
+export const companySearchQuery = z.object({
+  search: z.string().trim().max(100).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+});
+export const companyOptionSchema = z.object({
+  id: uuid,
+  name: z.string(),
+  taxId: nullableStr,
+  creditLimit: z.number().int().nullable(),
+});
+
 export const policeListQuery = z.object({
   propertyId: uuid,
   from: dayString,
@@ -163,7 +176,6 @@ export const policeExportQuery = z.object({
 
 // ───────────────────────────── responses ─────────────────────────────
 
-const nullableStr = z.string().nullable();
 
 export const dayRowSchema = z.object({
   reservationId: uuid,

@@ -68,6 +68,31 @@ export async function previewCheckout(ctx: RCtx, id: string) {
   };
 }
 
+/** Companies for the city-ledger transfer picker (the NIF is shown: it is mandatory). */
+export async function searchCompanies(ctx: RCtx, q: { search?: string | undefined; limit: number }) {
+  const rows = await ctx.db.company.findMany({
+    where: {
+      deletedAt: null,
+      ...(q.search
+        ? {
+            OR: [
+              { name: { contains: q.search, mode: 'insensitive' } },
+              { taxId: { contains: q.search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    },
+    orderBy: [{ name: 'asc' }, { id: 'asc' }],
+    take: q.limit,
+  });
+  return rows.map((c) => ({
+    id: c.id,
+    name: c.name,
+    taxId: c.taxId,
+    creditLimit: c.creditLimit === null ? null : Number(c.creditLimit),
+  }));
+}
+
 const settleable = (b: Prepared['blockers'][number]) =>
   b.code === 'UNPAID_BALANCE' || b.code === 'CREDIT_BALANCE';
 

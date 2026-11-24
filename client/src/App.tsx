@@ -24,6 +24,8 @@ import { DashboardPage } from './onboarding/DashboardPage';
 import { OnboardingPage } from './onboarding/OnboardingPage';
 import { ModulePage } from './pages/ModulePage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { FrontDeskPage } from './pages/front-desk/FrontDeskPage';
+import { PoliceRegisterPage } from './pages/front-desk/PoliceRegisterPage';
 import { GroupsPage } from './reservations/GroupsPage';
 import { PlanningPage } from './reservations/PlanningPage';
 import { NewReservationPage, ReservationsPage } from './reservations/ReservationsPage';
@@ -82,6 +84,12 @@ function moduleElement(m: (typeof modules)[number]) {
     return (
       <Guard {...guard}>
         <GroupsPage />
+      </Guard>
+    );
+  if (m.key === 'front-desk')
+    return (
+      <Guard {...guard}>
+        <FrontDeskPage />
       </Guard>
     );
   if (m.key === 'subscription')
@@ -148,6 +156,14 @@ export function App() {
               element={
                 <Guard permission="reservations.create">
                   <NewReservationPage />
+                </Guard>
+              }
+            />
+            <Route
+              path="/front-desk/police-register"
+              element={
+                <Guard permission="front_desk.police_form">
+                  <PoliceRegisterPage />
                 </Guard>
               }
             />

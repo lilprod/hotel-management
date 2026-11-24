@@ -7,12 +7,14 @@ import { propertyFromRequest } from '../property/common.js';
 import { withRCtx } from '../reservations/context.js';
 import { reservationSchema } from '../reservations/schemas.js';
 import { checkIn, walkIn } from './checkin.js';
-import { checkOut, previewCheckout } from './checkout.js';
+import { checkOut, previewCheckout, searchCompanies } from './checkout.js';
 import { FILE_MAX_BYTES, FILE_MIME_TYPES, uploadFile } from './files.js';
 import { availableRooms, dayList, summary } from './lists.js';
 import { exportPolice, listPolice, policeFormPdf } from './police.js';
 import {
   availableRoomSchema,
+  companyOptionSchema,
+  companySearchQuery,
   checkInBody,
   checkoutBody,
   dayListSchema,
@@ -75,6 +77,16 @@ export const frontDeskRouter = createModuleRouter()
     request: { query: availableRoomsQuery },
     responses: { 200: { description: 'Rooms', schema: z.array(availableRoomSchema) } },
     handler: (req) => withRCtx(req, (ctx) => availableRooms(ctx, req.valid.query)),
+  })
+  .route({
+    method: 'get',
+    path: '/companies',
+    tags,
+    summary: 'Companies able to receive a balance transfer (search by name or NIF)',
+    middleware: [can('front_desk.check_out'), feature],
+    request: { query: companySearchQuery },
+    responses: { 200: { description: 'Companies', schema: z.array(companyOptionSchema) } },
+    handler: (req) => withRCtx(req, (ctx) => searchCompanies(ctx, req.valid.query)),
   })
   .route({
     method: 'post',

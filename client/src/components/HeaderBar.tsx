@@ -25,8 +25,18 @@ export function HeaderBar() {
 
   const actions = [
     { key: 'booking', label: t('newBooking'), path: '/reservations/new', icon: <PlusOutlined /> },
-    { key: 'check-in', label: t('checkIn'), path: '/front-desk', icon: <LoginOutlined /> },
-    { key: 'check-out', label: t('checkOut'), path: '/front-desk', icon: <LogoutOutlined /> },
+    {
+      key: 'check-in',
+      label: t('checkIn'),
+      path: '/front-desk?tab=arrivals',
+      icon: <LoginOutlined />,
+    },
+    {
+      key: 'check-out',
+      label: t('checkOut'),
+      path: '/front-desk?tab=departures',
+      icon: <LogoutOutlined />,
+    },
   ];
 
   return (

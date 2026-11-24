@@ -25,6 +25,9 @@ import { useTranslation } from 'react-i18next';
 
 import { useApiError } from '../auth/useApiError';
 import { useCan } from '../auth/useCan';
+import { CheckInDrawer } from '../pages/front-desk/CheckInDrawer';
+import type { CheckInTarget } from '../pages/front-desk/CheckInDrawer';
+import { CheckOutDrawer } from '../pages/front-desk/CheckOutDrawer';
 import { formatMoney } from '../pages/settings/util';
 import {
   conflictDetails,
@@ -49,11 +52,12 @@ interface Props {
   onChanged?: () => void;
 }
 
-type Action = 'cancel' | 'noshow' | 'dates' | 'assign' | null;
+type Action = 'cancel' | 'noshow' | 'dates' | 'assign' | 'checkin' | 'checkout' | null;
 
 /** Reservation detail (OP-13/14): guests, rooms & nights, totals, history and lifecycle actions. */
 export function ReservationDrawer({ id, onClose, onChanged }: Props) {
   const { t } = useTranslation('reservations');
+  const { t: tf } = useTranslation('frontDesk');
   const { can } = useCan();
   const qc = useQueryClient();
   const { message } = AntApp.useApp();
@@ -87,6 +91,42 @@ export function ReservationDrawer({ id, onClose, onChanged }: Props) {
 
   const editable = r && (r.status === 'PENDING' || r.status === 'CONFIRMED');
   const buttons: ReactNode[] = [];
+  // Front desk (L7a): the first room waiting for its check-in / the first one in house.
+  const arrivingRoom = r?.rooms.find((x) => x.status === 'CONFIRMED');
+  const inHouseRoom = r?.rooms.find((x) => x.status === 'CHECKED_IN');
+  const checkInTarget: CheckInTarget | null =
+    r && arrivingRoom
+      ? {
+          propertyId: r.propertyId,
+          reservationId: r.id,
+          reservationRoomId: arrivingRoom.id,
+          number: r.number,
+          guestId: arrivingRoom.guests.find((g) => g.isPrimary)?.guestId ?? r.booker?.id ?? null,
+          guestName: r.booker ? `${r.booker.lastName.toUpperCase()} ${r.booker.firstName}` : '—',
+          roomTypeId: arrivingRoom.roomTypeId,
+          roomTypeName: typeName(arrivingRoom.roomTypeId),
+          roomId: arrivingRoom.roomId,
+          roomNumber: arrivingRoom.roomNumber,
+          hkStatus: null,
+          arrival: arrivingRoom.arrival,
+          departure: arrivingRoom.departure,
+          adults: arrivingRoom.adults,
+          children: arrivingRoom.children,
+          currency: arrivingRoom.currency,
+        }
+      : null;
+  if (arrivingRoom && (r?.status === 'CONFIRMED' || r?.status === 'CHECKED_IN') && can('front_desk.check_in'))
+    buttons.push(
+      <Button key="checkin" type="primary" onClick={() => setAction('checkin')}>
+        {tf('actions.checkIn')}
+      </Button>,
+    );
+  if (inHouseRoom && can('front_desk.check_out'))
+    buttons.push(
+      <Button key="checkout" type="primary" onClick={() => setAction('checkout')}>
+        {tf('actions.checkOut')}
+      </Button>,
+    );
   if (r?.status === 'PENDING' && can('reservations.update'))
     buttons.push(
       <Button
@@ -157,6 +197,16 @@ export function ReservationDrawer({ id, onClose, onChanged }: Props) {
           ]}
         />
       ) : null}
+      <CheckInDrawer
+        target={action === 'checkin' ? checkInTarget : null}
+        onClose={() => setAction(null)}
+        onDone={() => changed()}
+      />
+      <CheckOutDrawer
+        stayRef={action === 'checkout' ? (inHouseRoom?.id ?? null) : null}
+        onClose={() => setAction(null)}
+        onDone={() => changed()}
+      />
       {r ? (
         <>
           <CancelModal

@@ -6,6 +6,7 @@ import { errorMessages, useUiStore } from '@hm/ui';
 import enAuth from './locales/en/auth.json';
 import enBranding from './locales/en/branding.json';
 import enCommon from './locales/en/common.json';
+import enFrontDesk from './locales/en/frontDesk.json';
 import enNav from './locales/en/nav.json';
 import enReservations from './locales/en/reservations.json';
 import enOnboarding from './locales/en/onboarding.json';
@@ -16,6 +17,7 @@ import enSubscription from './locales/en/subscription.json';
 import frAuth from './locales/fr/auth.json';
 import frBranding from './locales/fr/branding.json';
 import frCommon from './locales/fr/common.json';
+import frFrontDesk from './locales/fr/frontDesk.json';
 import frNav from './locales/fr/nav.json';
 import frReservations from './locales/fr/reservations.json';
 import frOnboarding from './locales/fr/onboarding.json';
@@ -31,6 +33,7 @@ void i18n.use(initReactI18next).init({
       branding: frBranding,
       common: frCommon,
       errors: errorMessages.fr,
+      frontDesk: frFrontDesk,
       nav: frNav,
       onboarding: frOnboarding,
       reservations: frReservations,
@@ -44,6 +47,7 @@ void i18n.use(initReactI18next).init({
       branding: enBranding,
       common: enCommon,
       errors: errorMessages.en,
+      frontDesk: enFrontDesk,
       nav: enNav,
       onboarding: enOnboarding,
       reservations: enReservations,
@@ -61,6 +65,7 @@ void i18n.use(initReactI18next).init({
     'branding',
     'common',
     'errors',
+    'frontDesk',
     'nav',
     'reservations',
     'security',
