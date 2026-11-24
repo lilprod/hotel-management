@@ -718,6 +718,20 @@ describe('check-out', () => {
   });
 });
 
+describe('company picker', () => {
+  it('searches companies by name or NIF, tenant-scoped', async () => {
+    const { admin } = env.services;
+    await admin.company.create({ data: { tenantId: A.tenantId, name: 'Lomé Logistics', taxId: '1000999888' } });
+    await admin.company.create({ data: { tenantId: B.tenantId, name: 'Lomé Secret', taxId: '1000777666' } });
+    const res = await api('get', '/front-desk/companies?search=lom%C3%A9', tokA);
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(res.body.map((c: { name: string }) => c.name)).toEqual(['Lomé Logistics']);
+    const byNif = await api('get', '/front-desk/companies?search=1000999', tokA);
+    expect(byNif.body[0]).toMatchObject({ name: 'Lomé Logistics', taxId: '1000999888' });
+    expect((await api('get', '/front-desk/companies', tokReader)).status).toBe(403);
+  });
+});
+
 describe('lazy stay creation (seeded in-house stays)', () => {
   it('creates the stay row on first access and keeps working', async () => {
     const { admin } = env.services;
