@@ -12,6 +12,7 @@
 import { pathToFileURL } from 'node:url';
 import { createAdminClient, type AdminClient } from '../src/index.js';
 import { seedDemoJess } from './demo-jess.js';
+import { seedDemoReservations } from './demo-reservations.js';
 import { seedDemoKpalime } from './demo-kpalime.js';
 import { seedDemoLome } from './demo-lome.js';
 import { seedPlatform } from './platform.js';
@@ -31,6 +32,7 @@ export interface SeedSummary {
   lome: Awaited<ReturnType<typeof seedDemoLome>>;
   kpalime: Awaited<ReturnType<typeof seedDemoKpalime>>;
   jess: Awaited<ReturnType<typeof seedDemoJess>>;
+  reservations: Awaited<ReturnType<typeof seedDemoReservations>>;
 }
 
 export function seedOptionsFromEnv(env: NodeJS.ProcessEnv = process.env): SeedOptions {
@@ -56,7 +58,8 @@ export async function runSeeds(
   const lome = await seedDemoLome(admin, { demoPassword: options.demoPassword, log });
   const kpalime = await seedDemoKpalime(admin, { demoPassword: options.demoPassword, log });
   const jess = await seedDemoJess(admin, { demoPassword: options.demoPassword, log });
-  return { platform, togo, lome, kpalime, jess };
+  const reservations = await seedDemoReservations(admin, { log });
+  return { platform, togo, lome, kpalime, jess, reservations };
 }
 
 // CLI entry point (pnpm db:seed).
