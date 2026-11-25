@@ -112,7 +112,13 @@ export async function sellerParty(services: Services, db: Pick<Db, 'property'>, 
     select: { name: true, legalName: true },
   });
   const legal = await services.settings.get(brandingSettings.legal, { tenantId });
-  const address = [p.address, p.city].filter(Boolean).join(', ') || legal.address || '';
+  // The city is appended only when the address does not already state it.
+  const address =
+    [p.address, p.city && !p.address?.toLowerCase().includes(p.city.toLowerCase()) ? p.city : null]
+      .filter(Boolean)
+      .join(', ') ||
+    legal.address ||
+    '';
   const nif = p.taxId ?? legal.nif;
   const rccm = p.rccm ?? legal.rccm;
   return {
