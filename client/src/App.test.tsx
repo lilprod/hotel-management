@@ -37,6 +37,7 @@ describe('client shell', () => {
       'guests',
       'billing',
       'cash',
+      'night-audit',
       'restaurant',
       'spa',
       'activities',
