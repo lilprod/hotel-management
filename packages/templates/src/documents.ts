@@ -17,6 +17,12 @@ export type MoneyValue = { amount: number; currency: string };
 
 export interface DocParty {
   name: string;
+  /** Registered company name (raison sociale), when different from the trading name. */
+  legalName?: string;
+  /** Legal form (SARL, SA…). */
+  legalForm?: string;
+  /** Tax regime (régime fiscal). */
+  taxRegime?: string;
   address?: string;
   phone?: string;
   email?: string;
@@ -46,7 +52,14 @@ export interface InvoiceData {
   dueOn?: string;
   seller: DocParty;
   buyer: DocParty;
-  stay?: { reservation: string; checkIn: string; checkOut: string; nights: number };
+  stay?: {
+    reservation: string;
+    checkIn: string;
+    checkOut: string;
+    nights: number;
+    /** Nights actually invoiced; when lower than `nights` the period is labelled "x of y". */
+    invoicedNights?: number;
+  };
   lines: InvoiceLine[];
   /** Per-rate HT / TVA breakdown. */
   taxBreakdown: TaxBreakdownRow[];
@@ -56,6 +69,8 @@ export interface InvoiceData {
   totalTax: MoneyValue;
   totalGross: MoneyValue;
   paymentMethod?: string;
+  /** Payments by method (code or label + amount), printed as "Espèces : 126 000 FCFA". */
+  payments?: { method: string; label?: string; amount: MoneyValue }[];
   notes?: string[];
   creditNoteOf?: string;
 }
@@ -165,6 +180,18 @@ const L = {
     from: 'du',
     to: 'au',
     nights: 'nuit(s)',
+    invoicedNights: 'nuits facturées',
+    of: 'sur',
+    taxRegime: 'Régime fiscal',
+    methods: {
+      CASH: 'Espèces',
+      CARD: 'Carte bancaire',
+      BANK_TRANSFER: 'Virement bancaire',
+      MIXX: 'Mixx by Yas',
+      MOOV_MONEY: 'Moov Money',
+      CITY_LEDGER: 'Compte débiteur',
+      LOYALTY_POINTS: 'Points de fidélité',
+    } as Record<string, string>,
     payer: 'Reçu de',
     amount: 'Montant',
     method: 'Mode de paiement',
@@ -218,6 +245,18 @@ const L = {
     from: 'from',
     to: 'to',
     nights: 'night(s)',
+    invoicedNights: 'nights invoiced',
+    of: 'of',
+    taxRegime: 'Tax regime',
+    methods: {
+      CASH: 'Cash',
+      CARD: 'Bank card',
+      BANK_TRANSFER: 'Bank transfer',
+      MIXX: 'Mixx by Yas',
+      MOOV_MONEY: 'Moov Money',
+      CITY_LEDGER: 'City ledger',
+      LOYALTY_POINTS: 'Loyalty points',
+    } as Record<string, string>,
     payer: 'Received from',
     amount: 'Amount',
     method: 'Payment method',
@@ -243,9 +282,22 @@ const L = {
     creditOf: 'Credit note for invoice',
     page: 'Page',
   },
-} satisfies Record<Locale, Record<string, string>>;
+} satisfies Record<Locale, Record<string, string | Record<string, string>>>;
 
 const e = escapeHtml;
+
+/** Day `YYYY-MM-DD` (or ISO timestamp) in the reader's convention: fr dd/mm/yyyy, en ISO. */
+export function formatDocDate(value: string, lang: Locale): string {
+  const mt = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (!mt) return value;
+  return lang === 'fr' ? `${mt[3]}/${mt[2]}/${mt[1]}` : `${mt[1]}-${mt[2]}-${mt[3]}`;
+}
+
+const methodLabel = (code: string, fallback: string | undefined, lang: Locale): string =>
+  (L[lang].methods as Record<string, string>)[code] ?? fallback ?? code;
+
+/** "18" -> "18 %" (the unit is added here only, never by callers); "18 %" stays as is. */
+const pct = (rate: string): string => `${rate.replace(/\s*%\s*$/, '').trim()} %`;
 const m = (v: MoneyValue): string => formatMoney(money(v.amount, v.currency) as Money);
 
 const BASE_CSS = (b: Branding, page: string): string => `
@@ -265,11 +317,13 @@ function party(label: string, p: DocParty, t: (typeof L)['fr']): string {
   const ids = p.legalIds ?? {};
   const lines = [
     `<strong>${e(p.name)}</strong>`,
+    p.legalName && p.legalName !== p.name && e([p.legalName, p.legalForm].filter(Boolean).join(' ')),
     p.address && e(p.address),
     p.phone && e(p.phone),
     p.email && e(p.email),
     ids.nif && `${t.nif} : ${e(ids.nif)}`,
     ids.rccm && `${t.rccm} : ${e(ids.rccm)}`,
+    p.taxRegime && `${t.taxRegime} : ${e(p.taxRegime)}`,
     ...Object.entries(ids)
       .filter(([k, v]) => v && k !== 'nif' && k !== 'rccm')
       .map(([k, v]) => `${e(k.toUpperCase())} : ${e(v)}`),
@@ -277,10 +331,37 @@ function party(label: string, p: DocParty, t: (typeof L)['fr']): string {
   return `<div class="box"><div class="muted">${e(label)}</div>${lines.join('<br/>')}</div>`;
 }
 
-function logo(b: Branding): string {
+/** Document header: the logo if any, else the name of the issuer (the hotel), never the platform. */
+function logo(b: Branding, issuer: string): string {
   return b.logoUrl
-    ? `<img src="${e(b.logoUrl)}" alt="${e(b.displayName)}" style="max-height:60px;max-width:180px"/>`
-    : `<h1>${e(b.displayName)}</h1>`;
+    ? `<img src="${e(b.logoUrl)}" alt="${e(issuer)}" style="max-height:60px;max-width:180px"/>`
+    : `<h1>${e(issuer)}</h1>`;
+}
+
+/** Legal footer of an issuer: company name, form, NIF, RCCM, tax regime, address, then branding mentions. */
+function footerHtml(s: DocParty, b: Branding, t: (typeof L)['fr'], br = ' - '): string {
+  const ids = s.legalIds ?? {};
+  const own = [
+    [s.legalName ?? s.name, s.legalName ? s.legalForm : undefined].filter(Boolean).join(' '),
+    ids.nif && `${t.nif} ${ids.nif}`,
+    ids.rccm && `${t.rccm} ${ids.rccm}`,
+    s.taxRegime && `${t.taxRegime} : ${s.taxRegime}`,
+    s.address,
+  ];
+  const known = [ids.nif, ids.rccm, s.address].filter((v): v is string => !!v);
+  const extra = b.footerLegal.filter((l) => !known.some((k) => l.includes(k)));
+  return [...own, ...extra]
+    .filter(Boolean)
+    .map((x) => e(x))
+    .join(br);
+}
+
+function paymentsHtml(d: InvoiceData, t: (typeof L)['fr'], lang: Locale): string {
+  if (d.payments?.length)
+    return `<p>${t.payment} :<br/>${d.payments
+      .map((p) => `${e(methodLabel(p.method, p.label, lang))} : ${m(p.amount)}`)
+      .join('<br/>')}</p>`;
+  return d.paymentMethod ? `<p>${t.payment} : ${e(d.paymentMethod)}</p>` : '';
 }
 
 function invoiceHtml(d: InvoiceData, b: Branding, lang: Locale): string {
@@ -288,20 +369,24 @@ function invoiceHtml(d: InvoiceData, b: Branding, lang: Locale): string {
   const rows = d.lines
     .map(
       (l) =>
-        `<tr><td>${e(l.description)}</td><td class="r">${e(l.quantity)}</td><td class="r">${m(l.unitPrice)}</td><td class="r">${e(l.taxRate)} %</td><td class="r">${m(l.net)}</td></tr>`,
+        `<tr><td>${e(l.description)}</td><td class="r">${e(l.quantity)}</td><td class="r">${m(l.unitPrice)}</td><td class="r">${e(pct(l.taxRate))}</td><td class="r">${m(l.net)}</td></tr>`,
     )
     .join('');
   const tax = d.taxBreakdown
     .map(
       (r) =>
-        `<tr><td>${t.rate} ${e(r.rate)} %</td><td class="r">${m(r.base)}</td><td class="r">${m(r.tax)}</td></tr>`,
+        `<tr><td>${t.rate} ${e(pct(r.rate))}</td><td class="r">${m(r.base)}</td><td class="r">${m(r.tax)}</td></tr>`,
     )
     .join('');
   const title = d.creditNoteOf ? t.creditNote : t.invoice;
   const body = `<div style="padding:15mm">
-<table><tr><td style="border:0">${logo(b)}</td><td style="border:0" class="r"><h1>${title}</h1>${t.number} ${e(d.number)}<br/>${t.date} : ${e(d.issuedOn)}${d.dueOn ? `<br/>${t.due} : ${e(d.dueOn)}` : ''}${d.creditNoteOf ? `<br/>${t.creditOf} ${e(d.creditNoteOf)}` : ''}</td></tr></table>
+<table><tr><td style="border:0">${logo(b, d.seller.name)}</td><td style="border:0" class="r"><h1>${title}</h1>${t.number} ${e(d.number)}<br/>${t.date} : ${e(formatDocDate(d.issuedOn, lang))}${d.dueOn ? `<br/>${t.due} : ${e(formatDocDate(d.dueOn, lang))}` : ''}${d.creditNoteOf ? `<br/>${t.creditOf} ${e(d.creditNoteOf)}` : ''}</td></tr></table>
 <table style="margin:12px 0"><tr><td style="border:0;width:50%">${party(t.seller, d.seller, t)}</td><td style="border:0">${party(t.buyer, d.buyer, t)}</td></tr></table>
-${d.stay ? `<p>${t.stay} ${e(d.stay.reservation)} : ${t.from} ${e(d.stay.checkIn)} ${t.to} ${e(d.stay.checkOut)} (${e(d.stay.nights)} ${t.nights})</p>` : ''}
+${d.stay ? `<p>${t.stay} ${e(d.stay.reservation)} : ${t.from} ${e(formatDocDate(d.stay.checkIn, lang))} ${t.to} ${e(formatDocDate(d.stay.checkOut, lang))} (${
+    d.stay.invoicedNights !== undefined && d.stay.invoicedNights < d.stay.nights
+      ? `${t.invoicedNights} : ${e(d.stay.invoicedNights)} ${t.of} ${e(d.stay.nights)}`
+      : `${e(d.stay.nights)} ${t.nights}`
+  })</p>` : ''}
 <table><thead><tr><th>${t.description}</th><th class="r">${t.qty}</th><th class="r">${t.unit}</th><th class="r">${t.rate}</th><th class="r">${t.net}</th></tr></thead><tbody>${rows}</tbody></table>
 <table style="margin-top:12px"><tr><td style="border:0;width:55%;vertical-align:top">
 <table><thead><tr><th>${t.rate}</th><th class="r">${t.base}</th><th class="r">${t.tax}</th></tr></thead><tbody>${tax}</tbody></table></td>
@@ -310,30 +395,22 @@ ${d.stay ? `<p>${t.stay} ${e(d.stay.reservation)} : ${t.from} ${e(d.stay.checkIn
 <tr><td>${t.tva}</td><td class="r">${m(d.totalTax)}</td></tr>
 ${d.touristTax ? `<tr><td>${t.touristTax}</td><td class="r">${m(d.touristTax)}</td></tr>` : ''}
 <tr class="grand"><td>${t.ttc}</td><td class="r">${m(d.totalGross)}</td></tr></table></td></tr></table>
-${d.paymentMethod ? `<p>${t.payment} : ${e(d.paymentMethod)}</p>` : ''}
+${paymentsHtml(d, t, lang)}
 ${(d.notes ?? []).map((n) => `<p class="muted">${e(n)}</p>`).join('')}
-<p class="muted" style="margin-top:20px;text-align:center;font-size:9px">${[
-    b.displayName,
-    d.seller.legalIds?.nif && `${t.nif} ${d.seller.legalIds.nif}`,
-    d.seller.legalIds?.rccm && `${t.rccm} ${d.seller.legalIds.rccm}`,
-    ...b.footerLegal,
-  ]
-    .filter(Boolean)
-    .map((x) => e(x))
-    .join(' - ')}</p></div>`;
+<p class="muted" style="margin-top:20px;text-align:center;font-size:9px">${footerHtml(d.seller, b, t)}</p></div>`;
   return shell(`${title} ${d.number}`, BASE_CSS(b, 'A4'), body, lang);
 }
 
 function receiptHtml(d: ReceiptData, b: Branding, lang: Locale): string {
   const t = L[lang];
-  const body = `<div style="padding:20mm">${logo(b)}<h1 style="margin-top:12px">${t.receipt}</h1><p>${t.number} ${e(d.number)} - ${e(d.issuedAt)}</p>
+  const body = `<div style="padding:20mm">${logo(b, d.seller.name)}<h1 style="margin-top:12px">${t.receipt}</h1><p>${t.number} ${e(d.number)} - ${e(formatDocDate(d.issuedAt, lang))}</p>
 ${party(t.seller, d.seller, t)}
 <table style="margin-top:14px"><tr><td>${t.payer}</td><td>${e(d.payer)}</td></tr>
 <tr><td>${t.amount}</td><td><strong>${m(d.amount)}</strong></td></tr>
-<tr><td>${t.method}</td><td>${e(d.method)}</td></tr>
+<tr><td>${t.method}</td><td>${e(methodLabel(d.method, d.method, lang))}</td></tr>
 ${d.reference ? `<tr><td>${t.ref}</td><td>${e(d.reference)}</td></tr>` : ''}
 ${d.invoiceNumber ? `<tr><td>${t.invoiceRef}</td><td>${e(d.invoiceNumber)}</td></tr>` : ''}</table>
-<p class="muted" style="margin-top:24px">${b.footerLegal.map((x) => e(x)).join('<br/>')}</p></div>`;
+<p class="muted" style="margin-top:24px">${footerHtml(d.seller, b, t, '<br/>')}</p></div>`;
   return shell(`${t.receipt} ${d.number}`, BASE_CSS(b, 'A4'), body, lang);
 }
 
@@ -341,9 +418,9 @@ function ticketHtml(d: TicketData, b: Branding, lang: Locale): string {
   const t = L[lang];
   const css = `${BASE_CSS(b, '80mm auto')} body{width:72mm;padding:4mm;font-size:10px} td{border:0;padding:2px 0}`;
   const ids = d.seller.legalIds ?? {};
-  const body = `<div style="text-align:center"><strong>${e(d.seller.name)}</strong><br/>${d.seller.address ? `${e(d.seller.address)}<br/>` : ''}${ids.nif ? `${t.nif} ${e(ids.nif)}<br/>` : ''}${ids.rccm ? `${t.rccm} ${e(ids.rccm)}<br/>` : ''}${t.number} ${e(d.number)} - ${e(d.issuedAt)}</div><hr/>
+  const body = `<div style="text-align:center"><strong>${e(d.seller.name)}</strong><br/>${d.seller.address ? `${e(d.seller.address)}<br/>` : ''}${ids.nif ? `${t.nif} ${e(ids.nif)}<br/>` : ''}${ids.rccm ? `${t.rccm} ${e(ids.rccm)}<br/>` : ''}${d.seller.taxRegime ? `${t.taxRegime} : ${e(d.seller.taxRegime)}<br/>` : ''}${t.number} ${e(d.number)} - ${e(formatDocDate(d.issuedAt, lang))}</div><hr/>
 <table>${d.lines.map((l) => `<tr><td>${e(l.quantity)} x ${e(l.description)}</td><td class="r">${m(l.total)}</td></tr>`).join('')}</table><hr/>
-<table><tr><td><strong>${t.total}</strong></td><td class="r"><strong>${m(d.total)}</strong></td></tr>${d.paymentMethod ? `<tr><td>${t.method}</td><td class="r">${e(d.paymentMethod)}</td></tr>` : ''}</table>
+<table><tr><td><strong>${t.total}</strong></td><td class="r"><strong>${m(d.total)}</strong></td></tr>${d.paymentMethod ? `<tr><td>${t.method}</td><td class="r">${e(methodLabel(d.paymentMethod, d.paymentMethod, lang))}</td></tr>` : ''}</table>
 <p style="text-align:center">${t.thanks}</p>`;
   return shell(`Ticket ${d.number}`, css, body, lang);
 }
@@ -385,7 +462,7 @@ function policeRegisterHtml(d: PoliceRegisterData, b: Branding, lang: Locale): s
           .join('')}</tr>`,
     )
     .join('');
-  const body = `<div style="padding:10mm">${logo(b)}<h1 style="margin-top:8px">${x.register}</h1><p>${e(d.hotel.name)}${d.hotel.address ? ` - ${e(d.hotel.address)}` : ''}<br/>${x.period} : ${e(d.period.from)} → ${e(d.period.to)}${d.masked ? ` <span class="muted">(${x.masked})</span>` : ''}</p>
+  const body = `<div style="padding:10mm">${logo(b, d.hotel.name)}<h1 style="margin-top:8px">${x.register}</h1><p>${e(d.hotel.name)}${d.hotel.address ? ` - ${e(d.hotel.address)}` : ''}<br/>${x.period} : ${e(d.period.from)} → ${e(d.period.to)}${d.masked ? ` <span class="muted">(${x.masked})</span>` : ''}</p>
 <table style="font-size:9px"><tr>${head.map((h) => `<th>${e(h)}</th>`).join('')}</tr>${rows}</table></div>`;
   return shell(x.register, BASE_CSS(b, 'A4 landscape'), body, lang);
 }
@@ -396,7 +473,7 @@ function policeHtml(d: PoliceFormData, b: Branding, lang: Locale): string {
   const g = d.guest;
   const field = (label: string, v?: string): string =>
     `<tr><td style="width:35%" class="muted">${label}</td><td>${e(v ?? '')}</td></tr>`;
-  const body = `<div style="padding:15mm">${logo(b)}<h1 style="margin-top:10px">${t.police}</h1><p>${e(d.hotel.name)}${d.hotel.address ? ` - ${e(d.hotel.address)}` : ''}</p>
+  const body = `<div style="padding:15mm">${logo(b, d.hotel.name)}<h1 style="margin-top:10px">${t.police}</h1><p>${e(d.hotel.name)}${d.hotel.address ? ` - ${e(d.hotel.address)}` : ''}</p>
 <table>${field(t.last, g.lastName)}${field(t.first, g.firstName)}${field(t.birth, g.birthDate)}${field(t.place, g.birthPlace)}${field(t.nat, g.nationality)}${field(t.job, g.profession)}${field(t.addr, g.address)}${field(t.idDoc, g.idType)}${field(t.idNo, g.idNumber)}${field(t.issued, g.idIssuedBy)}</table>
 ${g.idIssuedOn ? `<table style="margin-top:12px">${field(x.issuedOn, g.idIssuedOn)}</table>` : ''}
 <table style="margin-top:12px">${field(t.arrival, d.stay.checkIn)}${field(t.departure, d.stay.checkOut)}${field(t.room, d.stay.room)}${field(t.ref, d.stay.reservation)}${field(x.provenance, d.stay.provenance)}${field(x.destination, d.stay.destination)}${field(x.purpose, d.stay.purpose)}</table>

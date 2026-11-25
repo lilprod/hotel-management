@@ -52,11 +52,18 @@ export function groupLines(lines: readonly FolioLine[]): DayGroup[] {
 export const isLiveCharge = (l: FolioLine) =>
   !l.reversalOfId && !l.reversedById && l.type !== 'TAX' && l.type !== 'DISCOUNT';
 
+/** Tax label: the rate is appended only when the name does not already state it ("TVA 18 %"). */
+export function taxLabel(name: string, rate: string | null): string {
+  if (!rate) return name;
+  const stated = new RegExp(`(^|[^\\d.])${rate.replace('.', '\\.')}\\s*%`).test(name);
+  return stated ? name : `${name} (${rate} %)`;
+}
+
 /** Totals per tax rate for the invoice preview (rows come from the folio tax breakdown). */
 export function previewByRate(rows: readonly TaxRow[]) {
   return rows.map((r) => ({
     key: r.code,
-    label: r.rate ? `${r.name} (${r.rate} %)` : r.name,
+    label: taxLabel(r.name, r.rate),
     base: r.base,
     amount: r.amount,
   }));

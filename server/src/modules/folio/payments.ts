@@ -7,7 +7,7 @@ import { TX_OPTS } from '../reservations/service.js';
 import { openSessionOf } from '../cashier/service.js';
 import { rateFor } from '../cashier/exchange-rates.js';
 import { FOLIO_EVENTS, publishFinance, publishFolioChanged } from './events.js';
-import { customerParty, defaultCustomer, METHOD_LABELS, sellerParty } from './parties.js';
+import { customerParty, defaultCustomer, sellerParty } from './parties.js';
 import {
   advisoryLock,
   assertOpen,
@@ -405,7 +405,8 @@ export async function renderReceipt(
   const customer = await defaultCustomer(db, folio, fdto);
   const seller = await sellerParty(ctx.services, db, ctx.tenantId, folio.propertyId);
   const number = receiptNumber(p.id);
-  const method = METHOD_LABELS[p.method] ?? p.method;
+  // Method code: the document template translates it in the document language.
+  const method: string = p.method;
   const issuedAt = formatDay(p.paidAt);
   const money = { amount: num(p.amount), currency: p.currency };
   const out =

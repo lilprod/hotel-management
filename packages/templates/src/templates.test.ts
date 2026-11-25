@@ -187,6 +187,52 @@ describe('documents', () => {
     expect(html).toContain('size: A4');
   });
 
+  it('hotel documents show the hotel, its legal mentions, formatted amounts and FR dates', () => {
+    const html = renderDocumentHtml(
+      'invoice',
+      {
+        ...invoice,
+        issuedOn: '2026-11-25',
+        seller: {
+          name: 'Hôtel 2 Février',
+          legalName: 'Société 2 Février SARL',
+          legalForm: 'SARL',
+          taxRegime: 'Réel normal',
+          address: 'Lomé',
+          legalIds: { nif: 'NIF-1', rccm: 'RCCM-1' },
+        },
+        stay: { reservation: 'RES-1', checkIn: '2026-11-22', checkOut: '2026-11-27', nights: 5 },
+        payments: [{ method: 'CASH', amount: xof(126000) }],
+        paymentMethod: undefined as never,
+      },
+      {},
+      'fr',
+    );
+    expect(html).not.toContain('Hotel Management');
+    expect(html).not.toMatch(/% %/);
+    expect(html).toContain('<h1>Hôtel 2 Février</h1>');
+    expect(html).toContain('25/11/2026');
+    expect(html).toContain('du 22/11/2026 au 27/11/2026 (5 nuit(s))');
+    expect(html).toContain('Régime fiscal : Réel normal');
+    expect(html).toContain('Espèces : ' + formatMoney(money(126000, 'XOF')));
+    expect(html).not.toContain('126000');
+    const en = renderDocumentHtml('invoice', { ...invoice, payments: [{ method: 'MIXX', amount: xof(1) }] }, {}, 'en');
+    expect(en).toContain('Mixx by Yas');
+    // Pre-formatted rates are not doubled
+    const dbl = renderDocumentHtml('invoice', { ...invoice, lines: [{ ...invoice.lines[0]!, taxRate: '18 %' }] }, {});
+    expect(dbl).not.toMatch(/% %/);
+  });
+
+  it('labels an interim invoice with the invoiced nights only', () => {
+    const html = renderDocumentHtml(
+      'invoice',
+      { ...invoice, stay: { reservation: 'R', checkIn: '2026-11-22', checkOut: '2026-11-27', nights: 5, invoicedNights: 4 } },
+      {},
+      'fr',
+    );
+    expect(html).toContain('nuits facturées : 4 sur 5');
+  });
+
   it('renders receipt, 80 mm ticket and police form', () => {
     const seller = { name: 'Lac' };
     expect(

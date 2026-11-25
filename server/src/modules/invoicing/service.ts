@@ -24,17 +24,19 @@ import {
   breakdown,
   COUNTED_PAYMENT_STATUSES,
   folioSums,
+  isLive,
   lineInclude,
   loadProperty,
   lockFolio,
   rateLabel,
   refreshBalance,
+  SRC,
   taxesByCode,
   type Breakdown,
   type LineRow,
   type Tx,
 } from '../folio/repository.js';
-import { lineGroup, linksOf, loadFolio, writeReversal, type FCtx } from '../folio/service.js';
+import { addDays, lineGroup, linksOf, loadFolio, writeReversal, type FCtx } from '../folio/service.js';
 import type { creditNoteBody, customerInput, issueBody, listQuery } from './schemas.js';
 import { invoicingSettings } from './settings.js';
 
@@ -56,7 +58,14 @@ interface InvoiceTotals {
   lines: InvoiceLineJson[];
   breakdown: Breakdown;
   payments: { method: string; label: string; amount: number }[];
-  stay: { reservation: string; checkIn: string; checkOut: string; nights: number } | null;
+  stay: {
+    reservation: string;
+    checkIn: string;
+    checkOut: string;
+    nights: number;
+    /** Nights actually on the invoice; lower than `nights` for an interim invoice. */
+    invoicedNights?: number;
+  } | null;
   notes: string[];
   reason?: string;
 }
@@ -146,7 +155,7 @@ function invoiceLines(lines: readonly LineRow[], taxCodes: ReadonlyMap<string, {
       const t = taxCodes.get(l.departmentCode ?? '');
       if (t?.type !== 'PERCENT') continue;
       const list = ratesOf.get(l.sourceId) ?? [];
-      const r = `${rateLabel(t.value)} %`;
+      const r = rateLabel(t.value);
       if (!list.includes(r)) list.push(r);
       ratesOf.set(l.sourceId, list);
     }
@@ -158,7 +167,8 @@ function invoiceLines(lines: readonly LineRow[], taxCodes: ReadonlyMap<string, {
       quantity: Number(l.qty),
       unitAmount: num(l.unitAmount),
       net: num(l.amount),
-      taxRate: (ratesOf.get(l.id) ?? ['0 %']).join(' + '),
+      // Plain numbers: the template adds the unit ("18", "18 + 5"), never the stored data.
+      taxRate: (ratesOf.get(l.id) ?? ['0']).join(' + '),
     }));
 }
 
@@ -180,15 +190,28 @@ async function explicitCustomer(tx: Tx, c: z.infer<typeof customerInput>): Promi
   return companySnapshot(must(await tx.company.findFirst({ where: { id: c.companyId, deletedAt: null } }), 'Company'));
 }
 
-async function stayInfo(tx: Tx, reservationRoomId: string | null) {
+/**
+ * Stay period of an invoice. Checked-out stay (checkout path): the period is what was actually
+ * due (the nights invoiced, an early departure does not pay unused nights). In-house stay
+ * (interim invoice): the planned period is kept and `invoicedNights` states how many nights the
+ * document really covers, so the header never claims more than the lines show.
+ */
+export async function stayInfo(tx: Tx, reservationRoomId: string | null, lines: readonly LineRow[] = []) {
   if (!reservationRoomId) return null;
   const rr = await tx.reservationRoom.findFirst({
     where: { id: reservationRoomId },
     include: { reservation: { select: { number: true } } },
   });
   if (!rr) return null;
-  const nights = Math.round((rr.departure.getTime() - rr.arrival.getTime()) / 86_400_000);
-  return { reservation: rr.reservation.number, checkIn: formatDay(rr.arrival), checkOut: formatDay(rr.departure), nights };
+  const planned = Math.round((rr.departure.getTime() - rr.arrival.getTime()) / 86_400_000);
+  const invoiced = lines.filter(
+    (l) => l.type === 'ROOM' && l.sourceType === SRC.roomNight && l.sourceId === rr.id && isLive(l),
+  ).length;
+  const arrival = formatDay(rr.arrival);
+  const base = { reservation: rr.reservation.number, checkIn: arrival };
+  if (['CHECKED_OUT', 'COMPLETED'].includes(rr.status) && invoiced > 0 && invoiced <= planned)
+    return { ...base, checkOut: addDays(arrival, invoiced), nights: invoiced, invoicedNights: invoiced };
+  return { ...base, checkOut: formatDay(rr.departure), nights: planned, invoicedNights: Math.min(invoiced, planned) };
 }
 
 /**
@@ -238,7 +261,7 @@ export async function issueInvoice(ctx: FCtx, input: z.infer<typeof issueBody>) 
       lines: invoiceLines(lines, taxes),
       breakdown: bd,
       payments,
-      stay: await stayInfo(tx, links.reservationRoomId),
+      stay: await stayInfo(tx, links.reservationRoomId, lines),
       notes: input.notes ?? [],
     };
     const inv = await tx.invoice.create({
@@ -348,15 +371,15 @@ async function renderInvoiceDocument(ctx: FCtx, id: string): Promise<{ fileId: s
       taxRate: l.taxRate,
     })),
     taxBreakdown: [
-      ...percentRows.map((r) => ({ rate: `${r.rate ?? '0'} %`, base: m(r.base), tax: m(r.amount) })),
-      ...(t.breakdown.untaxedBase ? [{ rate: '0 %', base: m(t.breakdown.untaxedBase), tax: m(0) }] : []),
+      ...percentRows.map((r) => ({ rate: r.rate ?? '0', base: m(r.base), tax: m(r.amount) })),
+      ...(t.breakdown.untaxedBase ? [{ rate: '0', base: m(t.breakdown.untaxedBase), tax: m(0) }] : []),
     ],
     ...(t.breakdown.fixedTax ? { touristTax: m(t.breakdown.fixedTax) } : {}),
     totalNet: m(t.breakdown.net),
     totalTax: m(t.breakdown.percentTax),
     totalGross: m(t.breakdown.total),
     ...(t.payments.length
-      ? { paymentMethod: t.payments.map((p) => `${p.label} ${p.amount.toLocaleString('fr-FR')} ${inv.currency}`).join(' · ') }
+      ? { payments: t.payments.map((p) => ({ method: p.method, label: p.label, amount: m(p.amount) })) }
       : {}),
     notes: [
       ...t.notes,

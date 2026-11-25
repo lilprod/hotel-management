@@ -13,7 +13,7 @@ import { ME, signIn, signOut } from '../../test-utils';
 import type { CashSession, Folio, Invoice } from './api';
 import { CloseSessionModal } from './CashPage';
 import { InvoiceDialog } from './InvoiceDialogs';
-import { convertTender, groupLines } from './model';
+import { convertTender, groupLines, taxLabel } from './model';
 import { FolioPage } from './FolioPage';
 import { PaymentForm } from './PaymentForm';
 
@@ -340,5 +340,14 @@ describe('cash close', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Clôturer la caisse' })).toBeEnabled(),
     );
+  });
+});
+
+describe('taxLabel', () => {
+  it('never doubles the percent already stated by the tax name', () => {
+    expect(taxLabel('TVA 18 %', '18')).toBe('TVA 18 %');
+    expect(taxLabel('TVA', '18')).toBe('TVA (18 %)');
+    expect(taxLabel('Taxe de séjour', null)).toBe('Taxe de séjour');
+    expect(taxLabel('TVA 7.5 %', '7.5')).toBe('TVA 7.5 %');
   });
 });

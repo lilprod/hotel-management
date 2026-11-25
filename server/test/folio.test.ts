@@ -28,6 +28,7 @@ let cashierId: string;
 let tvaA: string;
 let productA: string;
 const sent: NotifyInput[] = [];
+const htmls: string[] = [];
 const stored: { key: string; contentType: string }[] = [];
 
 const T = '/api/v1/t';
@@ -178,7 +179,10 @@ beforeAll(async () => {
   overrideNotificationDeps({
     providers: new ProviderRegistry({
       name: 'fake-pdf',
-      renderHtml: () => Promise.resolve(Buffer.from('%PDF-1.4 fake')),
+      renderHtml: (html: string) => {
+        htmls.push(html);
+        return Promise.resolve(Buffer.from('%PDF-1.4 fake'));
+      },
     })
       .addPayment(new ManualPaymentProvider())
       .addFiscal(new NoneFiscalInvoiceProvider()),
@@ -634,6 +638,59 @@ async function settledFolio(o: StayOpts = {}) {
   return st;
 }
 
+describe('stay period on invoices', () => {
+  const upTo = (rrId: string, d: string) =>
+    api('post', '/folios/room-nights/up-to').send({ reservationRoomId: rrId, upTo: d });
+  const dates = (r: { body: { items: { date: string }[] } }) => r.body.items.map((i) => i.date);
+
+  it('postNightsUpTo: arrival included, departure excluded, nothing before the arrival', async () => {
+    const st = await stayFixture({ arrival: '2026-11-10', departure: '2026-11-13', stay: false });
+    expect(dates(await upTo(st.rrId, '2026-11-09'))).toEqual([]);
+    expect(dates(await upTo(st.rrId, '2026-11-10'))).toEqual(['2026-11-10']);
+    // The departure date itself is not a night; the nights stay idempotent.
+    const last = await upTo(st.rrId, '2026-11-13');
+    expect(dates(last)).toEqual(['2026-11-10', '2026-11-11', '2026-11-12']);
+    expect(last.body.items.map((i: { posted: boolean }) => i.posted)).toEqual([false, true, true]);
+    expect(dates(await upTo(st.rrId, '2026-12-31'))).toHaveLength(3);
+  });
+
+  it('interim invoice (stay in house): planned period kept, invoiced nights stated', async () => {
+    const st = await stayFixture({ arrival: '2026-11-10', departure: '2026-11-15' });
+    await upTo(st.rrId, '2026-11-13');
+    const folioId = (await api('post', '/folios/resolve').send({ reservationRoomId: st.rrId })).body.id as string;
+    const f = await getFolio(folioId);
+    await pay(folioId, { method: 'CARD', amount: f.balance });
+    const inv = await api('post', '/invoices').send({ folioId });
+    expect(inv.status, JSON.stringify(inv.body)).toBe(201);
+    expect(inv.body.totals.stay).toMatchObject({ checkIn: '2026-11-10', checkOut: '2026-11-15', nights: 5, invoicedNights: 4 });
+    expect(inv.body.totals.lines).toHaveLength(4);
+    // Rates carry no unit: the document template adds it ("18 %", never "18 % %").
+    expect(inv.body.totals.lines.every((l: { taxRate: string }) => l.taxRate === '18')).toBe(true);
+  });
+
+  it('checkout invoice: every night due is invoiced and the period matches it', async () => {
+    const st = await stayFixture({ arrival: '2026-11-08', departure: '2026-11-11' });
+    const prep = await api('post', '/folios/checkout-preparation').send({ reservationRoomId: st.rrId });
+    expect(prep.body.postedNights).toHaveLength(3);
+    const folioId = prep.body.folios[0].id as string;
+    await pay(folioId, { method: 'CARD', amount: prep.body.balance });
+    await env.services.admin.reservationRoom.update({ where: { id: st.rrId }, data: { status: 'CHECKED_OUT' } });
+    const inv = await api('post', '/invoices').send({ folioId });
+    expect(inv.body.totals.stay).toMatchObject({ checkIn: '2026-11-08', checkOut: '2026-11-11', nights: 3, invoicedNights: 3 });
+  });
+
+  it('early departure: only the nights used are on the checkout invoice and in its period', async () => {
+    const st = await stayFixture({ arrival: '2026-11-09', departure: '2026-11-16' });
+    const prep = await api('post', '/folios/checkout-preparation').send({ reservationRoomId: st.rrId });
+    expect(prep.body.postedNights).toHaveLength(3); // 9, 10, 11 (business date 12)
+    const folioId = prep.body.folios[0].id as string;
+    await pay(folioId, { method: 'CARD', amount: prep.body.balance });
+    await env.services.admin.reservationRoom.update({ where: { id: st.rrId }, data: { status: 'CHECKED_OUT' } });
+    const inv = await api('post', '/invoices').send({ folioId });
+    expect(inv.body.totals.stay).toMatchObject({ checkIn: '2026-11-09', checkOut: '2026-11-12', nights: 3, invoicedNights: 3 });
+  });
+});
+
 describe('invoices and credit notes', () => {
   it('requires a settled folio, numbers gap-free, closes the folio, renders the PDF and calls the fiscal hook', async () => {
     const st = await stayWithNight();
@@ -655,6 +712,11 @@ describe('invoices and credit notes', () => {
       fiscal: { provider: 'none', status: 'ACCEPTED', fiscalNumber: null },
     });
     expect(inv.body.pdfFileId).toBeTruthy();
+    const html = htmls.at(-1) ?? '';
+    expect(html).toContain('12/11/2026');
+    expect(html).toContain('Carte bancaire : 37');
+    expect(html).not.toContain('Hotel Management');
+    expect(html).not.toMatch(/% %/);
     const totals = inv.body.totals;
     expect(totals.breakdown).toMatchObject({ net: 30_000, percentTax: 5_400, fixedTax: 2_000 });
     expect(totals.payments).toEqual([{ method: 'CARD', label: 'Carte bancaire', amount: 37_400 }]);

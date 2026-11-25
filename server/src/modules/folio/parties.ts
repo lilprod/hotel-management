@@ -1,6 +1,7 @@
 import type { TransactionClient } from '@hm/database';
 import type { DocParty } from '@hm/templates';
 import type { Services } from '../../core/container.js';
+import { brandingSettings } from '../branding/schemas.js';
 import { must } from '../property/common.js';
 import type { Db, FolioRow } from './repository.js';
 
@@ -99,20 +100,30 @@ export const customerParty = (c: CustomerSnapshot): DocParty => ({
   ...(c.taxId ? { legalIds: { nif: c.taxId } } : {}),
 });
 
-/** Seller identity on hotel documents: tenant legal name + property contact, NIF, RCCM. */
+/**
+ * Seller identity on hotel documents: the hotel (property name, contact) with the legal identity
+ * of the tenant from `branding.legal` (raison sociale, forme, NIF, RCCM, régime fiscal, address),
+ * the property's own NIF/RCCM taking precedence. Never the platform name.
+ */
 export async function sellerParty(services: Services, db: Pick<Db, 'property'>, tenantId: string, propertyId: string): Promise<DocParty> {
   const p = must(await db.property.findFirst({ where: { id: propertyId } }), 'Property');
   const t = await services.admin.tenant.findUnique({
     where: { id: tenantId },
     select: { name: true, legalName: true },
   });
-  const address = [p.address, p.city].filter(Boolean).join(', ');
+  const legal = await services.settings.get(brandingSettings.legal, { tenantId });
+  const address = [p.address, p.city].filter(Boolean).join(', ') || legal.address || '';
+  const nif = p.taxId ?? legal.nif;
+  const rccm = p.rccm ?? legal.rccm;
   return {
-    name: t?.legalName ? `${t.legalName} — ${p.name}` : p.name,
+    name: p.name,
+    ...(t?.legalName ? { legalName: t.legalName } : {}),
+    ...(legal.legalForm ? { legalForm: legal.legalForm } : {}),
+    ...(legal.taxRegime ? { taxRegime: legal.taxRegime } : {}),
     ...(address ? { address } : {}),
     ...(p.phone ? { phone: p.phone } : {}),
     ...(p.email ? { email: p.email } : {}),
-    legalIds: { ...(p.taxId ? { nif: p.taxId } : {}), ...(p.rccm ? { rccm: p.rccm } : {}) },
+    legalIds: { ...(nif ? { nif } : {}), ...(rccm ? { rccm } : {}) },
   };
 }
 

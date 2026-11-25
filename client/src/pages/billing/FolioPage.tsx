@@ -33,7 +33,7 @@ import { bkKeys, openDocument, useFolio, useFolioSiblings, useProducts } from '.
 import type { Folio, FolioLine, FolioPayment, Invoice, Page } from './api';
 import { ChargeDialog, DiscountDialog, ReasonModal } from './FolioDialogs';
 import { CreditNoteDialog, InvoiceDialog } from './InvoiceDialogs';
-import { groupLines, isLiveCharge, isReversed, money } from './model';
+import { groupLines, isLiveCharge, isReversed, money, taxLabel } from './model';
 import type { LineNode } from './model';
 import { PaymentForm } from './PaymentForm';
 
@@ -395,7 +395,7 @@ export function FolioPage() {
         showHeader={false}
         dataSource={[
           ...folio.taxBreakdown.rows.map((r) => ({
-            label: r.rate ? `${r.name} (${r.rate} %)` : r.name,
+            label: taxLabel(r.name, r.rate),
             amount: r.amount,
           })),
           { label: t('folio.totalTtc'), amount: folio.chargesTotal },
