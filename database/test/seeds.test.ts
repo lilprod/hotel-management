@@ -86,6 +86,14 @@ async function snapshot(db: AdminClient) {
     groups: await db.group.count({ where: inTenants }),
     waitlistEntries: await db.waitlistEntry.count({ where: inTenants }),
     sequences: await db.sequence.count({ where: inTenants }),
+    stays: await db.stay.count({ where: inTenants }),
+    policeRecords: await db.policeRecord.count({ where: inTenants }),
+    roomBlocks: await db.roomBlock.count({ where: inTenants }),
+    hkStatuses: (
+      await db.room.groupBy({ by: ['tenantId', 'hkStatus'], where: inTenants, _count: { _all: true } })
+    )
+      .map((r) => `${r.tenantId}:${r.hkStatus}=${r._count._all}`)
+      .sort(),
   };
 }
 
@@ -221,6 +229,54 @@ describe('seeds', () => {
       expect(r.arrival.toISOString().slice(0, 10) <= today).toBe(true);
       expect(today < r.departure.toISOString().slice(0, 10)).toBe(true);
     }
+  });
+
+  it('dates the properties at the reference date and gives in-house stays their stay and police rows', async () => {
+    const today = utcDay();
+    for (const tenantId of SEEDED_TENANTS) {
+      const prop = await admin.property.findFirstOrThrow({ where: { tenantId } });
+      expect(prop.businessDate.toISOString().slice(0, 10)).toBe(today);
+      const lines = await admin.reservationRoom.findMany({
+        where: { tenantId, status: 'CHECKED_IN' },
+        include: { stay: { include: { policeRecords: true } } },
+      });
+      expect(lines.length).toBeGreaterThan(0);
+      for (const l of lines) {
+        // In house on the business date: never "late" (arrival <= date < departure).
+        expect(l.arrival.toISOString().slice(0, 10) <= today).toBe(true);
+        expect(l.departure.toISOString().slice(0, 10) > today).toBe(true);
+        expect(l.stay).not.toBeNull();
+        expect(l.stay!.policeRecords).toHaveLength(1);
+      }
+    }
+  });
+
+  it('seeds a realistic housekeeping state, rooms of in-house stays included, with blocks for out-of-order rooms', async () => {
+    for (const tenantId of SEEDED_TENANTS) {
+      const rooms = await admin.room.findMany({ where: { tenantId } });
+      const count = (st: string) => rooms.filter((r) => r.hkStatus === st).length;
+      // Not all dirty: most rooms are ready or occupied-and-clean.
+      expect(count('DIRTY')).toBeLessThan(rooms.length / 3);
+      expect(count('CLEAN') + count('INSPECTED')).toBeGreaterThan(rooms.length / 2);
+      const ooo = rooms.filter((r) => r.hkStatus === 'OUT_OF_ORDER');
+      expect(ooo.length).toBeGreaterThanOrEqual(1);
+      const blocks = await admin.roomBlock.findMany({ where: { tenantId } });
+      expect(blocks.map((b) => b.roomId).sort()).toEqual(ooo.map((r) => r.id).sort());
+      // An out-of-order room carries no stay.
+      const booked = await admin.reservationRoom.count({
+        where: { roomId: { in: ooo.map((r) => r.id) }, status: { in: ['CHECKED_IN', 'CONFIRMED'] } },
+      });
+      expect(booked).toBe(0);
+    }
+    // Rooms about to receive a guest are ready.
+    const ready = await admin.reservationRoom.findMany({
+      where: { tenantId: { in: SEEDED_TENANTS }, status: 'CONFIRMED', roomId: { not: null } },
+      include: { room: true },
+    });
+    const today = utcDay();
+    const tomorrow = new Date(Date.parse(today) + 86_400_000).toISOString().slice(0, 10);
+    for (const l of ready.filter((x) => x.arrival.toISOString().slice(0, 10) <= tomorrow))
+      expect(['CLEAN', 'INSPECTED']).toContain(l.room!.hkStatus);
   });
 
   it('advances the reservation sequence above the seeded numbers', async () => {

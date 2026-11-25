@@ -1,4 +1,10 @@
-import type { AdminClient, Prisma, ReservationChannel, ReservationStatus } from '../src/index.js';
+import type {
+  AdminClient,
+  HkStatus,
+  Prisma,
+  ReservationChannel,
+  ReservationStatus,
+} from '../src/index.js';
 import { seedId, SEED_CURRENCY, type Logger } from './common.js';
 import { demoIds, type DemoTenantSpec, type RoomTypeSpec } from './demo-common.js';
 import { JESS_SPEC } from './demo-jess.js';
@@ -418,6 +424,83 @@ export function assertNoOverlap(rows: ReadonlyArray<{ unitId: string; night: str
   }
 }
 
+// ───────────────────────────── housekeeping ─────────────────────────────
+
+export interface PlannedBlock {
+  id: string;
+  roomId: string;
+  roomNumber: string;
+  from: string;
+  to: string;
+}
+
+export interface HousekeepingPlan {
+  statuses: Array<{ roomId: string; number: string; status: HkStatus }>;
+  blocks: PlannedBlock[];
+}
+
+/** Rooms put out of order per demo property (with a maintenance block). */
+const OUT_OF_ORDER_COUNT: Record<string, number> = { 'hotel-2-fevrier': 2, 'jess-hotel': 2 };
+
+/**
+ * Realistic housekeeping state at the reference date (business date): rooms of in-house stays are
+ * CLEAN (arrived today) or alternately DIRTY (awaiting the daily service); rooms about to receive a
+ * guest are CLEAN/INSPECTED; other vacant rooms are mostly INSPECTED/CLEAN with a few DIRTY; a
+ * couple of rooms free around the date are OUT_OF_ORDER with a room block. Deterministic.
+ */
+export function planHousekeeping(
+  slug: string,
+  spec: DemoTenantSpec,
+  plan: TenantPlan,
+  referenceDate: string,
+): HousekeepingPlan {
+  const rooms = roomsOf(slug, spec);
+  const lines = plan.reservations.flatMap((r) => r.lines);
+  const inHouse = new Map<string, PlannedLine>();
+  const arrivingSoon = new Set<string>();
+  const busy = new Set<string>();
+  const windowFrom = addDays(referenceDate, -1);
+  const windowTo = addDays(referenceDate, 8);
+  for (const l of lines) {
+    if (!l.roomId || RELEASED_STATUSES.has(l.status)) continue;
+    if (l.status === 'CHECKED_IN' && l.arrival <= referenceDate && referenceDate < l.departure)
+      inHouse.set(l.roomId, l);
+    if (l.status !== 'CHECKED_OUT' && l.arrival <= addDays(referenceDate, 1) && l.departure > referenceDate)
+      arrivingSoon.add(l.roomId);
+    if (l.status !== 'CHECKED_OUT' && l.arrival < windowTo && l.departure > windowFrom)
+      busy.add(l.roomId);
+  }
+  const ooo = new Set<string>();
+  for (const room of [...rooms].reverse()) {
+    if (ooo.size >= (OUT_OF_ORDER_COUNT[slug] ?? 1)) break;
+    if (!busy.has(room.id)) ooo.add(room.id);
+  }
+  let stayover = 0;
+  let vacant = 0;
+  const statuses = rooms.map((room): HousekeepingPlan['statuses'][number] => {
+    let status: HkStatus;
+    const line = inHouse.get(room.id);
+    if (ooo.has(room.id)) status = 'OUT_OF_ORDER';
+    else if (line) status = line.arrival === referenceDate || stayover++ % 2 === 1 ? 'CLEAN' : 'DIRTY';
+    else if (arrivingSoon.has(room.id)) status = vacant++ % 2 === 0 ? 'INSPECTED' : 'CLEAN';
+    else {
+      const k = vacant++;
+      status = k % 11 === 4 ? 'DIRTY' : k % 3 === 0 ? 'INSPECTED' : 'CLEAN';
+    }
+    return { roomId: room.id, number: room.number, status };
+  });
+  const blocks = statuses
+    .filter((r) => r.status === 'OUT_OF_ORDER')
+    .map((r) => ({
+      id: seedId(`room-block:${slug}:${r.number}`),
+      roomId: r.roomId,
+      roomNumber: r.number,
+      from: windowFrom,
+      to: addDays(referenceDate, 7),
+    }));
+  return { statuses, blocks };
+}
+
 // ───────────────────────────── writes ─────────────────────────────
 
 export async function seedDemoReservations(
@@ -563,6 +646,36 @@ export async function seedDemoReservations(
     );
   }
 
+  // Business date, housekeeping, in-house stays and their police records.
+  const specs = new Map(TENANTS.map((t) => [t.spec.slug, t.spec]));
+  for (const plan of plans) {
+    await admin.property.update({
+      where: { id: plan.propertyId },
+      data: { businessDate: new Date(`${referenceDate}T00:00:00Z`) },
+    });
+    const hk = planHousekeeping(plan.slug, specs.get(plan.slug)!, plan, referenceDate);
+    for (const r of hk.statuses)
+      await admin.room.update({ where: { id: r.roomId }, data: { hkStatus: r.status } });
+    for (const b of hk.blocks) {
+      const data = {
+        roomId: b.roomId,
+        fromDate: new Date(`${b.from}T00:00:00Z`),
+        toDate: new Date(`${b.to}T00:00:00Z`),
+        reason: 'MAINTENANCE' as const,
+        note: 'Remise en état (démo)',
+      };
+      await admin.roomBlock.upsert({
+        where: { id: b.id },
+        create: { id: b.id, tenantId: plan.tenantId, ...data },
+        update: data,
+      });
+    }
+    await seedInHouseStays(admin, plan, referenceDate);
+    options.log(
+      `${plan.slug}: business date ${referenceDate}, ${hk.statuses.length} rooms, ${hk.blocks.length} out of order`,
+    );
+  }
+
   // Unit nights are rebuilt from scratch for every seeded line, so a moved reference date cannot
   // leave stale nights behind.
   await admin.unitNight.deleteMany({ where: { reservationRoomId: { in: seededLineIds } } });
@@ -579,4 +692,74 @@ export async function seedDemoReservations(
     `demo reservations: ${summary.reservations} reservations, ${summary.unitNights} unit nights`,
   );
   return summary;
+}
+
+/**
+ * `stays` rows (and a minimal police record of the primary guest) for the CHECKED_IN lines, so
+ * that the lazy creation of the front desk module stays a fallback. Idempotent.
+ */
+async function seedInHouseStays(admin: AdminClient, plan: TenantPlan, referenceDate: string) {
+  const lines = plan.reservations
+    .filter((r) => r.status === 'CHECKED_IN')
+    .flatMap((r) => r.lines.map((l) => ({ r, l })));
+  if (!lines.length) return;
+  const guests = await admin.guest.findMany({
+    where: { id: { in: lines.flatMap(({ l }) => l.guestIds) } },
+  });
+  const byId = new Map(guests.map((g) => [g.id, g]));
+  for (const { r, l } of lines) {
+    const checkedInAt = new Date(`${l.arrival <= referenceDate ? l.arrival : referenceDate}T14:00:00Z`);
+    await admin.stay.createMany({
+      data: [
+        {
+          id: seedId(`stay:${l.id}`),
+          tenantId: plan.tenantId,
+          propertyId: plan.propertyId,
+          reservationRoomId: l.id,
+          checkedInAt,
+        },
+      ],
+      skipDuplicates: true,
+    });
+    const stay = await admin.stay.findUniqueOrThrow({ where: { reservationRoomId: l.id } });
+    await admin.stay.update({ where: { id: stay.id }, data: { checkedInAt } });
+    const guestId = l.guestIds[0];
+    const g = guestId ? byId.get(guestId) : undefined;
+    if (!guestId || !g) continue;
+    await admin.policeRecord.createMany({
+      data: [
+        {
+          id: seedId(`police:${l.id}:${guestId}`),
+          tenantId: plan.tenantId,
+          stayId: stay.id,
+          guestId,
+          snapshot: {
+            version: 1,
+            firstName: g.firstName,
+            lastName: g.lastName,
+            birthDate: null,
+            birthPlace: null,
+            nationality: null,
+            profession: null,
+            address: null,
+            idDocType: null,
+            idDocNumberEnc: null,
+            idIssuedOn: null,
+            idIssuedPlace: null,
+            provenance: null,
+            destination: null,
+            purpose: null,
+            arrival: l.arrival,
+            departure: l.departure,
+            businessDate: l.arrival,
+            roomNumber: l.roomNumber,
+            reservationNumber: r.number,
+            primary: true,
+            customFields: {},
+          } as unknown as Prisma.InputJsonValue,
+        },
+      ],
+      skipDuplicates: true,
+    });
+  }
 }
