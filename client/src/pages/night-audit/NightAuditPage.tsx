@@ -281,7 +281,7 @@ export function AuditSummary({ audit, onPdf }: { audit: Audit; onPdf: (a: Audit)
       </Row>
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24} md={8}>
-          <Descriptions size="small" column={1} bordered title={t('summary.byDept')}>
+          <Descriptions size="small" column={1} bordered contentStyle={{ whiteSpace: 'nowrap', textAlign: 'right' }} title={t('summary.byDept')}>
             {Object.entries(k.revenueByDept).map(([code, v]) => (
               <Descriptions.Item key={code} label={t(`depts.${code}`, { defaultValue: code })}>
                 {m(v)}
@@ -290,7 +290,8 @@ export function AuditSummary({ audit, onPdf }: { audit: Audit; onPdf: (a: Audit)
           </Descriptions>
         </Col>
         <Col xs={24} md={8}>
-          <Descriptions size="small" column={1} bordered title={t('summary.payments')}>
+          <Descriptions size="small" column={1} bordered contentStyle={{ whiteSpace: 'nowrap', textAlign: 'right' }} title={t('summary.payments')}>
+            {k.payments.length ? null : <Descriptions.Item label="—">{m(0)}</Descriptions.Item>}
             {k.payments.map((p) => (
               <Descriptions.Item key={p.method} label={t(`billing:methods.${p.method}`, { defaultValue: p.method })}>
                 {m(p.amount)}
@@ -299,7 +300,7 @@ export function AuditSummary({ audit, onPdf }: { audit: Audit; onPdf: (a: Audit)
           </Descriptions>
         </Col>
         <Col xs={24} md={8}>
-          <Descriptions size="small" column={1} bordered title={t('summary.taxes')}>
+          <Descriptions size="small" column={1} bordered contentStyle={{ whiteSpace: 'nowrap', textAlign: 'right' }} title={t('summary.taxes')}>
             {k.taxes.map((x) => (
               <Descriptions.Item
                 key={x.code}
