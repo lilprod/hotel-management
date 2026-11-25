@@ -21,5 +21,6 @@
   "subscription": "Abonnement",
   "waitlist": "Liste d'attente",
   "groups": "Groupes",
-  "cash": "Ma caisse"
+  "cash": "Ma caisse",
+  "nightAudit": "Audit de nuit"
 }

@@ -34,6 +34,7 @@ import { SecurityPage } from './pages/security/SecurityPage';
 import { BillingPage } from './pages/billing/BillingPage';
 import { CashPage } from './pages/billing/CashPage';
 import { FolioByRoomPage, FolioPage } from './pages/billing/FolioPage';
+import { NightAuditPage } from './pages/night-audit/NightAuditPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
 import { CheckEmailPage } from './signup/CheckEmailPage';
 import { LandingPage } from './signup/LandingPage';
@@ -105,6 +106,12 @@ function moduleElement(m: (typeof modules)[number]) {
     return (
       <Guard {...guard}>
         <CashPage />
+      </Guard>
+    );
+  if (m.key === 'night-audit')
+    return (
+      <Guard {...guard}>
+        <NightAuditPage />
       </Guard>
     );
   if (m.key === 'subscription')

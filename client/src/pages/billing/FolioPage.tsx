@@ -40,7 +40,7 @@ import {
 import type { Folio, FolioLine, FolioPayment, Invoice, Page } from './api';
 import { ChargeDialog, DiscountDialog, ReasonModal } from './FolioDialogs';
 import { CreditNoteDialog, InvoiceDialog } from './InvoiceDialogs';
-import { groupLines, isLiveCharge, isReversed, money, taxLabel } from './model';
+import { groupLines, isLiveCharge, isReversed, localizeLabel, money, taxLabel } from './model';
 import type { LineNode } from './model';
 import { PaymentForm } from './PaymentForm';
 
@@ -191,7 +191,7 @@ export function FolioPage() {
                   : undefined,
             }}
           >
-            {l.label}
+            {localizeLabel(l.label, i18n.language)}
             {l.reversalOfId ? (
               <Tag style={{ marginInlineStart: 8 }}>{t('folio.reversal')}</Tag>
             ) : null}

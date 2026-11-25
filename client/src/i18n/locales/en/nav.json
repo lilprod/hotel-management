@@ -21,5 +21,6 @@
   "subscription": "Subscription",
   "waitlist": "Waitlist",
   "groups": "Groups",
-  "cash": "My cash register"
+  "cash": "My cash register",
+  "nightAudit": "Night audit"
 }

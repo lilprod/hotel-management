@@ -122,3 +122,15 @@ export function toMinor(value: number | null | undefined, currency: string): num
 export function fromMinor(value: number, currency: string): number {
   return value / 10 ** (CURRENCY_MINOR_UNITS[currency] ?? 0);
 }
+
+/**
+ * Line label in the UI language: ISO days stored inside older labels ("nuit du 2026-11-22") are
+ * formatted at render time (dd/mm/yyyy in French).
+ */
+export function localizeLabel(label: string, locale: string): string {
+  return label.replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (_m, y: string, mo: string, d: string) =>
+    new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeZone: 'UTC' }).format(
+      new Date(`${y}-${mo}-${d}T00:00:00Z`),
+    ),
+  );
+}

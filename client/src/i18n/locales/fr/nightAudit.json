@@ -1,0 +1,134 @@
+{
+  "title": "Audit de nuit",
+  "noProperty": "Aucun établissement accessible.",
+  "businessDate": "Date d'exploitation",
+  "lastClosed": "Dernière journée clôturée : {{date}}",
+  "neverClosed": "Aucune journée clôturée pour l'instant",
+  "failedAlert": "L'audit du {{date}} s'est interrompu. Relancez-le : il reprendra à l'étape en échec, sans refaire les étapes terminées.",
+  "prechecks": "Contrôles préalables",
+  "refresh": "Actualiser",
+  "ok": "Rien à signaler",
+  "severity": {
+    "DECISION": "Décision requise",
+    "WARNING": "Avertissement",
+    "BLOCKING": "Bloquant"
+  },
+  "checks": {
+    "PENDING_ARRIVALS": "Arrivées non enregistrées",
+    "PENDING_DEPARTURES": "Départs du jour non enregistrés",
+    "OPEN_CASH_SESSIONS": "Sessions de caisse ouvertes",
+    "NEGATIVE_BALANCES": "Folios au solde créditeur",
+    "UNASSIGNED_IN_HOUSE": "Séjours sans chambre affectée"
+  },
+  "hints": {
+    "PENDING_ARRIVALS": "Choisissez pour chaque réservation : non-présentation (la pénalité de la politique d'annulation est portée au folio) ou conservation (l'arrivée reste attendue demain).",
+    "PENDING_DEPARTURES": "Enregistrez le départ ou prolongez le séjour.",
+    "OPEN_CASH_SESSIONS": "Les caissiers doivent clôturer leur session (rapport Z).",
+    "NEGATIVE_BALANCES": "Le client a payé plus que dû : remboursez ou utilisez l'avoir.",
+    "UNASSIGNED_IN_HOUSE": "Affectez une chambre à ces séjours."
+  },
+  "col": {
+    "reservation": "Réservation",
+    "guest": "Client",
+    "room": "Chambre",
+    "arrival": "Arrivée",
+    "departure": "Départ",
+    "penalty": "Pénalité de no-show",
+    "decision": "Décision",
+    "balance": "Solde",
+    "cashier": "Caissier",
+    "openedAt": "Ouverte le",
+    "folio": "Folio",
+    "actions": "Actions"
+  },
+  "decision": {
+    "NO_SHOW": "Non-présentation",
+    "KEEP": "Conserver",
+    "waive": "Sans pénalité",
+    "noPenalty": "Aucune"
+  },
+  "actions": {
+    "checkIn": "Enregistrer l'arrivée",
+    "checkout": "Aller au départ",
+    "extend": "Prolonger",
+    "extendTitle": "Prolonger le séjour {{number}}",
+    "newDeparture": "Nouvelle date de départ",
+    "extended": "Séjour prolongé",
+    "closeCash": "Clôturer la session",
+    "openFolio": "Ouvrir le folio",
+    "assign": "Affecter une chambre",
+    "cancel": "Annuler",
+    "confirm": "Valider"
+  },
+  "run": {
+    "button": "Lancer l'audit",
+    "resume": "Reprendre l'audit",
+    "confirmTitle": "Clôturer la journée du {{date}} ?",
+    "confirmBody": "Les nuitées seront postées, les non-présentations appliquées et la date d'exploitation passera au {{next}}. Aucune écriture ne pourra plus être datée de ce jour (correction par contre-passation).",
+    "noShows_one": "{{count}} non-présentation avec pénalité",
+    "noShows_other": "{{count}} non-présentations avec pénalité",
+    "blocked": "Des contrôles bloquants doivent être traités avant de lancer l'audit.",
+    "forbidden": "Vous n'avez pas le droit de lancer l'audit de nuit.",
+    "progress": "Progression",
+    "done": "Journée du {{date}} clôturée",
+    "already": "Cette journée était déjà clôturée."
+  },
+  "steps": {
+    "no_shows": "Non-présentations",
+    "room_nights": "Report des nuitées",
+    "lock_day": "Verrouillage du jour",
+    "stats": "Statistiques du jour",
+    "advance_date": "Changement de date",
+    "report": "Rapport PDF",
+    "notify": "Notification des responsables"
+  },
+  "summary": {
+    "title": "Synthèse du {{date}}",
+    "occupancy": "Taux d'occupation",
+    "roomsSold": "Chambres vendues",
+    "adr": "Prix moyen (ADR)",
+    "revpar": "RevPAR",
+    "roomRevenue": "CA hébergement",
+    "totalRevenue": "CA total HT",
+    "arrivals": "Arrivées",
+    "departures": "Départs",
+    "inHouse": "En séjour",
+    "noShows": "No-shows",
+    "byDept": "CA par département",
+    "payments": "Encaissements",
+    "taxes": "Taxes collectées",
+    "vat": "TVA",
+    "tourist": "Taxe de séjour",
+    "pdf": "Rapport PDF"
+  },
+  "depts": {
+    "ROOM": "Hébergement",
+    "NO_SHOW": "Pénalités de no-show",
+    "EXTRA": "Extras",
+    "OTHER": "Autres"
+  },
+  "history": {
+    "title": "Historique des audits",
+    "empty": "Aucun audit pour l'instant.",
+    "date": "Journée",
+    "status": "Statut",
+    "trigger": "Déclenchement",
+    "completedAt": "Terminé le",
+    "manual": "Manuel",
+    "auto": "Automatique"
+  },
+  "status": {
+    "RUNNING": "En cours",
+    "COMPLETED": "Terminé",
+    "FAILED": "Interrompu"
+  },
+  "errors": {
+    "PRECHECK_BLOCKED": "Des contrôles bloquants doivent être traités avant de lancer l'audit.",
+    "DECISIONS_REQUIRED": "Chaque arrivée non enregistrée doit recevoir une décision.",
+    "NIGHT_AUDIT_RUNNING": "Un audit de nuit est déjà en cours pour cet établissement.",
+    "NIGHT_AUDIT_FAILED": "L'audit s'est interrompu ; relancez-le pour le reprendre.",
+    "BUSINESS_DATE_MISMATCH": "La date d'exploitation a changé : actualisez la page.",
+    "DAY_CLOSED": "Cette journée est clôturée.",
+    "NO_STATS": "Les statistiques du jour ne sont pas encore calculées."
+  }
+}

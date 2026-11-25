@@ -1,5 +1,6 @@
 import {
   AppstoreOutlined,
+  AuditOutlined,
   BankOutlined,
   BarChartOutlined,
   CalendarOutlined,
@@ -90,6 +91,14 @@ export const modules: readonly ModuleDef[] = [
     path: '/cash',
     requiredFeature: 'billing.core',
     requiredPermission: 'cash.session',
+  },
+  {
+    key: 'night-audit',
+    labelKey: 'nav:nightAudit',
+    icon: <AuditOutlined />,
+    path: '/night-audit',
+    requiredFeature: 'billing.core',
+    requiredPermission: 'night_audit.read',
   },
   {
     key: 'restaurant',

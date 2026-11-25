@@ -9,6 +9,7 @@ import enBranding from './locales/en/branding.json';
 import enCommon from './locales/en/common.json';
 import enFrontDesk from './locales/en/frontDesk.json';
 import enNav from './locales/en/nav.json';
+import enNightAudit from './locales/en/nightAudit.json';
 import enReservations from './locales/en/reservations.json';
 import enOnboarding from './locales/en/onboarding.json';
 import enSecurity from './locales/en/security.json';
@@ -21,6 +22,7 @@ import frBranding from './locales/fr/branding.json';
 import frCommon from './locales/fr/common.json';
 import frFrontDesk from './locales/fr/frontDesk.json';
 import frNav from './locales/fr/nav.json';
+import frNightAudit from './locales/fr/nightAudit.json';
 import frReservations from './locales/fr/reservations.json';
 import frOnboarding from './locales/fr/onboarding.json';
 import frSecurity from './locales/fr/security.json';
@@ -38,6 +40,7 @@ void i18n.use(initReactI18next).init({
       errors: errorMessages.fr,
       frontDesk: frFrontDesk,
       nav: frNav,
+      nightAudit: frNightAudit,
       onboarding: frOnboarding,
       reservations: frReservations,
       security: frSecurity,
@@ -53,6 +56,7 @@ void i18n.use(initReactI18next).init({
       errors: errorMessages.en,
       frontDesk: enFrontDesk,
       nav: enNav,
+      nightAudit: enNightAudit,
       onboarding: enOnboarding,
       reservations: enReservations,
       security: enSecurity,

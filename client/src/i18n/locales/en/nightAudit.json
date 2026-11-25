@@ -1,0 +1,134 @@
+{
+  "title": "Night audit",
+  "noProperty": "No accessible property.",
+  "businessDate": "Business date",
+  "lastClosed": "Last closed day: {{date}}",
+  "neverClosed": "No day closed yet",
+  "failedAlert": "The audit of {{date}} was interrupted. Run it again: it resumes at the failed step without redoing finished ones.",
+  "prechecks": "Pre-checks",
+  "refresh": "Refresh",
+  "ok": "Nothing to report",
+  "severity": {
+    "DECISION": "Decision required",
+    "WARNING": "Warning",
+    "BLOCKING": "Blocking"
+  },
+  "checks": {
+    "PENDING_ARRIVALS": "Arrivals not checked in",
+    "PENDING_DEPARTURES": "Departures not checked out",
+    "OPEN_CASH_SESSIONS": "Open cash sessions",
+    "NEGATIVE_BALANCES": "Folios with a credit balance",
+    "UNASSIGNED_IN_HOUSE": "In-house stays without a room"
+  },
+  "hints": {
+    "PENDING_ARRIVALS": "Choose for each reservation: no-show (the cancellation policy penalty is posted to the folio) or keep (the arrival stays expected tomorrow).",
+    "PENDING_DEPARTURES": "Check the guest out or extend the stay.",
+    "OPEN_CASH_SESSIONS": "Cashiers must close their session (Z report).",
+    "NEGATIVE_BALANCES": "The guest paid more than due: refund or use the credit.",
+    "UNASSIGNED_IN_HOUSE": "Assign a room to these stays."
+  },
+  "col": {
+    "reservation": "Reservation",
+    "guest": "Guest",
+    "room": "Room",
+    "arrival": "Arrival",
+    "departure": "Departure",
+    "penalty": "No-show penalty",
+    "decision": "Decision",
+    "balance": "Balance",
+    "cashier": "Cashier",
+    "openedAt": "Opened at",
+    "folio": "Folio",
+    "actions": "Actions"
+  },
+  "decision": {
+    "NO_SHOW": "No-show",
+    "KEEP": "Keep",
+    "waive": "Waive penalty",
+    "noPenalty": "None"
+  },
+  "actions": {
+    "checkIn": "Check in",
+    "checkout": "Go to check-out",
+    "extend": "Extend",
+    "extendTitle": "Extend stay {{number}}",
+    "newDeparture": "New departure date",
+    "extended": "Stay extended",
+    "closeCash": "Close the session",
+    "openFolio": "Open folio",
+    "assign": "Assign a room",
+    "cancel": "Cancel",
+    "confirm": "Confirm"
+  },
+  "run": {
+    "button": "Run the audit",
+    "resume": "Resume the audit",
+    "confirmTitle": "Close the business day {{date}}?",
+    "confirmBody": "Room nights will be posted, no-shows applied and the business date will move to {{next}}. Nothing can be dated on this day afterwards (correct by reversal).",
+    "noShows_one": "{{count}} no-show with penalty",
+    "noShows_other": "{{count}} no-shows with penalty",
+    "blocked": "Blocking checks must be resolved before running the audit.",
+    "forbidden": "You are not allowed to run the night audit.",
+    "progress": "Progress",
+    "done": "Business day {{date}} closed",
+    "already": "This day was already closed."
+  },
+  "steps": {
+    "no_shows": "No-shows",
+    "room_nights": "Room nights",
+    "lock_day": "Day lock",
+    "stats": "Daily statistics",
+    "advance_date": "Date change",
+    "report": "PDF report",
+    "notify": "Manager notification"
+  },
+  "summary": {
+    "title": "Summary of {{date}}",
+    "occupancy": "Occupancy",
+    "roomsSold": "Rooms sold",
+    "adr": "ADR",
+    "revpar": "RevPAR",
+    "roomRevenue": "Room revenue",
+    "totalRevenue": "Total revenue (net)",
+    "arrivals": "Arrivals",
+    "departures": "Departures",
+    "inHouse": "In house",
+    "noShows": "No-shows",
+    "byDept": "Revenue by department",
+    "payments": "Payments",
+    "taxes": "Taxes collected",
+    "vat": "VAT",
+    "tourist": "Tourist tax",
+    "pdf": "PDF report"
+  },
+  "depts": {
+    "ROOM": "Rooms",
+    "NO_SHOW": "No-show penalties",
+    "EXTRA": "Extras",
+    "OTHER": "Other"
+  },
+  "history": {
+    "title": "Audit history",
+    "empty": "No audit yet.",
+    "date": "Day",
+    "status": "Status",
+    "trigger": "Trigger",
+    "completedAt": "Completed at",
+    "manual": "Manual",
+    "auto": "Automatic"
+  },
+  "status": {
+    "RUNNING": "Running",
+    "COMPLETED": "Completed",
+    "FAILED": "Interrupted"
+  },
+  "errors": {
+    "PRECHECK_BLOCKED": "Blocking checks must be resolved before running the audit.",
+    "DECISIONS_REQUIRED": "Each pending arrival needs a decision.",
+    "NIGHT_AUDIT_RUNNING": "A night audit is already running for this property.",
+    "NIGHT_AUDIT_FAILED": "The audit was interrupted; run it again to resume.",
+    "BUSINESS_DATE_MISMATCH": "The business date changed: refresh the page.",
+    "DAY_CLOSED": "This day is closed.",
+    "NO_STATS": "The daily statistics are not computed yet."
+  }
+}
