@@ -13,6 +13,7 @@ export {
   postCharge,
   postDiscount,
   postNightsUpTo,
+  postNoShowPenalty,
   postRoomNight,
   prepareCheckout,
   resolveFolio,

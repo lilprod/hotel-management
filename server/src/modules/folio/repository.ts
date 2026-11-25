@@ -33,10 +33,17 @@ export const SRC = {
   manual: 'manual',
   /** City-ledger transfer posted on a company account: `source_id` = the guest folio payment. */
   transfer: 'city_ledger_transfer',
+  /** No-show penalty (night audit): `source_id` = the reservation room. */
+  noShow: 'no_show',
 } as const;
 
 /** Department codes of generated lines (account mappings key on them). */
-export const DEPT = { room: 'ROOM', discount: 'DISCOUNT', cityLedger: 'CITY_LEDGER' } as const;
+export const DEPT = {
+  room: 'ROOM',
+  discount: 'DISCOUNT',
+  cityLedger: 'CITY_LEDGER',
+  noShow: 'NO_SHOW',
+} as const;
 
 export const lineInclude = { reversal: { select: { id: true } } } as const;
 export type LineRow = Prisma.FolioLineGetPayload<{ include: typeof lineInclude }>;
@@ -65,6 +72,41 @@ export function assertOpen(f: FolioRow): void {
       detail: 'The folio is closed (invoiced): issue a credit note to reopen it',
       meta: { reason: 'FOLIO_CLOSED', folioId: f.id },
     });
+}
+
+// ─────────────────────────────── closed days ───────────────────────────────
+
+/**
+ * Last business date closed by a night audit (`night_audits.summary.locked = true`), or null.
+ * Postings dated on or before it are refused; corrections are reversals dated in the open day.
+ */
+export async function lastClosedDate(
+  db: Pick<TransactionClient, 'nightAudit'>,
+  propertyId: string,
+): Promise<string | null> {
+  const a = await db.nightAudit.findFirst({
+    where: { propertyId, summary: { path: ['locked'], equals: true } },
+    orderBy: { businessDate: 'desc' },
+    select: { businessDate: true },
+  });
+  return a ? formatDay(a.businessDate) : null;
+}
+
+export function dayClosed(date: string, closed: string | null): AppError {
+  return new AppError('CONFLICT', undefined, {
+    detail: `The business day ${date} is closed by the night audit: post a correction in the open day`,
+    meta: { reason: 'DAY_CLOSED', businessDate: date, closedDate: closed },
+  });
+}
+
+/** Refuses a posting dated in a closed business day. */
+export async function assertDayOpen(
+  db: Pick<TransactionClient, 'nightAudit'>,
+  propertyId: string,
+  date: string,
+): Promise<void> {
+  const closed = await lastClosedDate(db, propertyId);
+  if (closed && date <= closed) throw dayClosed(date, closed);
 }
 
 export interface FolioSums {

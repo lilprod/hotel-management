@@ -46,6 +46,8 @@ const setting = <T>(ctx: FCtx, def: { key: string; default: T }, propertyId: str
 interface InvoiceLineJson {
   lineId: string;
   description: string;
+  /** Night of a room-night line (ISO day): formatted per locale when the document is rendered. */
+  nightDate?: string;
   quantity: number;
   unitAmount: number;
   net: number;
@@ -68,6 +70,8 @@ interface InvoiceTotals {
   } | null;
   notes: string[];
   reason?: string;
+  /** Interim invoice of an in-house stay: the folio stays open for the following nights. */
+  interim?: boolean;
 }
 
 type InvoiceRow = Prisma.InvoiceGetPayload<{ include: { fiscalDocuments: true } }>;
@@ -140,7 +144,18 @@ async function coveredIds(tx: Tx, folioId: string): Promise<Set<string>> {
   return out;
 }
 
-function invoiceLines(lines: readonly LineRow[], taxCodes: ReadonlyMap<string, { type: string; value: string }>) {
+/** Legacy labels carried the ISO night (`… — nuit du 2026-11-22`): dropped, the date is structured. */
+const LEGACY_NIGHT = /\s*[—-]\s*nuit du \d{4}-\d{2}-\d{2}\s*$/;
+
+/**
+ * Invoice lines of a set of folio lines. `nightOf` gives the night of a room-night line when it
+ * differs from its own business date (credit note reversals: the night of the reversed line).
+ */
+function invoiceLines(
+  lines: readonly LineRow[],
+  taxCodes: ReadonlyMap<string, { type: string; value: string }>,
+  nightOf: ReadonlyMap<string, string> = new Map(),
+) {
   const ids = new Set(lines.map((l) => l.id));
   // A charge and its reversal both in the document cancel out: neither is printed.
   const cancelled = new Set<string>();
@@ -163,7 +178,12 @@ function invoiceLines(lines: readonly LineRow[], taxCodes: ReadonlyMap<string, {
     .filter((l) => l.type !== 'TAX' && !cancelled.has(l.id))
     .map((l) => ({
       lineId: l.id,
-      description: l.label,
+      ...(l.type === 'ROOM' && l.sourceType === SRC.roomNight
+        ? {
+            description: l.label.replace(LEGACY_NIGHT, ''),
+            nightDate: nightOf.get(l.id) ?? formatDay(l.businessDate),
+          }
+        : { description: l.label }),
       quantity: Number(l.qty),
       unitAmount: num(l.unitAmount),
       net: num(l.amount),
@@ -223,10 +243,18 @@ export async function issueInvoice(ctx: FCtx, input: z.infer<typeof issueBody>) 
   const f0 = await loadFolio(ctx, input.folioId);
   // Read before the transaction: settings use their own connection.
   const pattern = await setting(ctx, invoicingSettings.invoicePattern, f0.propertyId);
-  const id = await ctx.db.$transaction(async (tx) => {
+  const issued = await ctx.db.$transaction(async (tx) => {
     const folio = await lockFolio(tx, f0.id);
     if (folio.status !== 'OPEN')
       throw conflict('The folio is already invoiced', { reason: 'ALREADY_INVOICED' });
+    const links = await linksOf(tx, folio);
+    // Interim invoice: the stay is still in house, later nights are posted on the same folio.
+    // Only the final (check-out) invoice closes the folio.
+    const interim =
+      links.kind === 'STAY' &&
+      !!links.reservationRoomId &&
+      (await tx.reservationRoom.findFirst({ where: { id: links.reservationRoomId }, select: { status: true } }))
+        ?.status === 'CHECKED_IN';
     const sums = await folioSums(tx, folio.id);
     if (sums.balance !== 0n)
       throw conflict('The folio balance must be settled (or transferred to the city ledger) first', {
@@ -241,11 +269,22 @@ export async function issueInvoice(ctx: FCtx, input: z.infer<typeof issueBody>) 
         orderBy: [{ businessDate: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
       })
     ).filter((l) => !covered.has(l.id));
-    if (!lines.length) throw conflict('Nothing to invoice on this folio', { reason: 'NOTHING_TO_INVOICE' });
+    if (!lines.length) {
+      // Final invoice after interim ones that already cover everything: just close the folio.
+      const last = covered.size && !interim
+        ? await tx.invoice.findFirst({
+            where: { folioId: folio.id, creditNoteOfId: null },
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          })
+        : null;
+      if (!last) throw conflict('Nothing to invoice on this folio', { reason: 'NOTHING_TO_INVOICE' });
+      await tx.folio.update({ where: { id: folio.id }, data: { status: 'CLOSED', closedAt: new Date() } });
+      await publishFolioChanged(tx, folio, 'invoiced', { invoiceId: last.id });
+      return { id: last.id, fresh: false };
+    }
     const taxes = await taxesByCode(tx, folio.propertyId);
     const bd = breakdown(lines, taxes);
     if (bd.total < 0) throw conflict('A negative total is a credit note, not an invoice', { reason: 'NEGATIVE_TOTAL' });
-    const links = await linksOf(tx, folio);
     const customer = input.customer
       ? await explicitCustomer(tx, input.customer)
       : await defaultCustomer(tx, folio, links);
@@ -263,6 +302,7 @@ export async function issueInvoice(ctx: FCtx, input: z.infer<typeof issueBody>) 
       payments,
       stay: await stayInfo(tx, links.reservationRoomId, lines),
       notes: input.notes ?? [],
+      ...(interim ? { interim: true } : {}),
     };
     const inv = await tx.invoice.create({
       data: {
@@ -281,17 +321,20 @@ export async function issueInvoice(ctx: FCtx, input: z.infer<typeof issueBody>) 
         createdBy: ctx.actorId,
       },
     });
-    await tx.folio.update({ where: { id: folio.id }, data: { status: 'CLOSED', closedAt: new Date() } });
-    await publishFolioChanged(tx, folio, 'invoiced', { invoiceId: inv.id });
+    if (!interim)
+      await tx.folio.update({ where: { id: folio.id }, data: { status: 'CLOSED', closedAt: new Date() } });
+    await publishFolioChanged(tx, folio, interim ? 'invoiced_interim' : 'invoiced', { invoiceId: inv.id });
     await publishFinance(tx, FOLIO_EVENTS.invoiceIssued, {
       propertyId: folio.propertyId,
       invoiceId: inv.id,
       number,
       total: bd.total,
     });
-    await ctx.audit({ action: 'invoice.issue', entity: 'invoice', entityId: inv.id, after: { number, total: bd.total, folioId: folio.id, customer } });
-    return inv.id;
+    await ctx.audit({ action: 'invoice.issue', entity: 'invoice', entityId: inv.id, after: { number, total: bd.total, folioId: folio.id, customer, interim } });
+    return { id: inv.id, fresh: true };
   }, TX_OPTS);
+  const id = issued.id;
+  if (!issued.fresh) return getInvoice(ctx, id);
   await afterIssue(ctx, id, 'INVOICE');
   if (input.sendEmail ?? (await setting(ctx, invoicingSettings.emailOnIssue, f0.propertyId)))
     await emailInvoice(ctx, id, {}).catch((err: unknown) =>
@@ -365,6 +408,7 @@ async function renderInvoiceDocument(ctx: FCtx, id: string): Promise<{ fileId: s
     ...(t.stay ? { stay: t.stay } : {}),
     lines: t.lines.map((l) => ({
       description: l.description,
+      ...(l.nightDate ? { nightDate: l.nightDate } : {}),
       quantity: l.quantity,
       unitPrice: m(l.unitAmount),
       net: m(l.net),
@@ -473,16 +517,21 @@ export async function issueCreditNote(ctx: FCtx, invoiceId: string, input: z.inf
     const seq = await nextSequence(tx, sequenceScope(ctx.tenantId, folio.propertyId), 'credit_note', { year });
     const number = formatSequence(pattern, seq, year);
     const reversals: LineRow[] = [];
+    const nightOf = new Map<string, string>();
     for (const l of selected) {
       const group = await lineGroup(tx, folio.id, l);
       const map = await writeReversal(ctx, tx, folio, group, `Avoir ${number} : `, prop.businessDate);
+      for (const [orig, rev] of map) {
+        const o = group.find((g) => g.id === orig);
+        if (o) nightOf.set(rev.id, formatDay(o.businessDate));
+      }
       reversals.push(...map.values());
     }
     const taxes = await taxesByCode(tx, folio.propertyId);
     const bd = breakdown(reversals, taxes);
     const totals: InvoiceTotals = {
       lineIds: reversals.map((l) => l.id),
-      lines: invoiceLines(reversals, taxes),
+      lines: invoiceLines(reversals, taxes, nightOf),
       breakdown: bd,
       payments: [],
       stay: t.stay,

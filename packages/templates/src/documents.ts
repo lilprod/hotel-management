@@ -10,6 +10,7 @@ export const DOCUMENT_TYPES = [
   'ticket',
   'police_form',
   'police_register',
+  'night_audit_report',
 ] as const;
 export type DocumentType = (typeof DOCUMENT_TYPES)[number];
 
@@ -38,6 +39,8 @@ export interface InvoiceLine {
   net: MoneyValue;
   /** Tax rate in percent, as text ("18", "0"); drives the per-rate breakdown. */
   taxRate: string;
+  /** Night of a room-night line (ISO day), appended to the description in the document locale. */
+  nightDate?: string;
 }
 
 export interface TaxBreakdownRow {
@@ -143,12 +146,42 @@ export interface PoliceRegisterData {
   }[];
 }
 
+/** Manager report of a closed business day (night audit, OP-24 / OP-100 KPIs). */
+export interface NightAuditReportData {
+  hotel: DocParty;
+  businessDate: string;
+  /** ISO instant the day was closed. */
+  closedAt: string;
+  closedBy?: string;
+  kpis: {
+    /** Occupancy in percent, as text ("66.7"). */
+    occupancy: string;
+    roomsSold: number;
+    roomsAvailable: number;
+    adr: MoneyValue;
+    revpar: MoneyValue;
+    roomRevenue: MoneyValue;
+    totalRevenue: MoneyValue;
+    arrivals: number;
+    departures: number;
+    inHouse: number;
+    noShows: number;
+  };
+  /** Net revenue (HT) per department code; `label` is the department name when known. */
+  revenueByDepartment: { code: string; label?: string; amount: MoneyValue }[];
+  payments: { method: string; label?: string; amount: MoneyValue }[];
+  /** Taxes collected: `kind` VAT (percentage) or TOURIST (fixed, taxe de séjour). */
+  taxes: { code: string; name: string; kind: 'VAT' | 'TOURIST'; amount: MoneyValue }[];
+  warnings?: string[];
+}
+
 export type DocumentData = {
   invoice: InvoiceData;
   receipt: ReceiptData;
   ticket: TicketData;
   police_form: PoliceFormData;
   police_register: PoliceRegisterData;
+  night_audit_report: NightAuditReportData;
 };
 
 const L = {
@@ -180,6 +213,7 @@ const L = {
     from: 'du',
     to: 'au',
     nights: 'nuit(s)',
+    nightOf: 'nuit du',
     invoicedNights: 'nuits facturées',
     of: 'sur',
     taxRegime: 'Régime fiscal',
@@ -245,6 +279,7 @@ const L = {
     from: 'from',
     to: 'to',
     nights: 'night(s)',
+    nightOf: 'night of',
     invoicedNights: 'nights invoiced',
     of: 'of',
     taxRegime: 'Tax regime',
@@ -291,6 +326,15 @@ export function formatDocDate(value: string, lang: Locale): string {
   const mt = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
   if (!mt) return value;
   return lang === 'fr' ? `${mt[3]}/${mt[2]}/${mt[1]}` : `${mt[1]}-${mt[2]}-${mt[3]}`;
+}
+
+/**
+ * Line designation in the document locale: the structured night is appended ("nuit du 22/11/2026"),
+ * and ISO days left inside free text are formatted too.
+ */
+export function lineDescription(l: Pick<InvoiceLine, 'description' | 'nightDate'>, lang: Locale): string {
+  const text = l.description.replace(/\b\d{4}-\d{2}-\d{2}\b/g, (d) => formatDocDate(d, lang));
+  return l.nightDate ? `${text} — ${L[lang].nightOf} ${formatDocDate(l.nightDate, lang)}` : text;
 }
 
 const methodLabel = (code: string, fallback: string | undefined, lang: Locale): string =>
@@ -369,7 +413,7 @@ function invoiceHtml(d: InvoiceData, b: Branding, lang: Locale): string {
   const rows = d.lines
     .map(
       (l) =>
-        `<tr><td>${e(l.description)}</td><td class="r">${e(l.quantity)}</td><td class="r">${m(l.unitPrice)}</td><td class="r">${e(pct(l.taxRate))}</td><td class="r">${m(l.net)}</td></tr>`,
+        `<tr><td>${e(lineDescription(l, lang))}</td><td class="r">${e(l.quantity)}</td><td class="r">${m(l.unitPrice)}</td><td class="r">${e(pct(l.taxRate))}</td><td class="r">${m(l.net)}</td></tr>`,
     )
     .join('');
   const tax = d.taxBreakdown
@@ -488,7 +532,113 @@ export const DOCUMENT_PAPER: Record<DocumentType, 'A4' | 'ticket80'> = {
   ticket: 'ticket80',
   police_form: 'A4',
   police_register: 'A4',
+  night_audit_report: 'A4',
 };
+
+const NA = {
+  fr: {
+    title: 'RAPPORT DE CLÔTURE JOURNALIÈRE',
+    day: 'Date d’exploitation',
+    closedAt: 'Clôturée le',
+    by: 'par',
+    kpis: 'Indicateurs',
+    occupancy: 'Taux d’occupation (TO)',
+    roomsSold: 'Chambres vendues',
+    adr: 'Prix moyen (ADR)',
+    revpar: 'RevPAR',
+    roomRevenue: 'CA hébergement',
+    totalRevenue: 'CA total (HT)',
+    movements: 'Mouvements',
+    arrivals: 'Arrivées',
+    departures: 'Départs',
+    inHouse: 'En séjour',
+    noShows: 'No-shows',
+    byDept: 'Chiffre d’affaires par département (HT)',
+    dept: 'Département',
+    amount: 'Montant',
+    payments: 'Encaissements par moyen de paiement',
+    method: 'Moyen',
+    taxes: 'Taxes collectées',
+    tax: 'Taxe',
+    vat: 'TVA',
+    tourist: 'Taxe de séjour',
+    total: 'Total',
+    none: 'Aucun',
+    warnings: 'Points d’attention',
+  },
+  en: {
+    title: 'DAILY CLOSING REPORT',
+    day: 'Business date',
+    closedAt: 'Closed on',
+    by: 'by',
+    kpis: 'Key figures',
+    occupancy: 'Occupancy',
+    roomsSold: 'Rooms sold',
+    adr: 'ADR',
+    revpar: 'RevPAR',
+    roomRevenue: 'Room revenue',
+    totalRevenue: 'Total revenue (net)',
+    movements: 'Movements',
+    arrivals: 'Arrivals',
+    departures: 'Departures',
+    inHouse: 'In house',
+    noShows: 'No-shows',
+    byDept: 'Revenue by department (net)',
+    dept: 'Department',
+    amount: 'Amount',
+    payments: 'Payments by method',
+    method: 'Method',
+    taxes: 'Taxes collected',
+    tax: 'Tax',
+    vat: 'VAT',
+    tourist: 'Tourist tax',
+    total: 'Total',
+    none: 'None',
+    warnings: 'Warnings',
+  },
+} as const;
+
+function formatInstant(iso: string, lang: Locale): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return `${formatDocDate(d.toISOString().slice(0, 10), lang)} ${d.toISOString().slice(11, 16)} UTC`;
+}
+
+function nightAuditHtml(d: NightAuditReportData, b: Branding, lang: Locale): string {
+  const t = NA[lang];
+  const k = d.kpis;
+  const row = (label: string, value: string) => `<tr><td>${e(label)}</td><td class="r">${value}</td></tr>`;
+  const table = (head: string, rows: string[], total?: MoneyValue) =>
+    `<table><thead><tr><th>${head}</th><th class="r">${t.amount}</th></tr></thead><tbody>${
+      rows.length ? rows.join('') : `<tr><td colspan="2" class="muted">${t.none}</td></tr>`
+    }${total ? `<tr class="grand"><td>${t.total}</td><td class="r">${m(total)}</td></tr>` : ''}</tbody></table>`;
+  const sum = (xs: { amount: MoneyValue }[]): MoneyValue | undefined =>
+    xs.length ? { amount: xs.reduce((s, x) => s + x.amount.amount, 0), currency: xs[0]!.amount.currency } : undefined;
+  const body = `<div style="padding:15mm">
+<table><tr><td style="border:0">${logo(b, d.hotel.name)}</td><td style="border:0" class="r"><h1>${t.title}</h1>${t.day} : <strong>${e(formatDocDate(d.businessDate, lang))}</strong><br/>${t.closedAt} ${e(formatInstant(d.closedAt, lang))}${d.closedBy ? ` ${t.by} ${e(d.closedBy)}` : ''}</td></tr></table>
+<table style="margin-top:12px"><tr><td style="border:0;width:50%;vertical-align:top">
+<h3>${t.kpis}</h3><table class="totals">
+${row(t.occupancy, `${e(k.occupancy)} %`)}
+${row(t.roomsSold, `${e(k.roomsSold)} / ${e(k.roomsAvailable)}`)}
+${row(t.adr, m(k.adr))}
+${row(t.revpar, m(k.revpar))}
+${row(t.roomRevenue, m(k.roomRevenue))}
+${row(t.totalRevenue, m(k.totalRevenue))}</table></td>
+<td style="border:0;vertical-align:top"><h3>${t.movements}</h3><table class="totals">
+${row(t.arrivals, e(k.arrivals))}
+${row(t.departures, e(k.departures))}
+${row(t.inHouse, e(k.inHouse))}
+${row(t.noShows, e(k.noShows))}</table></td></tr></table>
+<h3>${t.byDept}</h3>
+${table(t.dept, d.revenueByDepartment.map((r) => `<tr><td>${e(r.label ?? r.code)}</td><td class="r">${m(r.amount)}</td></tr>`), sum(d.revenueByDepartment))}
+<h3>${t.payments}</h3>
+${table(t.method, d.payments.map((p) => `<tr><td>${e(methodLabel(p.method, p.label, lang))}</td><td class="r">${m(p.amount)}</td></tr>`), sum(d.payments))}
+<h3>${t.taxes}</h3>
+${table(t.tax, d.taxes.map((x) => `<tr><td>${e(x.name)} (${x.kind === 'VAT' ? t.vat : t.tourist})</td><td class="r">${m(x.amount)}</td></tr>`), sum(d.taxes))}
+${d.warnings?.length ? `<h3>${t.warnings}</h3><ul>${d.warnings.map((w) => `<li>${e(w)}</li>`).join('')}</ul>` : ''}
+<p class="muted" style="margin-top:20px;text-align:center;font-size:9px">${footerHtml(d.hotel, b, L[lang])}</p></div>`;
+  return shell(`${t.title} ${d.businessDate}`, BASE_CSS(b, 'A4'), body, lang);
+}
 
 /** Pure HTML rendering of a printable document. The PDF step (Gotenberg) lives in the server. */
 export function renderDocumentHtml<T extends DocumentType>(
@@ -510,6 +660,8 @@ export function renderDocumentHtml<T extends DocumentType>(
       return policeHtml(data as PoliceFormData, b, lang);
     case 'police_register':
       return policeRegisterHtml(data as PoliceRegisterData, b, lang);
+    case 'night_audit_report':
+      return nightAuditHtml(data as NightAuditReportData, b, lang);
     default:
       throw new Error(`Unknown document type ${String(type)}`);
   }

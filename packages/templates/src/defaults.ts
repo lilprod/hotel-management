@@ -714,4 +714,72 @@ export const DEFAULT_TEMPLATES: readonly DefaultTemplateDef[] = [
       },
     },
   },
+  {
+    code: 'night_audit_completed',
+    audience: 'user',
+    mandatory: false,
+    variables: [
+      'hotel.name',
+      'audit.businessDate',
+      'audit.occupancy',
+      'audit.roomsSold',
+      'audit.roomRevenue',
+      'audit.totalRevenue',
+      'audit.url',
+    ],
+    content: {
+      fr: {
+        subject: 'Clôture du {{date audit.businessDate}} - {{hotel.name}}',
+        title: 'Audit de nuit terminé',
+        paragraphs: [
+          'La journée du {{date audit.businessDate}} est clôturée pour {{hotel.name}}.',
+          'Taux d’occupation : {{audit.occupancy}} % ({{audit.roomsSold}} chambres vendues). CA hébergement : {{money audit.roomRevenue}}. CA total : {{money audit.totalRevenue}}.',
+          'Le rapport du jour est disponible dans l’écran Audit de nuit.',
+        ],
+        cta: { label: 'Voir le rapport', url: 'audit.url' },
+        sms: '{{hotel.name}} : journee du {{date audit.businessDate}} cloturee. TO {{audit.occupancy}} %, CA {{money audit.totalRevenue}}.',
+      },
+      en: {
+        subject: 'Day closed {{date audit.businessDate}} - {{hotel.name}}',
+        title: 'Night audit completed',
+        paragraphs: [
+          'The business day {{date audit.businessDate}} is closed for {{hotel.name}}.',
+          'Occupancy: {{audit.occupancy}} % ({{audit.roomsSold}} rooms sold). Room revenue: {{money audit.roomRevenue}}. Total revenue: {{money audit.totalRevenue}}.',
+          'The day report is available on the Night audit screen.',
+        ],
+        cta: { label: 'View report', url: 'audit.url' },
+        sms: '{{hotel.name}}: day {{date audit.businessDate}} closed. Occupancy {{audit.occupancy}} %, revenue {{money audit.totalRevenue}}.',
+      },
+    },
+  },
+  {
+    code: 'night_audit_blocked',
+    audience: 'user',
+    mandatory: true,
+    variables: ['hotel.name', 'audit.businessDate', 'audit.reasons', 'audit.url'],
+    content: {
+      fr: {
+        subject: 'Audit de nuit automatique bloqué - {{hotel.name}}',
+        title: 'Audit de nuit à lancer manuellement',
+        paragraphs: [
+          'L’audit de nuit automatique du {{date audit.businessDate}} n’a pas pu être lancé pour {{hotel.name}}.',
+          'Contrôles bloquants : {{audit.reasons}}',
+          'Traitez ces points puis lancez l’audit depuis l’écran Audit de nuit.',
+        ],
+        cta: { label: 'Ouvrir l’audit de nuit', url: 'audit.url' },
+        sms: '{{hotel.name}} : audit de nuit du {{date audit.businessDate}} bloque ({{audit.reasons}}).',
+      },
+      en: {
+        subject: 'Automatic night audit blocked - {{hotel.name}}',
+        title: 'Night audit to run manually',
+        paragraphs: [
+          'The automatic night audit of {{date audit.businessDate}} could not run for {{hotel.name}}.',
+          'Blocking checks: {{audit.reasons}}',
+          'Resolve them, then run the audit from the Night audit screen.',
+        ],
+        cta: { label: 'Open the night audit', url: 'audit.url' },
+        sms: '{{hotel.name}}: night audit of {{date audit.businessDate}} blocked ({{audit.reasons}}).',
+      },
+    },
+  },
 ];

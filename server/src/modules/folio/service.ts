@@ -17,9 +17,12 @@ import { TX_OPTS } from '../reservations/service.js';
 import { publishFolioChanged } from './events.js';
 import {
   advisoryLock,
+  assertDayOpen,
   assertOpen,
   breakdown,
+  dayClosed,
   DEPT,
+  lastClosedDate,
   folioSums,
   isLive,
   lineInclude,
@@ -433,6 +436,7 @@ async function insertCharge(ctx: FCtx, tx: Tx, folio: FolioRow, spec: ChargeSpec
   } catch (e) {
     taxFailure(e);
   }
+  await assertDayOpen(tx, folio.propertyId, spec.businessDate);
   const taxTotal = c.taxes.reduce((s, t) => s + t.amount, 0n);
   const day = parseDay(spec.businessDate);
   const base = await tx.folioLine.create({
@@ -642,6 +646,7 @@ export async function writeReversal(
   labelPrefix: string,
   businessDate: string,
 ): Promise<Map<string, LineRow>> {
+  await assertDayOpen(tx, folio.propertyId, businessDate);
   const map = new Map<string, LineRow>();
   for (const l of parentFirst(group)) {
     const sourceId = l.sourceId && map.has(l.sourceId) ? map.get(l.sourceId)!.id : l.sourceId;
@@ -731,6 +736,7 @@ export async function postDiscount(ctx: FCtx, folioId: string, input: DiscountIn
       throw invalid('amount', `The discount exceeds the remaining amount of the line (${remaining})`, 'TOO_LARGE');
     const split = splitProportional(amount, { net: target.amount, taxes: pct.map((l) => l.amount) });
     const prop = await loadProperty(tx, folio.propertyId);
+    await assertDayOpen(tx, folio.propertyId, prop.businessDate);
     const day = parseDay(prop.businessDate);
     const d = await tx.folioLine.create({
       data: {
@@ -805,6 +811,8 @@ export async function moveLines(
     assertOpen(src);
     assertOpen(dst);
     const prop = await loadProperty(tx, src.propertyId);
+    // A charge of a closed day is re-posted in the open day on the target folio.
+    const closed = await lastClosedDate(tx, src.propertyId);
     const out: { from: string; to: string }[] = [];
     const seen = new Set<string>();
     for (const id of input.lineIds) {
@@ -824,7 +832,8 @@ export async function moveLines(
             folioId: dst.id,
             productId: l.productId,
             orderId: l.orderId,
-            businessDate: l.businessDate,
+            businessDate:
+              closed && formatDay(l.businessDate) <= closed ? parseDay(prop.businessDate) : l.businessDate,
             type: l.type,
             departmentCode: l.departmentCode,
             label: l.label,
@@ -892,6 +901,8 @@ async function postNightTx(ctx: FCtx, tx: Tx, reservationRoomId: string, date: s
     },
   });
   if (existing) return { date, posted: false, lineId: existing.id, folioId: existing.folioId };
+  const closed = await lastClosedDate(tx, rr.propertyId);
+  if (closed && date <= closed) throw dayClosed(date, closed);
   const night = parseNightPrices(rr.dailyPrices).find((n) => n.date === date);
   if (!night) throw conflict(`No price snapshot for the night of ${date}`, { reason: 'NO_PRICE' });
   const folio = await lockFolio(tx, folio0.id);
@@ -904,7 +915,8 @@ async function postNightTx(ctx: FCtx, tx: Tx, reservationRoomId: string, date: s
   const room = rr.room ? ` — ch. ${rr.room.number}` : '';
   const line = await insertCharge(ctx, tx, folio, {
     type: 'ROOM',
-    label: `Hébergement ${rr.roomType.name}${room} — nuit du ${date}`,
+    // The night date is not baked into the label: documents format `business_date` per locale.
+    label: `Hébergement ${rr.roomType.name}${room}`,
     departmentCode: DEPT.room,
     qtyMilli: 1000n,
     gross: BigInt(night.total),
@@ -939,8 +951,57 @@ export async function postNightsUpTo(ctx: FCtx, reservationRoomId: string, date:
   const departure = formatDay(rr.departure);
   const out: PostNightResult[] = [];
   for (let d = arrival; d <= date && d < departure; d = addDays(d, 1))
-    out.push(await postRoomNight(ctx, rr.id, d));
+    try {
+      out.push(await postRoomNight(ctx, rr.id, d));
+    } catch (err) {
+      // A night of a closed day that was never posted (late check-in) is not charged afterwards.
+      if (err instanceof AppError && err.meta?.reason === 'DAY_CLOSED')
+        continue;
+      throw err;
+    }
   return out;
+}
+
+/**
+ * No-show penalty of a reservation room (night audit), posted once on its main folio in the
+ * open business day (`source_type = no_show`, `source_id` = the room line). No tax is applied.
+ */
+export async function postNoShowPenalty(
+  ctx: FCtx,
+  reservationRoomId: string,
+  amount: number,
+  label: string,
+): Promise<{ posted: boolean; lineId: string; folioId: string }> {
+  return ctx.db.$transaction(async (tx) => {
+    const folio0 = await ensureRoomFolio(ctx, tx, reservationRoomId);
+    await advisoryLock(tx, `no_show:${reservationRoomId}`);
+    const existing = await tx.folioLine.findFirst({
+      where: { sourceType: SRC.noShow, sourceId: reservationRoomId, reversalOfId: null, reversal: { is: null } },
+    });
+    if (existing) return { posted: false, lineId: existing.id, folioId: existing.folioId };
+    const folio = await lockFolio(tx, folio0.id);
+    assertOpen(folio);
+    const prop = await loadProperty(tx, folio.propertyId);
+    const line = await insertCharge(ctx, tx, folio, {
+      type: 'PENALTY',
+      label,
+      departmentCode: DEPT.noShow,
+      qtyMilli: 1000n,
+      gross: BigInt(amount),
+      taxes: [],
+      sourceType: SRC.noShow,
+      sourceId: reservationRoomId,
+      businessDate: prop.businessDate,
+    });
+    await finishPosting(ctx, tx, folio, 'line_posted', { lineId: line.id });
+    await ctx.audit({
+      action: 'folio.no_show_penalty.post',
+      entity: 'folio_line',
+      entityId: line.id,
+      after: { reservationRoomId, amount },
+    });
+    return { posted: true, lineId: line.id, folioId: folio.id };
+  }, TX_OPTS);
 }
 
 // ───────────────────────────── check-out ─────────────────────────────
@@ -1021,6 +1082,8 @@ export async function getBusinessDate(ctx: FCtx, propertyId: string) {
 /** Admin-only setter (tests / demo) until the night audit advances the business date. */
 export async function setBusinessDate(ctx: FCtx, propertyId: string, businessDate: string) {
   const before = await getBusinessDate(ctx, propertyId);
+  const closed = await lastClosedDate(ctx.db as unknown as Tx, propertyId);
+  if (closed && businessDate <= closed) throw dayClosed(businessDate, closed);
   await ctx.db.property.update({ where: { id: propertyId }, data: { businessDate: parseDay(businessDate) } });
   await ctx.audit({
     action: 'property.business_date.set',
