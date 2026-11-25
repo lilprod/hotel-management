@@ -2,6 +2,8 @@ import { formatMoney, money } from '@hm/shared';
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_TEMPLATES,
+  DOCUMENT_PAPER,
+  lineDescription,
   assertTemplate,
   inspectTemplate,
   renderDocumentHtml,
@@ -27,7 +29,7 @@ const data = {
 describe('default templates', () => {
   it('ships every expected code in FR and EN with whitelisted variables only', () => {
     const codes = DEFAULT_TEMPLATES.map((t) => t.code);
-    expect(codes).toHaveLength(21);
+    expect(codes).toHaveLength(23);
     for (const t of DEFAULT_TEMPLATES)
       for (const l of ['fr', 'en'] as const) {
         const c = t.content[l];
@@ -294,6 +296,21 @@ describe('guest and billing notices wired by the modules', () => {
       hotel,
       verification: { url: 'https://hotel.example/verify-email?token=abc', expiresInHours: 48 },
     },
+    night_audit_completed: {
+      hotel,
+      audit: {
+        businessDate: '2026-11-12',
+        occupancy: '66.7',
+        roomsSold: 4,
+        roomRevenue: { amount: 120000, currency: 'XOF' },
+        totalRevenue: { amount: 135500, currency: 'XOF' },
+        url: '',
+      },
+    },
+    night_audit_blocked: {
+      hotel,
+      audit: { businessDate: '2026-11-12', reasons: 'PENDING_ARRIVALS', url: '' },
+    },
     payment_declaration_rejected: {
       owner: { name: 'Ama Kodjo' },
       hotel: { name: 'Hôtel du Lac' },
@@ -348,5 +365,67 @@ describe('guest and billing notices wired by the modules', () => {
     expect(by.get('guest_email_verification')?.mandatory).toBe(true);
     expect(by.get('payment_declaration_rejected')?.mandatory).toBe(true);
     expect(by.get('waitlist_offer')?.mandatory).toBe(false);
+  });
+});
+
+describe('night audit report and localized night designations', () => {
+  const seller = { name: 'Hôtel du Lac', legalIds: { nif: '100' } };
+  const xof = (amount: number) => ({ amount, currency: 'XOF' });
+
+  it('formats the structured night and ISO days inside designations per locale', () => {
+    expect(lineDescription({ description: 'Hébergement Double — ch. 12', nightDate: '2026-11-22' }, 'fr')).toBe(
+      'Hébergement Double — ch. 12 — nuit du 22/11/2026',
+    );
+    expect(lineDescription({ description: 'Hébergement Double', nightDate: '2026-11-22' }, 'en')).toBe(
+      'Hébergement Double — night of 2026-11-22',
+    );
+    expect(lineDescription({ description: 'Avoir AV-1 : séjour du 2026-11-20' }, 'fr')).toBe('Avoir AV-1 : séjour du 20/11/2026');
+  });
+
+  it('renders the manager day report in FR and EN with KPIs, departments, payments and taxes', () => {
+    const data = {
+      hotel: seller,
+      businessDate: '2026-11-12',
+      closedAt: '2026-11-13T03:02:00.000Z',
+      closedBy: 'Ama <Kodjo>',
+      kpis: {
+        occupancy: '66.7',
+        roomsSold: 4,
+        roomsAvailable: 6,
+        adr: xof(30000),
+        revpar: xof(20000),
+        roomRevenue: xof(120000),
+        totalRevenue: xof(135500),
+        arrivals: 2,
+        departures: 1,
+        inHouse: 4,
+        noShows: 1,
+      },
+      revenueByDepartment: [
+        { code: 'ROOM', amount: xof(120000) },
+        { code: 'RES', label: 'Restaurant', amount: xof(15500) },
+      ],
+      payments: [{ method: 'MIXX', amount: xof(50000) }],
+      taxes: [
+        { code: 'TVA18', name: 'TVA 18 %', kind: 'VAT' as const, amount: xof(21600) },
+        { code: 'TS', name: 'Taxe de séjour', kind: 'TOURIST' as const, amount: xof(4000) },
+      ],
+      warnings: [{ code: 'OPEN_CASH_SESSIONS', count: 1 }],
+    };
+    const fr = renderDocumentHtml('night_audit_report', data);
+    expect(fr).toContain('RAPPORT DE CLÔTURE JOURNALIÈRE');
+    expect(fr).toContain('12/11/2026');
+    expect(fr).toContain('66.7 %');
+    expect(fr).toContain('Hébergement');
+    expect(fr).toContain('Restaurant');
+    expect(fr).toContain('Mixx by Yas');
+    expect(fr).toContain('Taxe de séjour (Taxe de séjour)');
+    expect(fr).toContain('Sessions de caisse ouvertes : 1');
+    expect(fr).toContain('Ama &lt;Kodjo&gt;');
+    const en = renderDocumentHtml('night_audit_report', data, {}, 'en');
+    expect(en).toContain('DAILY CLOSING REPORT');
+    expect(en).toContain('Rooms');
+    expect(en).toContain('Open cash sessions : 1');
+    expect(DOCUMENT_PAPER.night_audit_report).toBe('A4');
   });
 });
