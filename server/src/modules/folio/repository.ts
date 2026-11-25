@@ -99,12 +99,20 @@ export function dayClosed(date: string, closed: string | null): AppError {
   });
 }
 
-/** Refuses a posting dated in a closed business day. */
+/** Advisory key of a property's business day: postings hold it shared, the day closing exclusive. */
+export const dayLockKey = (propertyId: string) => `business_day:${propertyId}`;
+
+/**
+ * Refuses a posting dated in a closed business day. Holds the day lock in shared mode until the
+ * end of the posting transaction, so the night audit closes the day only once in-flight postings
+ * are committed (and later ones see the closing).
+ */
 export async function assertDayOpen(
-  db: Pick<TransactionClient, 'nightAudit'>,
+  db: Pick<TransactionClient, 'nightAudit' | '$queryRaw'>,
   propertyId: string,
   date: string,
 ): Promise<void> {
+  await db.$queryRaw`SELECT pg_advisory_xact_lock_shared(hashtextextended(${dayLockKey(propertyId)}, 0))::text AS l`;
   const closed = await lastClosedDate(db, propertyId);
   if (closed && date <= closed) throw dayClosed(date, closed);
 }

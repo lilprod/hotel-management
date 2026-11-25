@@ -172,7 +172,8 @@ export interface NightAuditReportData {
   payments: { method: string; label?: string; amount: MoneyValue }[];
   /** Taxes collected: `kind` VAT (percentage) or TOURIST (fixed, taxe de séjour). */
   taxes: { code: string; name: string; kind: 'VAT' | 'TOURIST'; amount: MoneyValue }[];
-  warnings?: string[];
+  /** Pre-check warnings accepted at closing (check code + count). */
+  warnings?: { code: string; count: number }[];
 }
 
 export type DocumentData = {
@@ -564,7 +565,14 @@ const NA = {
     tourist: 'Taxe de séjour',
     total: 'Total',
     none: 'Aucun',
-    warnings: 'Points d’attention',
+    warnings: 'Points d’attention à la clôture',
+    depts: { ROOM: 'Hébergement', NO_SHOW: 'Pénalités de no-show', EXTRA: 'Extras', DISCOUNT: 'Remises', OTHER: 'Autres' } as Record<string, string>,
+    checks: {
+      PENDING_DEPARTURES: 'Départs du jour non enregistrés',
+      OPEN_CASH_SESSIONS: 'Sessions de caisse ouvertes',
+      NEGATIVE_BALANCES: 'Folios au solde créditeur',
+      UNASSIGNED_IN_HOUSE: 'Séjours sans chambre affectée',
+    } as Record<string, string>,
   },
   en: {
     title: 'DAILY CLOSING REPORT',
@@ -594,7 +602,14 @@ const NA = {
     tourist: 'Tourist tax',
     total: 'Total',
     none: 'None',
-    warnings: 'Warnings',
+    warnings: 'Warnings at closing',
+    depts: { ROOM: 'Rooms', NO_SHOW: 'No-show penalties', EXTRA: 'Extras', DISCOUNT: 'Discounts', OTHER: 'Other' } as Record<string, string>,
+    checks: {
+      PENDING_DEPARTURES: 'Departures not checked out',
+      OPEN_CASH_SESSIONS: 'Open cash sessions',
+      NEGATIVE_BALANCES: 'Folios with a credit balance',
+      UNASSIGNED_IN_HOUSE: 'In-house stays without a room',
+    } as Record<string, string>,
   },
 } as const;
 
@@ -630,12 +645,12 @@ ${row(t.departures, e(k.departures))}
 ${row(t.inHouse, e(k.inHouse))}
 ${row(t.noShows, e(k.noShows))}</table></td></tr></table>
 <h3>${t.byDept}</h3>
-${table(t.dept, d.revenueByDepartment.map((r) => `<tr><td>${e(r.label ?? r.code)}</td><td class="r">${m(r.amount)}</td></tr>`), sum(d.revenueByDepartment))}
+${table(t.dept, d.revenueByDepartment.map((r) => `<tr><td>${e(r.label ?? t.depts[r.code] ?? r.code)}</td><td class="r">${m(r.amount)}</td></tr>`), sum(d.revenueByDepartment))}
 <h3>${t.payments}</h3>
 ${table(t.method, d.payments.map((p) => `<tr><td>${e(methodLabel(p.method, p.label, lang))}</td><td class="r">${m(p.amount)}</td></tr>`), sum(d.payments))}
 <h3>${t.taxes}</h3>
 ${table(t.tax, d.taxes.map((x) => `<tr><td>${e(x.name)} (${x.kind === 'VAT' ? t.vat : t.tourist})</td><td class="r">${m(x.amount)}</td></tr>`), sum(d.taxes))}
-${d.warnings?.length ? `<h3>${t.warnings}</h3><ul>${d.warnings.map((w) => `<li>${e(w)}</li>`).join('')}</ul>` : ''}
+${d.warnings?.length ? `<h3>${t.warnings}</h3><ul>${d.warnings.map((w) => `<li>${e(t.checks[w.code] ?? w.code)} : ${e(w.count)}</li>`).join('')}</ul>` : ''}
 <p class="muted" style="margin-top:20px;text-align:center;font-size:9px">${footerHtml(d.hotel, b, L[lang])}</p></div>`;
   return shell(`${t.title} ${d.businessDate}`, BASE_CSS(b, 'A4'), body, lang);
 }

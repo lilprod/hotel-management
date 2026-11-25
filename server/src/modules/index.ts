@@ -21,6 +21,7 @@ import { iamModule } from './iam/index.js';
 import { invoicingModule } from './invoicing/index.js';
 import { legalModule } from './legal/index.js';
 import { lookupsModule } from './lookups/index.js';
+import { nightAuditModule } from './night-audit/index.js';
 import { notificationsModule } from './notifications/index.js';
 import {
   impersonationModule,
@@ -90,4 +91,5 @@ export const MODULES: readonly ModuleDefinition[] = [
   invoicingModule,
   cityLedgerModule,
   frontDeskModule,
+  nightAuditModule,
 ];
