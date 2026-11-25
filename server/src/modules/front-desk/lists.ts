@@ -83,6 +83,22 @@ const searchWhere = (q: string): Prisma.ReservationRoomWhereInput => ({
   ],
 });
 
+/**
+ * "En retard" flag of a row. Arrivals / no-shows: the arrival date is past and the guest has not
+ * checked in. Departures: the departure date is past and the guest is still in house. An in-house
+ * stay is late only when its departure date is past (never because it arrived before today).
+ */
+export function isLate(kind: DayListKind, arrival: string, departure: string, date: string): boolean {
+  switch (kind) {
+    case 'arrivals':
+    case 'no-shows':
+      return arrival < date;
+    case 'departures':
+    case 'in-house':
+      return departure < date;
+  }
+}
+
 /** Day lists (OP-20): arrivals (incl. late), departures (incl. overdue), in-house, no-show candidates. */
 export async function dayList(ctx: RCtx, kind: DayListKind, q: z.infer<typeof dayQuery>) {
   const prop = await requireProperty(ctx, q.propertyId);
@@ -147,7 +163,7 @@ export async function dayList(ctx: RCtx, kind: DayListKind, q: z.infer<typeof da
       departure,
       adults: r.adults,
       children: r.children,
-      late: kind === 'departures' ? departure < date : arrival < date,
+      late: isLate(kind, arrival, departure, date),
       balance: r.stay ? (balances.get(r.stay.id) ?? 0) : null,
       currency: r.currency,
     };

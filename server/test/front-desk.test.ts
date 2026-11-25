@@ -747,6 +747,28 @@ describe('company picker', () => {
   });
 });
 
+describe('"late" flag of the day lists', () => {
+  it('in-house stays are not late; arrivals late = arrival before the date; departures late = departure before the date', async () => {
+    const { isLate } = await import('../src/modules/front-desk/lists.js');
+    expect(isLate('in-house', '2026-11-20', '2026-11-27', '2026-11-25')).toBe(false);
+    expect(isLate('in-house', '2026-11-20', '2026-11-25', '2026-11-25')).toBe(false);
+    expect(isLate('in-house', '2026-11-20', '2026-11-24', '2026-11-25')).toBe(true);
+    expect(isLate('arrivals', '2026-11-25', '2026-11-27', '2026-11-25')).toBe(false);
+    expect(isLate('arrivals', '2026-11-24', '2026-11-27', '2026-11-25')).toBe(true);
+    expect(isLate('departures', '2026-11-20', '2026-11-25', '2026-11-25')).toBe(false);
+    expect(isLate('departures', '2026-11-20', '2026-11-24', '2026-11-25')).toBe(true);
+    expect(isLate('no-shows', '2026-11-24', '2026-11-27', '2026-11-25')).toBe(true);
+  });
+
+  it('an in-house stay that arrived yesterday and leaves tomorrow is listed as not late', async () => {
+    const s = await checkedIn({ departure: addDay(BD, 1) });
+    await env.services.admin.reservationRoom.update({ where: { id: s.rrId }, data: { arrival: new Date(addDay(BD, -2)), departure: new Date(addDay(BD, 2)) } });
+    const inh = await api('get', `/front-desk/in-house?propertyId=${A.propertyId}`);
+    const row = inh.body.items.find((i: { reservationRoomId: string }) => i.reservationRoomId === s.rrId);
+    expect(row.late).toBe(false);
+  });
+});
+
 describe('lazy stay creation (seeded in-house stays)', () => {
   it('creates the stay row on first access and keeps working', async () => {
     const { admin } = env.services;

@@ -265,7 +265,7 @@ export function FrontDeskPage() {
                   <Button type="link" style={{ padding: 0 }} onClick={() => setPanel({ kind: 'reservation', id: r.reservationId })}>
                     {r.number}
                   </Button>
-                  {r.late ? <Tag color="warning">{t(tab === 'departures' ? 'overdue' : 'late')}</Tag> : null}
+                  {r.late ? <Tag color="warning">{t(tab === 'departures' || tab === 'in-house' ? 'overdue' : 'late')}</Tag> : null}
                 </Space>
               ),
             },
