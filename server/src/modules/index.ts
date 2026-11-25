@@ -10,7 +10,7 @@ import {
   platformInvoicesModule,
 } from './billing/index.js';
 import { brandingModule, brandingPublicModule } from './branding/index.js';
-import { catalogModule } from './catalog/index.js';
+import { catalogModule, departmentsModule } from './catalog/index.js';
 import { cashierModule, exchangeRatesModule } from './cashier/index.js';
 import { cityLedgerModule } from './city-ledger/index.js';
 import { customFieldsModule } from './custom-fields/index.js';
@@ -61,6 +61,7 @@ export const MODULES: readonly ModuleDefinition[] = [
   propertyModule,
   ratesModule,
   catalogModule,
+  departmentsModule,
   lookupsModule,
   customFieldsModule,
   sequencesModule,

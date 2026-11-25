@@ -29,7 +29,14 @@ import { useCan } from '../../auth/useCan';
 import { formatDayLong, get, keys, post } from '../../reservations/api';
 import type { Reservation } from '../../reservations/api';
 import { useFolioRealtime } from '../../reservations/realtime';
-import { bkKeys, openDocument, useFolio, useFolioSiblings, useProducts } from './api';
+import {
+  bkKeys,
+  openDocument,
+  useDepartments,
+  useFolio,
+  useFolioSiblings,
+  useProducts,
+} from './api';
 import type { Folio, FolioLine, FolioPayment, Invoice, Page } from './api';
 import { ChargeDialog, DiscountDialog, ReasonModal } from './FolioDialogs';
 import { CreditNoteDialog, InvoiceDialog } from './InvoiceDialogs';
@@ -88,7 +95,12 @@ export function FolioPage() {
     queryFn: () => get<Page<Invoice>>(`/invoices?folioId=${id}`),
     enabled: !!id && can('invoices.read'),
   });
-  const products = useProducts(folio?.propertyId ?? null, can('settings.read'));
+  // Read-only `catalog.read` is enough for the product picker (front desk, cashier, outlets).
+  const products = useProducts(
+    folio?.propertyId ?? null,
+    can('catalog.read') || can('settings.read'),
+  );
+  const deptQuery = useDepartments(folio?.propertyId ?? null, i18n.language);
 
   const [selected, setSelected] = useState<string[]>([]);
   const [discountLine, setDiscountLine] = useState<FolioLine | null>(null);
@@ -157,12 +169,9 @@ export function FolioPage() {
   const others = (siblings.data?.items ?? []).filter(
     (f) => f.id !== folio.id && f.status === 'OPEN',
   );
-  const departments = [
-    ...new Set([
-      ...(products.data?.items ?? []).map((p) => p.departmentCode),
-      ...folio.lines.map((l) => l.departmentCode),
-    ]),
-  ].filter((d): d is string => !!d);
+  const departments = (deptQuery.data?.items ?? []).filter((d) => d.isActive);
+  const deptName = (code: string | null) =>
+    code ? (deptQuery.data?.items.find((d) => d.code === code)?.name ?? code) : null;
 
   const columns = [
     {
@@ -196,7 +205,8 @@ export function FolioPage() {
       title: t('folio.department'),
       key: 'dept',
       width: 110,
-      render: (_: unknown, r: Row) => (r.kind === 'charge' ? r.node.line.departmentCode : null),
+      render: (_: unknown, r: Row) =>
+        r.kind === 'charge' ? deptName(r.node.line.departmentCode) : null,
       onCell: (r: Row) => (r.kind === 'day' ? { colSpan: 0 } : {}),
     },
     {

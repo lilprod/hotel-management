@@ -283,8 +283,26 @@ export const useFolioSiblings = (reservationRoomId: string | null) =>
 export function useProducts(propertyId: string | null, enabled: boolean) {
   return useQuery({
     queryKey: ['billing', 'products', propertyId],
-    queryFn: () => get<Page<Product>>(`/products${qs({ propertyId, limit: 100 })}`),
+    queryFn: () => get<Page<Product>>(`/catalog/products${qs({ propertyId, limit: 100 })}`),
     enabled: enabled && !!propertyId,
+  });
+}
+
+export interface Department {
+  code: string;
+  name: string;
+  system: boolean;
+  isActive: boolean;
+}
+
+/** Departments of a property with their names in the UI language (folio lines, charge form). */
+export function useDepartments(propertyId: string | null, locale: string, enabled = true) {
+  const lang = locale.startsWith('en') ? 'en' : 'fr';
+  return useQuery({
+    queryKey: ['billing', 'departments', propertyId, lang],
+    queryFn: () => get<{ items: Department[] }>(`/departments${qs({ propertyId, locale: lang })}`),
+    enabled: enabled && !!propertyId,
+    staleTime: 5 * 60_000,
   });
 }
 

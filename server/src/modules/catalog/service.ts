@@ -10,7 +10,7 @@ import {
   type Ctx,
 } from '../property/common.js';
 import { PRODUCT_CATEGORY_LIST } from '../lookups/schemas.js';
-import type { createProductBody, listProductsQuery, updateProductBody } from './schemas.js';
+import type { createProductBody, listDepartmentsQuery, listProductsQuery, updateProductBody } from './schemas.js';
 
 const toProduct = (p: Prisma.ProductGetPayload<object>) => ({
   id: p.id,
@@ -101,4 +101,33 @@ export async function updateProduct(
 export async function deleteProduct(ctx: Ctx, id: string) {
   await load(ctx, id);
   await ctx.db.product.update({ where: { id }, data: { deletedAt: new Date(), isActive: false } });
+}
+
+/** Departments written by the platform itself on folio lines (not rows of `departments`). */
+const SYSTEM_DEPARTMENTS: Record<string, { fr: string; en: string }> = {
+  ROOM: { fr: 'Hébergement', en: 'Accommodation' },
+  EXTRA: { fr: 'Extras', en: 'Extras' },
+  DISCOUNT: { fr: 'Remises', en: 'Discounts' },
+  CITY_LEDGER: { fr: 'Compte client (city ledger)', en: 'City ledger' },
+};
+
+/**
+ * Departments of a property: the `departments` table (name as entered by the hotel) plus the
+ * system codes used by folio lines (ROOM, EXTRA…), named in the requested language. The table
+ * wins over a system name when a hotel defined the same code.
+ */
+export async function listDepartments(ctx: Ctx, q: z.infer<typeof listDepartmentsQuery>) {
+  assertPropertyAccess(ctx, q.propertyId);
+  const rows = await ctx.db.department.findMany({
+    where: { propertyId: q.propertyId, deletedAt: null },
+    orderBy: [{ name: 'asc' }, { code: 'asc' }],
+  });
+  const own = new Set(rows.map((r) => r.code));
+  const items = [
+    ...Object.entries(SYSTEM_DEPARTMENTS)
+      .filter(([code]) => !own.has(code))
+      .map(([code, n]) => ({ code, name: n[q.locale], system: true, isActive: true })),
+    ...rows.map((r) => ({ code: r.code, name: r.name, system: false, isActive: r.isActive })),
+  ];
+  return { items };
 }

@@ -232,7 +232,11 @@ describe('folio page', () => {
     'GET /folios': () => json(200, { items: [], nextCursor: null }),
     'GET /exchange-rates': () => json(200, { items: [] }),
     'GET /invoices': () => json(200, { items: [], nextCursor: null }),
-    'GET /products': () => json(200, { items: [], nextCursor: null }),
+    'GET /catalog/products': () => json(200, { items: [], nextCursor: null }),
+    'GET /departments': () =>
+      json(200, {
+        items: [{ code: 'HEB', name: 'Hébergement', system: false, isActive: true }],
+      }),
   });
 
   it('offers discount and reversal only with their permissions', async () => {
@@ -242,6 +246,31 @@ describe('folio page', () => {
     await screen.findByText('Nuitée');
     expect(screen.queryByRole('button', { name: 'Remise' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Contre-passer' })).not.toBeInTheDocument();
+  });
+
+  it('shows the department name, not its raw code', async () => {
+    signIn({ permissions: ['folio.read'] });
+    stubApi(routes(folio()));
+    mount();
+    await screen.findByText('Nuitée');
+    expect(await screen.findByText('Hébergement')).toBeInTheDocument();
+    expect(screen.queryByText('HEB')).not.toBeInTheDocument();
+  });
+
+  it('loads the product picker with the read-only catalog.read permission', async () => {
+    signIn({ permissions: ['folio.read', 'catalog.read'] });
+    const calls = stubApi(routes(folio()));
+    mount();
+    await screen.findByText('Nuitée');
+    await waitFor(() => expect(calls.some((c) => c.url.includes('/catalog/products'))).toBe(true));
+  });
+
+  it('does not query products without catalog.read or settings.read', async () => {
+    signIn({ permissions: ['folio.read'] });
+    const calls = stubApi(routes(folio()));
+    mount();
+    await screen.findByText('Nuitée');
+    expect(calls.some((c) => c.url.includes('/catalog/products'))).toBe(false);
   });
 
   it('shows them to a manager', async () => {

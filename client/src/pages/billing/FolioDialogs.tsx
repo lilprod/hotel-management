@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { Alert, AutoComplete, Form, Input, InputNumber, Modal, Radio, Select, Space } from 'antd';
+import { Alert, Form, Input, InputNumber, Modal, Radio, Select, Space } from 'antd';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -138,7 +138,7 @@ export function ChargeDialog({
   folio: Folio;
   open: boolean;
   products: Product[];
-  departments: string[];
+  departments: { code: string; name: string }[];
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -230,12 +230,13 @@ export function ChargeDialog({
               />
             </Form.Item>
             <Form.Item label={t('charge.department')}>
-              <AutoComplete
+              <Select
+                showSearch
+                optionFilterProp="label"
                 aria-label={t('charge.department')}
-                value={dept}
+                value={dept || undefined}
                 onChange={setDept}
-                options={departments.map((d) => ({ value: d }))}
-                filterOption
+                options={departments.map((d) => ({ value: d.code, label: d.name }))}
               />
             </Form.Item>
           </>

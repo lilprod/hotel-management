@@ -1,5 +1,5 @@
 import { createModuleRouter } from '../../core/router.js';
-import { can, requireFeature } from '../../http/helpers.js';
+import { can, canAny, requireFeature } from '../../http/helpers.js';
 import { propertyFromRequest, withCtx } from '../property/common.js';
 import * as s from './schemas.js';
 import * as service from './service.js';
@@ -11,7 +11,8 @@ export const catalogRouter = createModuleRouter()
     method: 'get',
     path: '/products',
     summary: 'Products of a property (categories: lookup list `product_category`)',
-    middleware: [can('settings.read', { property: propertyFromRequest }), feature],
+    // `catalog.read` (read-only product picker of front desk / cashier / outlets) or `settings.read`.
+    middleware: [canAny(['catalog.read', 'settings.read'], { property: propertyFromRequest }), feature],
     request: { query: s.listProductsQuery },
     responses: { 200: { description: 'Page', schema: s.productPage } },
     handler: (req) => withCtx(req, (c) => service.listProducts(c, req.valid.query)),

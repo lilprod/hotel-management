@@ -5,6 +5,7 @@ import { catalogRouter } from './routes.js';
 export const catalogModule = defineModule({
   key: 'catalog',
   router: { t: catalogRouter },
-  permissions: ['settings.read', 'settings.manage'],
+  permissions: ['catalog.read', 'settings.read', 'settings.manage'],
   features: ['lodging.core'],
 });
+export { departmentsModule } from './departments.js';

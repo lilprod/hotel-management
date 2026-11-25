@@ -638,6 +638,47 @@ async function settledFolio(o: StayOpts = {}) {
   return st;
 }
 
+describe('departments and catalog picker', () => {
+  it('lists departments with translated names (table + system codes), by permission', async () => {
+    await env.services.admin.department.create({
+      data: { tenantId: A.tenantId, propertyId: A.propertyId, code: 'RES', name: 'Restauration et bar' },
+    });
+    const q = `?propertyId=${A.propertyId}`;
+    const fr = await api('get', `/departments${q}`, tokCashier);
+    expect(fr.status, JSON.stringify(fr.body)).toBe(200);
+    const find = (b: { items: { code: string; name: string }[] }, c: string) => b.items.find((i) => i.code === c)?.name;
+    expect(find(fr.body, 'ROOM')).toBe('Hébergement');
+    expect(find(fr.body, 'RES')).toBe('Restauration et bar');
+    const en = await api('get', `/departments${q}&locale=en`, tokCashier);
+    expect(find(en.body, 'ROOM')).toBe('Accommodation');
+    const none = await addUser(env.services.admin, A.tenantId, ['reports.read']);
+    const tokNone = await mintToken(env.services.config, { sub: none, tid: A.tenantId });
+    expect((await api('get', `/departments${q}`, tokNone)).status).toBe(403);
+    expect((await api('get', `/departments?propertyId=${B.propertyId}`, tokCashier)).status).toBe(403);
+    // Cross-tenant: tenant B never sees the departments of tenant A (RLS).
+    const cross = await api('get', `/departments${q}`, tokB, B);
+    expect(cross.body.items.some((i: { code: string }) => i.code === 'RES')).toBe(false);
+  });
+
+  it('lists products with catalog.read (read only) or settings.read, refuses otherwise', async () => {
+    const q = `?propertyId=${A.propertyId}`;
+    const mk = async (perms: string[]) => {
+      const u = await addUser(env.services.admin, A.tenantId, perms);
+      await env.services.admin.userProperty.create({ data: { tenantId: A.tenantId, userId: u, propertyId: A.propertyId } });
+      return mintToken(env.services.config, { sub: u, tid: A.tenantId });
+    };
+    const reader = await mk(['catalog.read']);
+    const ok = await api('get', `/catalog/products${q}`, reader);
+    expect(ok.status, JSON.stringify(ok.body)).toBe(200);
+    expect(ok.body.items.some((p: { name: string }) => p.name === 'Eau minérale')).toBe(true);
+    expect((await api('get', `/catalog/products${q}`, await mk(['settings.read']))).status).toBe(200);
+    // Read-only: no creation with catalog.read
+    const denied = await api('post', '/catalog/products', reader).send({ propertyId: A.propertyId, name: 'X', price: 1 });
+    expect(denied.status).toBe(403);
+    expect((await api('get', `/catalog/products${q}`, await mk(['folio.read']))).status).toBe(403);
+  });
+});
+
 describe('stay period on invoices', () => {
   const upTo = (rrId: string, d: string) =>
     api('post', '/folios/room-nights/up-to').send({ reservationRoomId: rrId, upTo: d });

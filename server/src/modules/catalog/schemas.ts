@@ -38,3 +38,13 @@ export const listProductsQuery = pageQuery.extend({
     .transform((v) => v === 'true'),
 });
 export const productPage = pageOf(productSchema);
+
+export const listDepartmentsQuery = z.object({
+  propertyId: uuid,
+  locale: z.enum(['fr', 'en']).default('fr'),
+});
+export const departmentList = z.object({
+  items: z.array(
+    z.object({ code: z.string(), name: z.string(), system: z.boolean(), isActive: z.boolean() }),
+  ),
+});
