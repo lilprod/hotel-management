@@ -96,6 +96,28 @@ export function can(permission: string, opts: CanOptions = {}): RequestHandler {
   return Object.assign(handler, { permission });
 }
 
+/**
+ * Like `can`, but any one of the permissions is enough (e.g. a read-only permission OR the
+ * broader management one). Same grants, wildcards and property scope.
+ */
+export function canAny(permissions: readonly string[], opts: CanOptions = {}): RequestHandler {
+  const handler = asyncHandler(async (req, _res, next) => {
+    const auth = req.auth;
+    if (!auth) throw unauthenticated();
+    if (auth.scope !== 'staff' || !auth.tenantId) throw forbidden('Staff token required');
+    const grants = await loadGrants(req);
+    if (!permissions.some((p) => PermissionService.allows(grants, p)))
+      throw forbidden(`Missing permission ${permissions.join(' or ')}`, { permission: permissions[0] });
+    if (opts.property) {
+      const propertyId = opts.property(req);
+      if (propertyId && !PermissionService.reachesProperty(grants, propertyId))
+        throw forbidden('Property not in your scope', { propertyId });
+    }
+    next();
+  });
+  return Object.assign(handler, { permission: permissions.join(' | ') });
+}
+
 /** Explicit opt-out of can() for routes open to any authenticated staff member (e.g. whoami). */
 export function anyStaff(): RequestHandler {
   return asyncHandler(async (req, _res, next) => {

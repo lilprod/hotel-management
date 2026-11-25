@@ -65,4 +65,11 @@ describe('catalog and roles', () => {
     expect(hasPermission(SYSTEM_ROLE_PERMISSIONS.CASHIER, 'reservations.create')).toBe(false);
     expect(hasPermission(SYSTEM_ROLE_PERMISSIONS.CASHIER, 'cash.close_with_variance')).toBe(true);
   });
+
+  it('catalog.read (read-only product picker) is granted to posting roles, not to settings.manage', () => {
+    for (const role of ['FRONT_DESK', 'CASHIER', 'RESTAURANT_STAFF', 'SPA_STAFF', 'MANAGER', 'ADMIN', 'OWNER'] as const)
+      expect(hasPermission(SYSTEM_ROLE_PERMISSIONS[role], 'catalog.read'), role).toBe(true);
+    expect(hasPermission(SYSTEM_ROLE_PERMISSIONS.HOUSEKEEPING, 'catalog.read')).toBe(false);
+    expect(hasPermission(SYSTEM_ROLE_PERMISSIONS.FRONT_DESK, 'settings.read')).toBe(false);
+  });
 });

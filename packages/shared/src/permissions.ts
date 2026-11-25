@@ -56,6 +56,8 @@ export const PERMISSION_CATALOG = {
   roles: ['read', 'manage'],
   billing: ['read', 'manage'],
   settings: ['read', 'manage'],
+  // Read-only product catalogue (product picker when posting a charge).
+  catalog: ['read'],
   imports: ['read', 'run'],
   accounting: ['read', 'manage', 'export'],
   audit: ['read', 'export'],
@@ -159,6 +161,7 @@ const OPERATIONAL_MODULES: readonly PermissionModule[] = [
   'assets',
   'maintenance',
   'housekeeping',
+  'catalog',
 ];
 
 const ADMIN_MODULES: readonly PermissionModule[] = [
@@ -198,6 +201,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<SystemRoleKey, readonly string[]> =
     'guests.*',
     'folio.post',
     'folio.pay',
+    'catalog.read',
     'cash.session',
     'waitlist.*',
   ],
@@ -208,9 +212,10 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<SystemRoleKey, readonly string[]> =
     'restaurant.reservations.*',
     'folio.charge_room',
     'pos.pay',
+    'catalog.read',
   ],
-  SPA_STAFF: ['spa.appointments.*', 'spa.records.read', 'spa.records.write', 'folio.charge_room'],
+  SPA_STAFF: ['spa.appointments.*', 'spa.records.read', 'spa.records.write', 'folio.charge_room', 'catalog.read'],
   MAINTENANCE: ['maintenance.*', 'assets.read', 'inventory.consume'],
-  CASHIER: ['folio.pay', 'cash.*'],
+  CASHIER: ['folio.pay', 'cash.*', 'catalog.read'],
   ACCOUNTANT: ['reports.*', 'invoices.read', 'city_ledger.*', 'exports.*'],
 };
