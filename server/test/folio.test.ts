@@ -739,6 +739,8 @@ describe('invoices and credit notes', () => {
     expect(unpaid.status).toBe(409);
     expect(unpaid.body.meta.reason).toBe('UNPAID_BALANCE');
     await pay(st.folioId, { method: 'CARD', amount: 37_400 });
+    // Final invoice (stay checked out): it closes the folio; an interim one does not (night audit lot).
+    await env.services.admin.reservationRoom.update({ where: { id: st.rrId }, data: { status: 'CHECKED_OUT' } });
     const inv = await api('post', '/invoices', tokCashier).send({ folioId: st.folioId });
     expect(inv.status, JSON.stringify(inv.body)).toBe(201);
     expect(inv.body.number).toMatch(/^FAC-2026-\d{6}$/);
@@ -761,7 +763,7 @@ describe('invoices and credit notes', () => {
     const totals = inv.body.totals;
     expect(totals.breakdown).toMatchObject({ net: 30_000, percentTax: 5_400, fixedTax: 2_000 });
     expect(totals.payments).toEqual([{ method: 'CARD', label: 'Carte bancaire', amount: 37_400 }]);
-    expect(totals.stay).toMatchObject({ checkIn: '2026-11-10', checkOut: '2026-11-14', nights: 4 });
+    expect(totals.stay).toMatchObject({ checkIn: '2026-11-10', checkOut: '2026-11-11', nights: 1 });
     const fd = await env.services.admin.fiscalDocument.findFirst({ where: { invoiceId: inv.body.id } });
     expect(fd?.payload).toMatchObject({ skipped: true });
 
