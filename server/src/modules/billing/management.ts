@@ -1,4 +1,3 @@
-import type { Prisma } from '@hm/database';
 import type { Services } from '../../core/container.js';
 import {
   BILLING_EVENTS,
@@ -25,6 +24,7 @@ import {
   issueInvoice,
   LINE,
   paidAmount,
+  pendingChangeData,
   pendingChangeOf,
   periodLines,
   planPriceOn,
@@ -36,7 +36,6 @@ import {
   currentSubscription,
   recordSubscriptionChange,
   requireSubscription,
-  type SubscriptionWithPlan,
 } from './subscriptions.js';
 import { quotaViolations } from './usage.js';
 
@@ -116,6 +115,7 @@ export async function startSubscription(
         periodEnd,
         currency: input.currency,
         lines,
+        kind: 'SUBSCRIPTION',
       },
       settings,
     );
@@ -131,11 +131,14 @@ async function voidUnpaidPeriodInvoice(tx: Tx, subscriptionId: string, periodSta
       subscriptionId,
       periodStart: dateOf(periodStart),
       status: { in: ['ISSUED', 'OVERDUE'] },
-      platformInvoiceLines: { none: { label: { startsWith: LINE.prorata } } },
+      kind: { not: 'PRORATA' },
     },
   });
   if (!inv || (await paidAmount(tx, inv.id)) > 0n) return null;
-  await tx.platformInvoice.update({ where: { id: inv.id }, data: { status: 'VOID' } });
+  await tx.platformInvoice.update({
+    where: { id: inv.id },
+    data: { status: 'VOID', voidReason: 'superseded', voidedAt: billingNow() },
+  });
   await emit(tx, inv.tenantId, BILLING_EVENTS.invoiceVoided, {
     invoiceId: inv.id,
     reason: 'superseded',
@@ -190,7 +193,7 @@ export async function changePlan(
     if (sub.status === 'TRIALING') {
       await tx.subscription.update({
         where: { id: sub.id },
-        data: { planId: plan.id, billingCycle: cycle, priceSnapshot: clearPending(sub) },
+        data: { planId: plan.id, billingCycle: cycle, ...pendingChangeData(null) },
       });
       await recordSubscriptionChange(tx, sub, `plan changed to ${plan.code} (trial)`, actor);
       const anchor = isoOrNull(sub.trialEndsAt);
@@ -222,14 +225,11 @@ export async function changePlan(
       const amount = prorata(newPriceSameCycle, oldPrice, remaining, periodDays);
       const pending: PendingChange | null =
         cycle !== sub.billingCycle
-          ? { planId: plan.id, billingCycle: cycle, effectiveAt: end, requestedBy: actor.id ?? '' }
+          ? { planId: plan.id, billingCycle: cycle, effectiveAt: end }
           : null;
       await tx.subscription.update({
         where: { id: sub.id },
-        data: {
-          planId: plan.id,
-          priceSnapshot: pending ? withPending(sub, pending) : clearPending(sub),
-        },
+        data: { planId: plan.id, ...pendingChangeData(pending) },
       });
       await recordSubscriptionChange(tx, sub, `upgrade ${sub.plan.code} → ${plan.code}`, actor);
       if (amount > 0n) {
@@ -249,6 +249,7 @@ export async function changePlan(
                 unitAmount: amount,
               },
             ],
+            kind: 'PRORATA',
           },
           settings,
         );
@@ -272,15 +273,10 @@ export async function changePlan(
           violations,
         });
     }
-    const pending: PendingChange = {
-      planId: plan.id,
-      billingCycle: cycle,
-      effectiveAt: end,
-      requestedBy: actor.id ?? '',
-    };
+    const pending: PendingChange = { planId: plan.id, billingCycle: cycle, effectiveAt: end };
     await tx.subscription.update({
       where: { id: sub.id },
-      data: { priceSnapshot: withPending(sub, pending) },
+      data: pendingChangeData(pending),
     });
     await recordSubscriptionChange(
       tx,
@@ -299,18 +295,6 @@ export async function changePlan(
   return result;
 }
 
-function snapshotOf(sub: SubscriptionWithPlan): Record<string, unknown> {
-  return { ...((sub.priceSnapshot as Record<string, unknown> | null) ?? {}) };
-}
-function withPending(sub: SubscriptionWithPlan, p: PendingChange): Prisma.InputJsonValue {
-  return { ...snapshotOf(sub), pendingChange: { ...p } } as Prisma.InputJsonValue;
-}
-function clearPending(sub: SubscriptionWithPlan): Prisma.InputJsonValue {
-  const s = snapshotOf(sub);
-  delete s.pendingChange;
-  return s as Prisma.InputJsonValue;
-}
-
 async function afterChange(services: Services, tenantId: string, invoiceIds: readonly string[]) {
   await invalidateTenantCaches(services, tenantId);
   for (const id of invoiceIds)
@@ -327,7 +311,7 @@ export async function cancelPendingChange(services: Services, tenantId: string, 
     if (!pendingChangeOf(sub)) throw precondition('No scheduled plan change');
     await tx.subscription.update({
       where: { id: sub.id },
-      data: { priceSnapshot: clearPending(sub) },
+      data: pendingChangeData(null),
     });
     await recordSubscriptionChange(tx, sub, 'scheduled plan change cancelled', actor);
   });
@@ -515,7 +499,7 @@ export async function voidInvoice(services: Services, invoiceId: string, reason:
       });
     const updated = await tx.platformInvoice.update({
       where: { id: inv.id },
-      data: { status: 'VOID' },
+      data: { status: 'VOID', voidReason: reason.trim().slice(0, 1000), voidedAt: billingNow() },
     });
     await emit(tx, inv.tenantId, BILLING_EVENTS.invoiceVoided, { invoiceId: inv.id, reason });
     return updated;

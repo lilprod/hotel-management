@@ -1,4 +1,3 @@
-import type { Prisma } from '@hm/database';
 import type { Services } from '../../core/container.js';
 import { defineJob } from '../../jobs/context.js';
 import { writePlatformAudit } from '../audit/service.js';
@@ -14,7 +13,12 @@ import {
 } from './common.js';
 import { addDays, diffDays, localDate, localMinutes, type IsoDate } from './domain.js';
 import { renderInvoicePdf } from './documents.js';
-import { ensurePeriodInvoice, openInvoices, pendingChangeOf } from './invoices.js';
+import {
+  ensurePeriodInvoice,
+  openInvoices,
+  pendingChangeData,
+  pendingChangeOf,
+} from './invoices.js';
 import { sendBillingNotice, type BillingNotice } from './notifier.js';
 import { loadBillingSettings, type BillingSettings } from './settings.js';
 import {
@@ -96,14 +100,12 @@ async function lifecycleOf(
     // 1. Downgrade / cycle change scheduled at the period end.
     const pending = pendingChangeOf(sub);
     if (pending && pending.effectiveAt <= today) {
-      const snap = { ...((sub.priceSnapshot as Record<string, unknown> | null) ?? {}) };
-      delete snap.pendingChange;
       await tx.subscription.update({
         where: { id: sub.id },
         data: {
           planId: pending.planId,
           billingCycle: pending.billingCycle,
-          priceSnapshot: snap as Prisma.InputJsonValue,
+          ...pendingChangeData(null),
         },
       });
       await recordSubscriptionChange(tx, sub, `scheduled plan change applied`, SYSTEM_ACTOR);

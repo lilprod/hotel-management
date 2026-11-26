@@ -64,6 +64,8 @@ export async function createTenantFixture(
         planId: plan.id,
         billingCycle: 'MONTHLY',
         status: opts.subscription ?? 'ACTIVE',
+        ...(opts.subscription === 'SUSPENDED' ? { suspendedAt: new Date() } : {}),
+        ...(opts.subscription === 'CANCELLED' ? { cancelledAt: new Date() } : {}),
       },
     });
   const property = await admin.property.create({

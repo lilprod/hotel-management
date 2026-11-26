@@ -26,6 +26,9 @@ export function serializeInvoice(i: InvoiceRow, today?: string) {
     amountPaid: num(i.amountPaid),
     balance: num(balance),
     status: i.status,
+    kind: i.kind,
+    voidReason: i.voidReason,
+    voidedAt: i.voidedAt?.toISOString() ?? null,
     overdue: today !== undefined && balance > 0n && i.status !== 'VOID' && isoOf(i.dueDate) < today,
     pdfFileId: i.pdfFileId,
     createdAt: i.createdAt.toISOString(),
@@ -35,6 +38,7 @@ export function serializeInvoice(i: InvoiceRow, today?: string) {
 export interface InvoiceFilter {
   tenantId?: string | undefined;
   status?: string | undefined;
+  kind?: string | undefined;
   from?: string | undefined;
   to?: string | undefined;
   q?: string | undefined;
@@ -49,6 +53,7 @@ export function invoiceWhere(f: InvoiceFilter, today: string): Prisma.PlatformIn
   return {
     ...(f.tenantId ? { tenantId: f.tenantId } : {}),
     ...(f.status ? { status: f.status as never } : {}),
+    ...(f.kind ? { kind: f.kind as never } : {}),
     ...(f.from || f.to
       ? {
           issueDate: {
@@ -144,6 +149,7 @@ export interface PaymentFilter {
   tenantId?: string | undefined;
   method?: string | undefined;
   status?: string | undefined;
+  kind?: string | undefined;
   from?: string | undefined;
   to?: string | undefined;
   q?: string | undefined;

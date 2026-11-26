@@ -40,7 +40,7 @@ const methodLabel = (m: string) =>
     ? paymentMethodLabel(m as (typeof PLATFORM_PAYMENT_METHODS)[number])
     : m;
 
-/** File name of a platform document (also the lookup key of receipts: one file per number). */
+/** File name of a platform document. */
 export const documentFileName = (number: string) => `${number}.pdf`;
 
 /**
@@ -97,7 +97,10 @@ export async function renderInvoicePdf(services: Services, invoiceId: string): P
   return out.fileId;
 }
 
-/** Renders a payment receipt (or its cancellation receipt when `reversal`). */
+/**
+ * Renders a payment receipt (or its cancellation receipt when `reversal`). The receipt file is
+ * recorded once in `payments.receipt_file_id` (the DB trigger refuses any later change).
+ */
 export async function renderReceiptPdf(
   services: Services,
   paymentId: string,
@@ -136,16 +139,12 @@ export async function renderReceiptPdf(
       branding: platformBranding(settings.identity),
     }),
   );
+  if (!opts.reversal)
+    await admin.payment.updateMany({
+      where: { id: p.id, receiptFileId: null },
+      data: { receiptFileId: out.fileId },
+    });
   return out.fileId;
-}
-
-/** Latest file of a platform document number (receipts have no file column on `payments`). */
-export async function findDocumentFile(services: Services, tenantId: string, number: string) {
-  return services.admin.file.findFirst({
-    where: { tenantId, originalName: documentFileName(number) },
-    orderBy: { createdAt: 'desc' },
-    select: { id: true, key: true },
-  });
 }
 
 /** 5-minute signed URL of a tenant file (platform documents live in the tenant's storage). */

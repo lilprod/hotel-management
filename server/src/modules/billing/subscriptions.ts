@@ -13,7 +13,7 @@ import {
   type Tx,
 } from './common.js';
 import { maxDate, periodEndOf, type Cycle, type IsoDate } from './domain.js';
-import { LINE, oldestUnpaidDueDate } from './invoices.js';
+import { oldestUnpaidDueDate } from './invoices.js';
 import {
   evaluate,
   REACTIVABLE_BY_PAYMENT,
@@ -42,23 +42,13 @@ export async function requireSubscription(db: Db, tenantId: string) {
   return sub;
 }
 
-/** Date of the last transition to SUSPENDED (for the R-day cancellation). */
-async function suspendedSince(db: Db, subscriptionId: string): Promise<IsoDate | null> {
-  const ev = await db.subscriptionEvent.findFirst({
-    where: { subscriptionId, toStatus: 'SUSPENDED' },
-    orderBy: { createdAt: 'desc' },
-    select: { createdAt: true },
-  });
-  return ev ? isoOf(ev.createdAt) : null;
-}
-
 export async function factsOf(db: Db, sub: SubscriptionWithPlan): Promise<SubscriptionFacts> {
   return {
     status: sub.status,
     trialEndsAt: isoOrNull(sub.trialEndsAt),
     graceEndsAt: isoOrNull(sub.graceEndsAt),
     cancelAt: isoOrNull(sub.cancelAt),
-    suspendedSince: sub.status === 'SUSPENDED' ? await suspendedSince(db, sub.id) : null,
+    suspendedSince: sub.status === 'SUSPENDED' ? isoOrNull(sub.suspendedAt) : null,
     oldestUnpaidDueDate: await oldestUnpaidDueDate(db, sub.tenantId),
   };
 }
@@ -82,10 +72,22 @@ export async function applyTransition(
   t: ApplyTransition,
 ) {
   const to = transition(sub.status, t.trigger);
+  const at = billingNow();
+  // suspended_at = start of the current suspension, cancelled_at = cancellation date; both are
+  // cleared when the subscription is live again.
+  const dates: Prisma.SubscriptionUpdateInput =
+    to === 'SUSPENDED'
+      ? sub.status === 'SUSPENDED'
+        ? {}
+        : { suspendedAt: at }
+      : to === 'CANCELLED'
+        ? { cancelledAt: at }
+        : { suspendedAt: null, cancelledAt: null };
   await tx.subscription.update({
     where: { id: sub.id },
     data: {
       status: to,
+      ...dates,
       ...(t.graceEndsAt !== undefined
         ? { graceEndsAt: t.graceEndsAt ? dateOf(t.graceEndsAt) : null }
         : {}),
@@ -99,7 +101,7 @@ export async function applyTransition(
       toStatus: to,
       reason: [t.trigger, t.reason].filter(Boolean).join(': ').slice(0, 500),
       actor: actorLabel(t.actor),
-      createdAt: billingNow(),
+      createdAt: at,
     },
   });
   await emit(tx, sub.tenantId, BILLING_EVENTS.subscriptionChanged, {
@@ -183,7 +185,7 @@ export async function settleSubscription(
       status: 'PAID',
       periodStart: { not: null },
       periodEnd: { not: null },
-      platformInvoiceLines: { none: { label: { startsWith: LINE.prorata } } },
+      kind: { not: 'PRORATA' },
     },
     orderBy: { periodStart: 'asc' },
   });

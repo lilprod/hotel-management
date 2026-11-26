@@ -275,6 +275,7 @@ describe('trial → invoice J-7 → reminders → suspension → payment reactiv
     expect(iso(inv!.periodStart)).toBe('2026-12-02');
     expect(iso(inv!.dueDate)).toBe('2026-12-02');
     expect(inv!.pdfFileId).toBeTruthy();
+    expect(inv!.kind).toBe('SUBSCRIPTION');
     // Same day re-run: claimed; forced re-run of another day: no duplicate invoice.
     expect(await lifecycle(A)).toBeUndefined();
     setDay('2026-11-26');
@@ -297,6 +298,7 @@ describe('trial → invoice J-7 → reminders → suspension → payment reactiv
     setDay('2026-12-02');
     const r = await lifecycle(A);
     expect(r?.transition).toMatchObject({ from: 'TRIALING', to: 'SUSPENDED' });
+    expect((await sub(A)).suspendedAt?.toISOString()).toBe(now.toISOString());
     const write = await staff('post', A, '/iam/users').send({});
     expect(write.status).toBe(402);
     expect(write.body.code).toBe('SUBSCRIPTION_SUSPENDED');
@@ -320,6 +322,7 @@ describe('trial → invoice J-7 → reminders → suspension → payment reactiv
     expect(inv!.status).toBe('PAID');
     const s = await sub(A);
     expect(s.status).toBe('ACTIVE');
+    expect(s.suspendedAt).toBeNull();
     expect(iso(s.currentPeriodEnd)).toBe('2027-01-02');
     expect(
       notices.some(
@@ -330,6 +333,15 @@ describe('trial → invoice J-7 → reminders → suspension → payment reactiv
     expect(write.body.code).not.toBe('SUBSCRIPTION_SUSPENDED');
     const receipts = await staff('get', A, '/billing/receipts');
     expect(receipts.body.items[0].receiptNumber).toBe(res.body.receiptNumber);
+    const stored = await env.services.admin.payment.findUniqueOrThrow({ where: { id: paymentId } });
+    expect(stored.receiptFileId).toBeTruthy();
+    // Set once: the trigger refuses any later change of the receipt file.
+    await expect(
+      env.services.admin.payment.update({
+        where: { id: paymentId },
+        data: { receiptFileId: crypto.randomUUID() },
+      }),
+    ).rejects.toThrow(/receipt file/);
     const pdf = await staff('get', A, `/billing/receipts/${paymentId}/pdf`);
     expect(pdf.status).toBe(200);
     expect(pdf.body.url).toContain('https://files.test/');
@@ -427,6 +439,9 @@ describe('ACTIVE → PAST_DUE → SUSPENDED → CANCELLED, partial payment and r
     expect((await lifecycle(B))?.transition).toBeNull();
     setDay('2027-03-02');
     expect((await lifecycle(B))?.transition).toMatchObject({ to: 'CANCELLED' });
+    const cancelled = await sub(B);
+    expect(cancelled.cancelledAt?.toISOString()).toBe(now.toISOString());
+    expect(iso(cancelled.suspendedAt)).toBe('2026-12-02');
     const zip = await env.services.admin.file.findFirst({
       where: { tenantId: B.tenantId, mime: 'application/zip' },
     });
@@ -528,9 +543,8 @@ describe('plan change: prorata upgrade, downgrade at period end with quota check
     const r = await adm('post', `/tenants/${D.tenantId}/plan`).send({ planId: plans.M });
     expect(r.status, JSON.stringify(r.body)).toBe(200);
     expect(r.body.mode).toBe('immediate');
-    const prorata = (await invoices(D)).find((i) =>
-      i.platformInvoiceLines.some((l) => l.label.startsWith('Prorata')),
-    )!;
+    const prorata = (await invoices(D)).find((i) => i.kind === 'PRORATA')!;
+    expect(prorata.platformInvoiceLines[0]!.label).toMatch(/^Prorata/);
     // (50 000 − 25 000) × 15 / 30
     expect(prorata.total).toBe(12_500n);
     const ent = await env.services.entitlements.resolve(D.tenantId);
@@ -548,15 +562,56 @@ describe('plan change: prorata upgrade, downgrade at period end with quota check
     const r = await staff('post', D, '/billing/plan-change').send({ planId: plans.S });
     expect(r.status, JSON.stringify(r.body)).toBe(200);
     expect(r.body).toMatchObject({ mode: 'scheduled', effectiveAt: '2026-12-18' });
+    const scheduled = await sub(D);
+    expect(scheduled).toMatchObject({ pendingPlanId: plans.S, pendingCycle: 'MONTHLY' });
+    expect(iso(scheduled.pendingEffectiveAt)).toBe('2026-12-18');
+    expect(scheduled.priceSnapshot ?? {}).not.toHaveProperty('pendingChange');
     setDay('2026-12-11');
     await lifecycle(D);
     const renewal = (await invoices(D)).find((i) => iso(i.periodStart) === '2026-12-18')!;
     expect(renewal.total).toBe(25_000n);
+    expect(renewal.kind).toBe('RENEWAL');
     setDay('2026-12-18');
     expect((await lifecycle(D))?.planChanged).toBe(true);
-    expect((await sub(D)).planId).toBe(plans.S);
+    const applied = await sub(D);
+    expect(applied.planId).toBe(plans.S);
+    expect(applied).toMatchObject({
+      pendingPlanId: null,
+      pendingCycle: null,
+      pendingEffectiveAt: null,
+    });
     const ent = await env.services.entitlements.resolve(D.tenantId);
     expect(ent.features).not.toContain('restaurant');
+  });
+});
+
+describe('void of an unpaid invoice', () => {
+  it('records the reason and date, filters by kind, refuses a second void', async () => {
+    setDay('2026-11-18');
+    const V = await newTenant(0);
+    const [inv] = await invoices(V);
+    expect(inv!.kind).toBe('SUBSCRIPTION');
+    const noReason = await adm('post', `/invoices/${inv!.id}/void`, tokens.FINANCE).send({});
+    expect(noReason.status).toBe(422);
+    const r = await adm('post', `/invoices/${inv!.id}/void`, tokens.FINANCE).send({
+      reason: 'Erreur de plan',
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    const [voided] = await invoices(V);
+    expect(voided).toMatchObject({ status: 'VOID', voidReason: 'Erreur de plan' });
+    expect(voided!.voidedAt?.toISOString()).toBe(now.toISOString());
+    const list = await adm('get', `/invoices?tenantId=${V.tenantId}&kind=SUBSCRIPTION`);
+    expect(list.body.items[0]).toMatchObject({
+      kind: 'SUBSCRIPTION',
+      voidReason: 'Erreur de plan',
+    });
+    expect((await adm('get', `/invoices?tenantId=${V.tenantId}&kind=PRORATA`)).body.items).toEqual(
+      [],
+    );
+    const again = await adm('post', `/invoices/${inv!.id}/void`, tokens.FINANCE).send({
+      reason: 'encore',
+    });
+    expect(again.status).toBe(412);
   });
 });
 

@@ -20,7 +20,7 @@ import {
   type Tx,
 } from './common.js';
 import { allocateOldestFirst, type IsoDate } from './domain.js';
-import { findDocumentFile, renderReceiptPdf, signedFileUrl } from './documents.js';
+import { renderReceiptPdf, signedFileUrl } from './documents.js';
 import { openInvoices, recomputeInvoices } from './invoices.js';
 import { sendBillingNotice } from './notifier.js';
 import { nextPlatformNumber } from './numbering.js';
@@ -435,6 +435,7 @@ export function serializePayment(p: PaymentFull) {
     reversedAt: p.reversedAt?.toISOString() ?? null,
     reversalReason: p.reversalReason,
     receiptNumber: p.receiptNumber,
+    receiptFileId: p.receiptFileId,
     declarationId: payload?.declarationId ?? null,
     plannedAllocations: (payload?.allocations ?? []).map((a) => ({
       invoiceId: a.invoiceId,
@@ -458,15 +459,11 @@ export async function receiptUrl(services: Services, paymentId: string, tenantId
   });
   if (!p) throw notFound('Payment');
   if (!p.receiptNumber) throw precondition('Payment has no receipt yet');
-  let file = await findDocumentFile(services, p.tenantId, p.receiptNumber);
-  if (!file) {
-    const id = await renderReceiptPdf(services, p.id);
-    file = id ? { id, key: '' } : null;
-  }
-  if (!file)
+  const fileId = p.receiptFileId ?? (await renderReceiptPdf(services, p.id));
+  if (!fileId)
     throw new AppError('SERVICE_UNAVAILABLE', undefined, { detail: 'Receipt unavailable' });
   return {
-    url: await signedFileUrl(services, p.tenantId, file.id),
+    url: await signedFileUrl(services, p.tenantId, fileId),
     receiptNumber: p.receiptNumber,
   };
 }

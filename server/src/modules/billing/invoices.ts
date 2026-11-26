@@ -1,4 +1,4 @@
-import type { Prisma } from '@hm/database';
+import type { PlatformInvoiceKind, Prisma } from '@hm/database';
 import {
   addDays,
   couponDiscount,
@@ -19,7 +19,7 @@ export interface LineInput {
   unitAmount: bigint;
 }
 
-/** Prefixes identifying the line kinds (labels are user-visible, French by default). */
+/** Label prefixes of generated lines (user-visible, French by default; the invoice kind is a column). */
 export const LINE = {
   prorata: 'Prorata',
   coupon: 'Remise coupon',
@@ -152,6 +152,8 @@ export interface IssueInvoiceInput {
   periodEnd?: IsoDate | null;
   currency: string;
   lines: LineInput[];
+  /** SUBSCRIPTION (first period), RENEWAL, PRORATA (upgrade), ADDON, MANUAL. */
+  kind: PlatformInvoiceKind;
 }
 
 /**
@@ -182,6 +184,7 @@ export async function issueInvoice(
     data: {
       tenantId: input.tenantId,
       subscriptionId: input.subscriptionId,
+      kind: input.kind,
       number,
       issueDate: dateOf(input.issueDate),
       dueDate: dateOf(input.dueDate),
@@ -211,13 +214,29 @@ export interface PendingChange {
   planId: string;
   billingCycle: Cycle;
   effectiveAt: IsoDate;
-  requestedBy?: string;
 }
 
-export function pendingChangeOf(sub: { priceSnapshot: unknown }): PendingChange | null {
-  const snap = sub.priceSnapshot as { pendingChange?: PendingChange } | null;
-  const p = snap?.pendingChange;
-  return p && typeof p.planId === 'string' && typeof p.effectiveAt === 'string' ? p : null;
+/** Plan change scheduled at the period end (`pending_*` columns), or null. */
+export function pendingChangeOf(sub: {
+  pendingPlanId: string | null;
+  pendingCycle: string | null;
+  pendingEffectiveAt: Date | null;
+}): PendingChange | null {
+  if (!sub.pendingPlanId || !sub.pendingCycle || !sub.pendingEffectiveAt) return null;
+  return {
+    planId: sub.pendingPlanId,
+    billingCycle: sub.pendingCycle as Cycle,
+    effectiveAt: isoOf(sub.pendingEffectiveAt),
+  };
+}
+
+/** Columns writing (or clearing) the scheduled plan change. */
+export function pendingChangeData(p: PendingChange | null) {
+  return {
+    pendingPlanId: p?.planId ?? null,
+    pendingCycle: p?.billingCycle ?? null,
+    pendingEffectiveAt: p ? dateOf(p.effectiveAt) : null,
+  };
 }
 
 /** Is there already a (non-void) period invoice for this period start? */
@@ -227,7 +246,7 @@ export async function findPeriodInvoice(db: Db, subscriptionId: string, periodSt
       subscriptionId,
       periodStart: dateOf(periodStart),
       status: { not: 'VOID' },
-      platformInvoiceLines: { none: { label: { startsWith: LINE.prorata } } },
+      kind: { not: 'PRORATA' },
     },
   });
 }
@@ -342,6 +361,9 @@ export async function ensurePeriodInvoice(
   const planId = usePending ? pending.planId : sub.planId;
   const cycle = (usePending ? pending.billingCycle : sub.billingCycle) as Cycle;
   const lines = await periodLines(tx, sub, planId, cycle, currency, periodStart);
+  const previous = await tx.platformInvoice.count({
+    where: { subscriptionId: sub.id, status: { not: 'VOID' }, kind: { not: 'PRORATA' } },
+  });
   const invoice = await issueInvoice(
     tx,
     {
@@ -353,6 +375,7 @@ export async function ensurePeriodInvoice(
       periodEnd: periodEndOf(periodStart, cycle),
       currency,
       lines,
+      kind: previous ? 'RENEWAL' : 'SUBSCRIPTION',
     },
     settings,
   );

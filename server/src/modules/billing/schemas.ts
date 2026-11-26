@@ -47,6 +47,7 @@ export const paymentListQuery = z.object({
 export const invoiceListQuery = z.object({
   tenantId: uuid.optional(),
   status: z.enum(['DRAFT', 'ISSUED', 'PARTIALLY_PAID', 'PAID', 'OVERDUE', 'VOID']).optional(),
+  kind: z.enum(['SUBSCRIPTION', 'RENEWAL', 'PRORATA', 'ADDON', 'MANUAL']).optional(),
   from: isoDate.optional(),
   to: isoDate.optional(),
   q: z.string().max(100).optional(),

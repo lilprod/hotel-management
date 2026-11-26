@@ -37,21 +37,22 @@ model PlatformUser {
 }
 
 model Plan {
-  id            String         @id @default(uuid(7)) @db.Uuid
-  code          String         @unique
-  name          String
-  description   String?
-  trialDays     Int            @default(0) @map("trial_days")
-  sort          Int            @default(0)
-  isPublic      Boolean        @default(true) @map("is_public")
-  isActive      Boolean        @default(true) @map("is_active")
-  deletedAt     DateTime?      @map("deleted_at") @db.Timestamptz(6)
-  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
-  planPrices    PlanPrice[]
-  planFeatures  PlanFeature[]
-  planQuotas    PlanQuota[]
-  subscriptions Subscription[]
+  id                   String         @id @default(uuid(7)) @db.Uuid
+  code                 String         @unique
+  name                 String
+  description          String?
+  trialDays            Int            @default(0) @map("trial_days")
+  sort                 Int            @default(0)
+  isPublic             Boolean        @default(true) @map("is_public")
+  isActive             Boolean        @default(true) @map("is_active")
+  deletedAt            DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  createdAt            DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  planPrices           PlanPrice[]
+  planFeatures         PlanFeature[]
+  planQuotas           PlanQuota[]
+  subscriptions        Subscription[] @relation("SubscriptionPlan")
+  pendingSubscriptions Subscription[] @relation("SubscriptionPendingPlan")
 
   @@map("plans")
 }
@@ -287,7 +288,7 @@ model Subscription {
   tenantId           String              @map("tenant_id") @db.Uuid
   tenant             Tenant              @relation(fields: [tenantId], references: [id])
   planId             String              @map("plan_id") @db.Uuid
-  plan               Plan                @relation(fields: [planId], references: [id])
+  plan               Plan                @relation("SubscriptionPlan", fields: [planId], references: [id])
   billingCycle       BillingCycle        @map("billing_cycle")
   status             SubscriptionStatus  @default(TRIALING)
   trialEndsAt        DateTime?           @map("trial_ends_at") @db.Timestamptz(6)
@@ -295,6 +296,14 @@ model Subscription {
   currentPeriodEnd   DateTime?           @map("current_period_end") @db.Timestamptz(6)
   graceEndsAt        DateTime?           @map("grace_ends_at") @db.Timestamptz(6)
   cancelAt           DateTime?           @map("cancel_at") @db.Timestamptz(6)
+  // Plan change scheduled at the period end (downgrade / cycle change): all three set or none.
+  pendingPlanId      String?             @map("pending_plan_id") @db.Uuid
+  pendingPlan        Plan?               @relation("SubscriptionPendingPlan", fields: [pendingPlanId], references: [id])
+  pendingCycle       BillingCycle?       @map("pending_cycle")
+  pendingEffectiveAt DateTime?           @map("pending_effective_at") @db.Date
+  // Start of the current suspension / date of the cancellation (cleared on reactivation).
+  suspendedAt        DateTime?           @map("suspended_at") @db.Timestamptz(6)
+  cancelledAt        DateTime?           @map("cancelled_at") @db.Timestamptz(6)
   priceSnapshot      Json?               @map("price_snapshot")
   createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -304,6 +313,7 @@ model Subscription {
 
   @@index([tenantId, status])
   @@index([planId])
+  @@index([pendingPlanId])
   @@map("subscriptions")
 }
 
@@ -338,6 +348,9 @@ model PlatformInvoice {
   total                BigInt
   amountPaid           BigInt                @default(0) @map("amount_paid")
   status               PlatformInvoiceStatus @default(ISSUED)
+  kind                 PlatformInvoiceKind   @default(SUBSCRIPTION)
+  voidReason           String?               @map("void_reason")
+  voidedAt             DateTime?             @map("voided_at") @db.Timestamptz(6)
   pdfFileId            String?               @map("pdf_file_id") @db.Uuid
   createdAt            DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -384,6 +397,7 @@ model Payment {
   reversedAt         DateTime?           @map("reversed_at") @db.Timestamptz(6)
   reversalReason     String?             @map("reversal_reason")
   receiptNumber      String?             @unique @map("receipt_number")
+  receiptFileId      String?             @map("receipt_file_id") @db.Uuid
   createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
   paymentAllocations PaymentAllocation[]
@@ -3665,6 +3679,17 @@ enum PlatformInvoiceStatus {
   VOID
 
   @@map("platform_invoice_status")
+}
+
+// ISSUED is the "open" state (issued, nothing paid yet): no separate OPEN value.
+enum PlatformInvoiceKind {
+  SUBSCRIPTION
+  RENEWAL
+  PRORATA
+  ADDON
+  MANUAL
+
+  @@map("platform_invoice_kind")
 }
 
 enum PaymentMethod {
