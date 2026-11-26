@@ -943,6 +943,16 @@ model Branding {
   legalMentions   String?  @map("legal_mentions")
   signatureFileId String?  @map("signature_file_id") @db.Uuid
   emailSenderName String?  @map("email_sender_name")
+  // Legal identity printed on financial documents (the raison sociale is tenants.legal_name;
+  // a property's own tax_id / rccm take precedence).
+  legalForm       String?  @map("legal_form") @db.VarChar(100)
+  taxId           String?  @map("tax_id") @db.VarChar(50) // NIF
+  rccm            String?  @db.VarChar(50)
+  taxRegime       String?  @map("tax_regime") @db.VarChar(100)
+  legalAddress    String?  @map("legal_address") @db.VarChar(300)
+  // Public portal profile: languages offered and contact {phone, email, address, website}.
+  publicLanguages String[] @default(["fr"]) @map("public_languages")
+  publicContact   Json?    @map("public_contact")
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 

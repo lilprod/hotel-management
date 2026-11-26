@@ -1,7 +1,7 @@
 import type { TransactionClient } from '@hm/database';
 import type { DocParty } from '@hm/templates';
 import type { Services } from '../../core/container.js';
-import { brandingSettings } from '../branding/schemas.js';
+import { legalOf } from '../branding/schemas.js';
 import { must } from '../property/common.js';
 import type { Db, FolioRow } from './repository.js';
 
@@ -102,7 +102,8 @@ export const customerParty = (c: CustomerSnapshot): DocParty => ({
 
 /**
  * Seller identity on hotel documents: the hotel (property name, contact) with the legal identity
- * of the tenant from `branding.legal` (raison sociale, forme, NIF, RCCM, régime fiscal, address),
+ * of the tenant (raison sociale `tenants.legal_name`; forme, NIF, RCCM, régime fiscal, address
+ * from the branding columns),
  * the property's own NIF/RCCM taking precedence. Never the platform name.
  */
 export async function sellerParty(services: Services, db: Pick<Db, 'property'>, tenantId: string, propertyId: string): Promise<DocParty> {
@@ -111,7 +112,7 @@ export async function sellerParty(services: Services, db: Pick<Db, 'property'>, 
     where: { id: tenantId },
     select: { name: true, legalName: true },
   });
-  const legal = await services.settings.get(brandingSettings.legal, { tenantId });
+  const legal = legalOf(await services.admin.branding.findUnique({ where: { tenantId } }));
   // The city is appended only when the address does not already state it.
   const address =
     [p.address, p.city && !p.address?.toLowerCase().includes(p.city.toLowerCase()) ? p.city : null]

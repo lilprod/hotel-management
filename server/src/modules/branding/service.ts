@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { Request } from 'express';
+import { Prisma } from '@hm/database';
 import type { Services } from '../../core/container.js';
 import { recordAudit } from '../../middleware/audit.js';
 import { AppError } from '../../lib/errors.js';
@@ -9,8 +10,11 @@ import { declaredMimeMatches, EXTENSION, readImageInfo } from './image-info.js';
 import { BrandingRepository, type BrandingRow } from './repository.js';
 import {
   ASSET_KINDS,
-  brandingSettings,
   DEFAULT_LEGAL_MENTIONS_TG,
+  legalColumns,
+  legalOf,
+  profileColumns,
+  profileOf,
   TOGO_TAX_REGIMES,
   type AssetKind,
   type BrandingUpdate,
@@ -113,11 +117,10 @@ export class BrandingService {
   }
 
   async view(tenantId: string): Promise<BrandingView> {
-    const [row, legal, profile] = await Promise.all([
-      this.repo.find(),
-      this.services.settings.get(brandingSettings.legal, { tenantId }),
-      this.services.settings.get(brandingSettings.profile, { tenantId }),
-    ]);
+    void tenantId;
+    const row = await this.repo.find();
+    const legal = legalOf(row);
+    const profile = profileOf(row);
     const files = row ? await this.repo.filesOf(row) : new Map();
     const assets = {} as BrandingView['assets'];
     for (const kind of ASSET_KINDS) {
@@ -163,31 +166,22 @@ export class BrandingService {
   async update(req: Request, tenantId: string, input: BrandingUpdate): Promise<BrandingView> {
     const before = await this.view(tenantId);
     const { legal, profile, ...columns } = input;
-    const data: Record<string, string | null> = {};
+    const data: Prisma.BrandingUncheckedUpdateInput = {};
     for (const [k, v] of Object.entries(columns)) {
       if (v === undefined) continue;
-      data[k] = k === 'primaryColor' || k === 'secondaryColor' ? norm(v as string | null) : v;
+      (data as Record<string, string | null>)[k] =
+        k === 'primaryColor' || k === 'secondaryColor' ? norm(v as string | null) : v;
     }
-    if (Object.keys(data).length) await this.repo.upsert(tenantId, data);
-    else if (!(await this.repo.find())) await this.repo.upsert(tenantId, {});
-
-    if (legal) {
-      await this.services.settings.set(
-        brandingSettings.legal,
-        { ...before.legal, ...legal },
-        { tenantId, scope: 'TENANT' },
-      );
-    }
+    if (legal) Object.assign(data, legalColumns({ ...before.legal, ...legal }));
     if (profile) {
-      await this.services.settings.set(
-        brandingSettings.profile,
-        {
-          languages: profile.languages ?? before.profile.languages,
-          contact: { ...before.profile.contact, ...profile.contact },
-        },
-        { tenantId, scope: 'TENANT' },
-      );
+      const columns = profileColumns({
+        languages: profile.languages ?? before.profile.languages,
+        contact: { ...before.profile.contact, ...profile.contact },
+      });
+      data.publicLanguages = columns.publicLanguages;
+      data.publicContact = columns.publicContact ?? Prisma.DbNull;
     }
+    await this.repo.upsert(tenantId, data);
     const after = await this.view(tenantId);
     recordAudit(req, {
       action: 'branding.update',
@@ -294,14 +288,14 @@ export class BrandingService {
     name: string;
     defaultLocale?: string;
   }): Promise<PublicBranding> {
-    const [row, profile, tenantRow] = await Promise.all([
+    const [row, tenantRow] = await Promise.all([
       this.repo.find(),
-      this.services.settings.get(brandingSettings.profile, { tenantId: tenant.id }),
       this.services.admin.tenant.findUnique({
         where: { id: tenant.id },
         select: { name: true, phone: true, email: true, defaultLocale: true },
       }),
     ]);
+    const profile = profileOf(row);
     const primary = row?.primaryColor ?? DEFAULT_PRIMARY;
     const url = (kind: PublicAssetKind): string | null => {
       const id = row?.[ASSET_SPECS[kind].column];

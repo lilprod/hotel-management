@@ -1,7 +1,10 @@
 import type { Express } from 'express';
 import request from 'supertest';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { runWithTenant } from '@hm/database';
 import { createApp } from '../src/app.js';
+import { sellerParty } from '../src/modules/folio/parties.js';
+import { asTx } from '../src/modules/folio/repository.js';
 import {
   overrideBrandingDeps,
   type BrandingStorage,
@@ -110,6 +113,47 @@ describe('branding settings', () => {
     const get = await call('get', A, tokA, P);
     expect(get.body.emailSenderName).toBe('Hôtel Aurore');
     expect(get.body.defaults.taxRegimes).toContain('RSI');
+    // Real columns (no settings key any more).
+    const row = await env.services.admin.branding.findUniqueOrThrow({
+      where: { tenantId: A.tenantId },
+    });
+    expect(row).toMatchObject({
+      taxId: '1001234567',
+      rccm: 'TG-LFW-01-2020-B12-00001',
+      taxRegime: 'RSI',
+      legalForm: null,
+    });
+    expect(
+      await env.services.admin.setting.count({ where: { key: { startsWith: 'branding.' } } }),
+    ).toBe(0);
+    // Financial documents read the same columns (seller party of invoices / receipts).
+    const seller = await runWithTenant(A.tenantId, () =>
+      sellerParty(env.services, asTx(env.services.db), A.tenantId, A.propertyId),
+    );
+    expect(seller).toMatchObject({
+      taxRegime: 'RSI',
+      legalIds: { nif: '1001234567', rccm: 'TG-LFW-01-2020-B12-00001' },
+    });
+  });
+
+  it('stores the public profile (languages, contact) used by the portal branding', async () => {
+    const res = await call('put', A, tokA, P).send({
+      profile: { languages: ['fr', 'en'], contact: { phone: '+22890000000', website: null } },
+    });
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(res.body.profile).toEqual({
+      languages: ['fr', 'en'],
+      contact: { phone: '+22890000000', email: null, address: null, website: null },
+    });
+    const row = await env.services.admin.branding.findUniqueOrThrow({
+      where: { tenantId: A.tenantId },
+    });
+    expect(row.publicLanguages).toEqual(['fr', 'en']);
+    expect(row.publicContact).toEqual({ phone: '+22890000000' });
+    const pub = await request(app).get('/api/v1/portal/branding').set('Host', A.host);
+    expect(pub.body.languages).toEqual(['fr', 'en']);
+    expect(pub.body.contact.phone).toBe('+22890000000');
+    await call('put', A, tokA, P).send({ profile: { languages: ['fr'] } });
   });
 
   it('rejects invalid colours and header-injection in the sender name', async () => {

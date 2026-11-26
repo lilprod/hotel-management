@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { defineSetting } from '../../core/settings.js';
 import { TEMPLATE_CHANNELS } from './template-engine.js';
 
 export const ASSET_KINDS = [
@@ -21,7 +20,8 @@ const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Expected a #RRGGBB colou
 const optText = (max: number) => z.string().trim().max(max).nullable();
 
 // ---------------------------------------------------------------------------------------------
-// Settings (data the branding table has no column for: legal identifiers, public profile)
+// Legal identity and public profile (branding columns legal_form, tax_id, rccm, tax_regime,
+// legal_address, public_languages, public_contact)
 // ---------------------------------------------------------------------------------------------
 
 export const legalSchema = z.object({
@@ -44,25 +44,63 @@ export const publicProfileSchema = z.object({
 });
 export type PublicProfile = z.infer<typeof publicProfileSchema>;
 
-export const brandingSettings = {
-  legal: defineSetting({
-    key: 'branding.legal',
-    schema: legalSchema,
-    default: { legalForm: null, nif: null, rccm: null, taxRegime: null, address: null },
-    scopes: ['PLATFORM', 'TENANT'],
-    description: 'Legal identifiers printed on financial documents (NIF, RCCM, tax regime).',
-  }),
-  profile: defineSetting({
-    key: 'branding.public_profile',
-    schema: publicProfileSchema,
-    default: {
-      languages: ['fr'],
-      contact: { phone: null, email: null, address: null, website: null },
+type BrandingIdentityRow = {
+  legalForm: string | null;
+  taxId: string | null;
+  rccm: string | null;
+  taxRegime: string | null;
+  legalAddress: string | null;
+  publicLanguages: string[];
+  publicContact: unknown;
+};
+
+/** Legal identity of a tenant from its branding row (all null without a row). */
+export function legalOf(row: BrandingIdentityRow | null | undefined): LegalIdentity {
+  return {
+    legalForm: row?.legalForm ?? null,
+    nif: row?.taxId ?? null,
+    rccm: row?.rccm ?? null,
+    taxRegime: row?.taxRegime ?? null,
+    address: row?.legalAddress ?? null,
+  };
+}
+
+const str = (v: unknown) => (typeof v === 'string' && v ? v : null);
+
+/** Public portal profile from the branding row (default: French only, no contact). */
+export function profileOf(row: BrandingIdentityRow | null | undefined): PublicProfile {
+  const langs = (row?.publicLanguages ?? []).filter((l): l is (typeof LOCALES)[number] =>
+    (LOCALES as readonly string[]).includes(l),
+  );
+  const c = (row?.publicContact ?? {}) as Record<string, unknown>;
+  return {
+    languages: langs.length ? langs : ['fr'],
+    contact: {
+      phone: str(c.phone),
+      email: str(c.email),
+      address: str(c.address),
+      website: str(c.website),
     },
-    scopes: ['PLATFORM', 'TENANT'],
-    description: 'Languages and contact details exposed by the public portal branding.',
-  }),
-} as const;
+  };
+}
+
+/** Branding columns of a legal identity. */
+export const legalColumns = (l: LegalIdentity) => ({
+  legalForm: l.legalForm,
+  taxId: l.nif,
+  rccm: l.rccm,
+  taxRegime: l.taxRegime,
+  legalAddress: l.address,
+});
+
+/** Branding columns of a public profile (contact stored without empty entries). */
+export function profileColumns(p: PublicProfile) {
+  const contact = Object.fromEntries(Object.entries(p.contact).filter(([, v]) => !!v));
+  return {
+    publicLanguages: [...new Set(p.languages)],
+    publicContact: Object.keys(contact).length ? contact : null,
+  };
+}
 
 /** Suggested régimes fiscaux for Togo (doc 09 §3), editable free text. */
 export const TOGO_TAX_REGIMES = ['RNI', 'RSI', 'TPU'] as const;

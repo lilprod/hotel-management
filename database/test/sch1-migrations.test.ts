@@ -45,6 +45,8 @@ const P_AGENT = id(70);
 const SESS_IMP = id(80);
 const SESS_IMP_UNKNOWN = id(81);
 const SESS_STD = id(82);
+const T2 = id(2);
+const BRANDING_T2 = id(90);
 
 const FIXTURES_BILLING = `
 INSERT INTO plans (id, code, name, updated_at) VALUES
@@ -101,13 +103,26 @@ INSERT INTO sessions (id, tenant_id, user_id, refresh_hash, user_agent, expires_
   ('${SESS_STD}', '${T}', '${U_STAFF}', 'r3', 'Mozilla/5.0', now() + interval '1 hour', now());
 `;
 
+const FIXTURES_BRANDING = `
+INSERT INTO tenants (id, slug, name, country, timezone, updated_at)
+  VALUES ('${T2}', 'mig2', 'Hôtel Mig 2', 'TG', 'Africa/Lome', now());
+INSERT INTO branding (id, tenant_id, primary_color, updated_at) VALUES ('${BRANDING_T2}', '${T2}', '#112233', now());
+INSERT INTO settings (id, tenant_id, scope, scope_id, key, value, updated_at) VALUES
+  (gen_random_uuid(), '${T}', 'TENANT', '${T}', 'branding.legal',
+   '{"legalForm": "SARL", "nif": "1001234567", "rccm": "TG-LFW-01", "taxRegime": "RSI", "address": "Bd du 13 Janvier, Lomé"}', now()),
+  (gen_random_uuid(), '${T}', 'TENANT', '${T}', 'branding.public_profile',
+   '{"languages": ["fr", "en"], "contact": {"phone": "+22890000000", "email": null, "address": null, "website": "https://mig.tg"}}', now()),
+  (gen_random_uuid(), NULL, 'PLATFORM', NULL, 'branding.legal',
+   '{"legalForm": null, "nif": null, "rccm": null, "taxRegime": "TPU", "address": null}', now());
+`;
+
 let pg: TestPostgres;
 const q = (sql: string) => pg.psql(sql).then((s) => s.trim());
 
 beforeAll(async () => {
   pg = await startTestPostgres({ database: 'hm_sch1', migrate: false });
   for (const d of before) await pg.psql(sqlOf(d));
-  await pg.psql(FIXTURES_BILLING + FIXTURES_IAM);
+  await pg.psql(FIXTURES_BILLING + FIXTURES_IAM + FIXTURES_BRANDING);
   for (const d of sch1) await pg.psql(sqlOf(d));
 });
 afterAll(async () => {
@@ -197,7 +212,7 @@ describe('SCH-1 group 2 — IAM / auth', () => {
       await q(`SELECT hash FROM platform_password_history WHERE platform_user_id = '${P_AGENT}'`),
     ).toBe('p1');
     expect(await q(`SELECT count(*) FROM platform_mfa_backup_codes`)).toBe('2');
-    expect(await q(`SELECT string_agg(key, ',') FROM settings`)).toBe('branding.other');
+    expect(await q(`SELECT string_agg(key, ',') FROM settings WHERE key LIKE '_iam.%'`)).toBe('');
     expect(
       await q(`SELECT count(*) FROM platform_settings WHERE key LIKE '_platform_user.%'`),
     ).toBe('0');
@@ -226,5 +241,39 @@ describe('SCH-1 group 2 — IAM / auth', () => {
     expect(
       await q(`SELECT string_agg(email || ':' || status, ',' ORDER BY email) FROM users`),
     ).toBe('invited@mig.test:INVITED,owner@mig.test:PENDING_VERIFICATION,staff@mig.test:ACTIVE');
+  });
+});
+
+describe('SCH-1 group 3 — branding legal identity / public profile', () => {
+  it('creates the missing branding row and moves branding.legal / public_profile', async () => {
+    expect(
+      await q(
+        `SELECT concat_ws('|', legal_form, tax_id, rccm, tax_regime, legal_address, array_to_string(public_languages, ','), public_contact::text)
+           FROM branding WHERE tenant_id = '${T}'`,
+      ),
+    ).toBe(
+      'SARL|1001234567|TG-LFW-01|RSI|Bd du 13 Janvier, Lomé|en,fr|{"phone": "+22890000000", "website": "https://mig.tg"}',
+    );
+  });
+
+  it('falls back on the platform default, keeps the existing columns', async () => {
+    expect(
+      await q(
+        `SELECT concat_ws('|', id, primary_color, coalesce(tax_id, '-'), tax_regime, array_to_string(public_languages, ','), coalesce(public_contact::text, '-'))
+           FROM branding WHERE tenant_id = '${T2}'`,
+      ),
+    ).toBe(`${BRANDING_T2}|#112233|-|TPU|fr|-`);
+    expect(
+      await q(
+        `SELECT count(*) FROM settings WHERE key IN ('branding.legal', 'branding.public_profile')`,
+      ),
+    ).toBe('0');
+    expect(await q(`SELECT string_agg(key, ',') FROM settings`)).toBe('branding.other');
+  });
+
+  it('refuses an empty language list', async () => {
+    await expect(
+      q(`UPDATE branding SET public_languages = '{}' WHERE tenant_id = '${T}'`),
+    ).rejects.toThrow(/branding_public_languages_check/);
   });
 });

@@ -1,7 +1,7 @@
 import { requireTenantId } from '@hm/database';
 import type { Branding } from '@hm/templates';
 import type { Services } from '../../core/container.js';
-import { brandingSettings } from '../branding/schemas.js';
+import { legalOf, profileOf } from '../branding/schemas.js';
 import { notificationDeps } from './deps.js';
 
 export interface TenantMessaging {
@@ -38,15 +38,15 @@ export async function loadTenantMessaging(
   services: Services,
   tenantId: string,
 ): Promise<TenantMessaging> {
-  const [tenant, row, legal, profile] = await Promise.all([
+  const [tenant, row] = await Promise.all([
     services.admin.tenant.findUnique({
       where: { id: tenantId },
       select: { name: true, defaultLocale: true, email: true },
     }),
     services.db.branding.findFirst({ where: { tenantId } }),
-    services.settings.get(brandingSettings.legal, { tenantId }),
-    services.settings.get(brandingSettings.profile, { tenantId }),
   ]);
+  const legal = legalOf(row);
+  const profile = profileOf(row);
   const name = tenant?.name ?? 'Hotel';
   const footerLegal = [
     row?.docFooter,

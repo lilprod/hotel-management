@@ -227,6 +227,9 @@ export async function seedDemoTenant(
       docHeader: spec.name,
       docFooter: `${spec.legalName} - NIF ${spec.taxId} - RCCM ${spec.rccm}`,
       emailSenderName: spec.name,
+      taxId: spec.taxId,
+      rccm: spec.rccm,
+      legalAddress: spec.address,
     },
     update: {
       primaryColor: spec.primaryColor,
@@ -234,6 +237,9 @@ export async function seedDemoTenant(
       docHeader: spec.name,
       docFooter: `${spec.legalName} - NIF ${spec.taxId} - RCCM ${spec.rccm}`,
       emailSenderName: spec.name,
+      taxId: spec.taxId,
+      rccm: spec.rccm,
+      legalAddress: spec.address,
     },
   });
   await admin.securityPolicy.upsert({
