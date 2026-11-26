@@ -49,6 +49,7 @@ export const invoiceSchema = z.object({
   folioId: uuid,
   number: z.string(),
   kind: z.enum(['INVOICE', 'CREDIT_NOTE']),
+  documentKind: z.enum(['INTERIM', 'FINAL', 'COMPANY', 'CREDIT_NOTE']),
   creditNoteOfId: uuid.nullable(),
   issueDate: z.string(),
   customer,
@@ -57,6 +58,7 @@ export const invoiceSchema = z.object({
   taxTotal: z.number().int(),
   total: z.number().int(),
   status: z.string(),
+  ledgerAmount: z.number().int(),
   pdfFileId: uuid.nullable(),
   totals: z.record(z.string(), z.unknown()),
   fiscal: z

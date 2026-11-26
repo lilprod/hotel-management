@@ -283,6 +283,7 @@ model Tenant {
   dailyStatsProperties    DailyStatsProperty[]
   dailyStatsDepartments   DailyStatsDepartment[]
   groupBlocks             GroupBlock[]
+  ledgerAllocations       LedgerAllocation[]
 
   @@map("tenants")
 }
@@ -1738,30 +1739,35 @@ model FolioLine {
 }
 
 model Invoice {
-  id               String           @id @default(uuid(7)) @db.Uuid
-  tenantId         String           @map("tenant_id") @db.Uuid
-  tenant           Tenant           @relation(fields: [tenantId], references: [id])
-  propertyId       String           @map("property_id") @db.Uuid
-  property         Property         @relation(fields: [propertyId], references: [id])
-  folioId          String           @map("folio_id") @db.Uuid
-  folio            Folio            @relation(fields: [folioId], references: [id])
-  creditNoteOfId   String?          @map("credit_note_of_id") @db.Uuid
-  creditNoteOf     Invoice?         @relation("InvoiceCreditNoteOf", fields: [creditNoteOfId], references: [id])
-  number           String
-  issueDate        DateTime         @map("issue_date") @db.Date
-  customerSnapshot Json             @map("customer_snapshot")
-  currency         String           @default("XOF") @db.Char(3)
-  subtotal         BigInt
-  taxTotal         BigInt           @map("tax_total")
-  total            BigInt
-  totals           Json
-  status           InvoiceStatus    @default(ISSUED)
-  pdfFileId        String?          @map("pdf_file_id") @db.Uuid
-  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
-  createdBy        String?          @map("created_by") @db.Uuid
-  creditNotes      Invoice[]        @relation("InvoiceCreditNoteOf")
-  fiscalDocuments  FiscalDocument[]
+  id                String             @id @default(uuid(7)) @db.Uuid
+  tenantId          String             @map("tenant_id") @db.Uuid
+  tenant            Tenant             @relation(fields: [tenantId], references: [id])
+  propertyId        String             @map("property_id") @db.Uuid
+  property          Property           @relation(fields: [propertyId], references: [id])
+  folioId           String             @map("folio_id") @db.Uuid
+  folio             Folio              @relation(fields: [folioId], references: [id])
+  creditNoteOfId    String?            @map("credit_note_of_id") @db.Uuid
+  creditNoteOf      Invoice?           @relation("InvoiceCreditNoteOf", fields: [creditNoteOfId], references: [id])
+  number            String
+  /// INTERIM (in-house stay, folio stays open), FINAL, COMPANY (city-ledger account), CREDIT_NOTE.
+  kind              InvoiceKind        @default(FINAL)
+  issueDate         DateTime           @map("issue_date") @db.Date
+  customerSnapshot  Json               @map("customer_snapshot")
+  currency          String             @default("XOF") @db.Char(3)
+  subtotal          BigInt
+  taxTotal          BigInt             @map("tax_total")
+  total             BigInt
+  totals            Json
+  status            InvoiceStatus      @default(ISSUED)
+  /// Part of the total payable through the city ledger (settled by ledger_allocations).
+  ledgerAmount      BigInt             @default(0) @map("ledger_amount")
+  pdfFileId         String?            @map("pdf_file_id") @db.Uuid
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy         String?            @map("created_by") @db.Uuid
+  creditNotes       Invoice[]          @relation("InvoiceCreditNoteOf")
+  fiscalDocuments   FiscalDocument[]
+  ledgerAllocations LedgerAllocation[]
 
   @@unique([tenantId, propertyId, number])
   @@index([propertyId])
@@ -1803,6 +1809,7 @@ model FolioPayment {
   createdBy          String?             @map("created_by") @db.Uuid
   reversalOf         FolioPayment?       @relation("FolioPaymentReversedBy")
   depositDeclaration DepositDeclaration?
+  ledgerAllocations  LedgerAllocation[]
 
   @@unique([tenantId, propertyId, receiptNumber])
   @@index([tenantId])
@@ -1811,6 +1818,30 @@ model FolioPayment {
   @@index([cashSessionId])
   @@index([propertyId, businessDate])
   @@map("folio_payments")
+}
+
+/// City-ledger settlement (payment on a company account) allocated to an invoice payable through
+/// the city ledger. Append-only: a reversed settlement writes counter-allocations (negative).
+model LedgerAllocation {
+  id           String            @id @default(uuid(7)) @db.Uuid
+  tenantId     String            @map("tenant_id") @db.Uuid
+  tenant       Tenant            @relation(fields: [tenantId], references: [id])
+  settlementId String            @map("settlement_id") @db.Uuid
+  settlement   FolioPayment      @relation(fields: [settlementId], references: [id])
+  invoiceId    String            @map("invoice_id") @db.Uuid
+  invoice      Invoice           @relation(fields: [invoiceId], references: [id])
+  currency     String            @default("XOF") @db.Char(3)
+  amount       BigInt
+  reversalOfId String?           @unique @map("reversal_of_id") @db.Uuid
+  reversalOf   LedgerAllocation? @relation("LedgerAllocationReversal", fields: [reversalOfId], references: [id])
+  reversal     LedgerAllocation? @relation("LedgerAllocationReversal")
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy    String?           @map("created_by") @db.Uuid
+
+  @@index([tenantId])
+  @@index([settlementId])
+  @@index([invoiceId])
+  @@map("ledger_allocations")
 }
 
 model CashSession {
@@ -4117,6 +4148,15 @@ enum FolioLineType {
   @@map("folio_line_type")
 }
 
+enum InvoiceKind {
+  INTERIM
+  FINAL
+  COMPANY
+  CREDIT_NOTE
+
+  @@map("invoice_kind")
+}
+
 enum InvoiceStatus {
   ISSUED
   PARTIALLY_PAID
@@ -4457,6 +4497,8 @@ enum FiscalDocumentStatus {
   ACCEPTED
   REJECTED
   ERROR
+  /// No fiscalisation applies (provider NOT_APPLICABLE).
+  SKIPPED
 
   @@map("fiscal_document_status")
 }

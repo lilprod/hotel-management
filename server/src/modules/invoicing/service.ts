@@ -70,8 +70,6 @@ interface InvoiceTotals {
   } | null;
   notes: string[];
   reason?: string;
-  /** Interim invoice of an in-house stay: the folio stays open for the following nights. */
-  interim?: boolean;
 }
 
 type InvoiceRow = Prisma.InvoiceGetPayload<{ include: { fiscalDocuments: true } }>;
@@ -83,7 +81,9 @@ const toInvoice = (i: InvoiceRow) => {
     propertyId: i.propertyId,
     folioId: i.folioId,
     number: i.number,
-    kind: i.creditNoteOfId ? ('CREDIT_NOTE' as const) : ('INVOICE' as const),
+    kind: i.kind === 'CREDIT_NOTE' ? ('CREDIT_NOTE' as const) : ('INVOICE' as const),
+    /** Stored kind: INTERIM (folio stays open), FINAL, COMPANY (city-ledger account), CREDIT_NOTE. */
+    documentKind: i.kind,
     creditNoteOfId: i.creditNoteOfId,
     issueDate: formatDay(i.issueDate),
     customer: i.customerSnapshot as unknown as CustomerSnapshot,
@@ -92,6 +92,8 @@ const toInvoice = (i: InvoiceRow) => {
     taxTotal: num(i.taxTotal),
     total: num(i.total),
     status: i.status,
+    /** Part payable through the city ledger (settled by allocations of company settlements). */
+    ledgerAmount: num(i.ledgerAmount),
     pdfFileId: i.pdfFileId,
     totals: i.totals as Record<string, unknown>,
     fiscal: fd
@@ -121,7 +123,11 @@ export async function listInvoices(ctx: FCtx, q: z.infer<typeof listQuery>) {
           ? {}
           : { propertyId: { in: ctx.grants.propertyIds } }),
       ...(q.folioId ? { folioId: q.folioId } : {}),
-      ...(q.kind === 'INVOICE' ? { creditNoteOfId: null } : q.kind === 'CREDIT_NOTE' ? { creditNoteOfId: { not: null } } : {}),
+      ...(q.kind === 'INVOICE'
+        ? { kind: { not: 'CREDIT_NOTE' as const } }
+        : q.kind === 'CREDIT_NOTE'
+          ? { kind: 'CREDIT_NOTE' as const }
+          : {}),
       ...(q.from || q.to
         ? { issueDate: { ...(q.from ? { gte: parseDay(q.from) } : {}), ...(q.to ? { lte: parseDay(q.to) } : {}) } }
         : {}),
@@ -273,7 +279,7 @@ export async function issueInvoice(ctx: FCtx, input: z.infer<typeof issueBody>) 
       // Final invoice after interim ones that already cover everything: just close the folio.
       const last = covered.size && !interim
         ? await tx.invoice.findFirst({
-            where: { folioId: folio.id, creditNoteOfId: null },
+            where: { folioId: folio.id, kind: { not: 'CREDIT_NOTE' } },
             orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
           })
         : null;
@@ -302,14 +308,17 @@ export async function issueInvoice(ctx: FCtx, input: z.infer<typeof issueBody>) 
       payments,
       stay: await stayInfo(tx, links.reservationRoomId, lines),
       notes: input.notes ?? [],
-      ...(interim ? { interim: true } : {}),
     };
+    const ledgerAmount = payments
+      .filter((p) => p.method === 'CITY_LEDGER' && p.amount > 0)
+      .reduce((s, p) => s + p.amount, 0);
     const inv = await tx.invoice.create({
       data: {
         tenantId: ctx.tenantId,
         propertyId: folio.propertyId,
         folioId: folio.id,
         number,
+        kind: interim ? 'INTERIM' : links.kind === 'COMPANY' ? 'COMPANY' : 'FINAL',
         issueDate: parseDay(prop.businessDate),
         customerSnapshot: customer as unknown as Prisma.InputJsonValue,
         currency: folio.currency,
@@ -317,7 +326,9 @@ export async function issueInvoice(ctx: FCtx, input: z.infer<typeof issueBody>) 
         taxTotal: BigInt(bd.percentTax + bd.fixedTax),
         total: BigInt(bd.total),
         totals: totals as unknown as Prisma.InputJsonValue,
-        status: payments.some((p) => p.method === 'CITY_LEDGER') ? 'ISSUED' : 'PAID',
+        // Paid at issue unless part of it is payable by a company (city ledger).
+        ledgerAmount: BigInt(Math.min(ledgerAmount, Math.max(bd.total, 0))),
+        status: ledgerAmount > 0 ? 'ISSUED' : 'PAID',
         createdBy: ctx.actorId,
       },
     });
@@ -367,10 +378,8 @@ async function submitFiscal(ctx: FCtx, id: string, type: 'INVOICE' | 'CREDIT_NOT
       total: { amount: inv.total, currency: inv.currency },
       payload: { customer: inv.customerSnapshot, totals: inv.totals } as Record<string, unknown>,
     });
-    // `fiscal_document_status` has no SKIPPED value: "no fiscalisation" is stored as ACCEPTED
-    // with `payload.skipped = true` and no fiscal number (schema gap reported).
     const status =
-      r.status === 'NOT_APPLICABLE' ? 'ACCEPTED' : r.status === 'PENDING' ? 'SUBMITTED' : r.status;
+      r.status === 'NOT_APPLICABLE' ? 'SKIPPED' : r.status === 'PENDING' ? 'SUBMITTED' : r.status;
     await ctx.db.fiscalDocument.create({
       data: {
         ...base,
@@ -378,7 +387,7 @@ async function submitFiscal(ctx: FCtx, id: string, type: 'INVOICE' | 'CREDIT_NOT
         status,
         fiscalNumber: r.fiscalNumber ?? null,
         qrCode: r.qrCode ?? null,
-        payload: r.status === 'NOT_APPLICABLE' ? { skipped: true, reason: 'NOT_APPLICABLE' } : { result: r.status },
+        payload: r.status === 'NOT_APPLICABLE' ? { reason: 'NOT_APPLICABLE' } : { result: r.status },
         submittedAt: new Date(),
       },
     });
@@ -544,6 +553,7 @@ export async function issueCreditNote(ctx: FCtx, invoiceId: string, input: z.inf
         propertyId: folio.propertyId,
         folioId: folio.id,
         creditNoteOfId: inv.id,
+        kind: 'CREDIT_NOTE',
         number,
         issueDate: parseDay(prop.businessDate),
         customerSnapshot: inv.customerSnapshot as Prisma.InputJsonValue,

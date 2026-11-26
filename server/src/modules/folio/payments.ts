@@ -34,6 +34,7 @@ import {
 } from './service.js';
 import { folioSettings } from './settings.js';
 import { convertMinor, TaxMathError } from './tax-math.js';
+import { reverseAllocations } from './ledger.js';
 
 export interface PaymentInput {
   method: FolioPaymentMethod;
@@ -370,6 +371,8 @@ export async function reversePayment(ctx: FCtx, folioId: string, paymentId: stri
       where: { id: p.id },
       data: { status: 'REVERSED', reversedById: r.id, reversedAt: new Date(), reversalReason: reason },
     });
+    // A company settlement allocated to city-ledger invoices gives the allocations back.
+    if (folio.kind === 'COMPANY') await reverseAllocations(ctx, tx, p.id);
     // Change given on the original cash payment comes back into the drawer.
     const change = await tx.cashMovement.findFirst({ where: { reason: changeReason(p.id), type: 'OUT' } });
     if (change && session)

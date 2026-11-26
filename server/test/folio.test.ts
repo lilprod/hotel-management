@@ -764,7 +764,7 @@ describe('invoices and credit notes', () => {
       taxTotal: 7_400,
       total: 37_400,
       customer: { type: 'guest', name: 'Kofi Agbeko' },
-      fiscal: { provider: 'none', status: 'ACCEPTED', fiscalNumber: null },
+      fiscal: { provider: 'none', status: 'SKIPPED', fiscalNumber: null },
     });
     expect(inv.body.pdfFileId).toBeTruthy();
     const html = htmls.at(-1) ?? '';
@@ -777,7 +777,7 @@ describe('invoices and credit notes', () => {
     expect(totals.payments).toEqual([{ method: 'CARD', label: 'Carte bancaire', amount: 37_400 }]);
     expect(totals.stay).toMatchObject({ checkIn: '2026-11-10', checkOut: '2026-11-11', nights: 1 });
     const fd = await env.services.admin.fiscalDocument.findFirst({ where: { invoiceId: inv.body.id } });
-    expect(fd?.payload).toMatchObject({ skipped: true });
+    expect(fd?.payload).toEqual({ reason: 'NOT_APPLICABLE' });
 
     const f = await getFolio(st.folioId);
     expect(f.status).toBe('CLOSED');
@@ -859,6 +859,7 @@ describe('invoices and credit notes', () => {
 
 describe('city ledger', () => {
   let companyId: string;
+  let ledgerInvoiceId: string;
   it('transfers a balance to a company account, invoices the company with its NIF, enforces the credit limit', async () => {
     const { admin } = env.services;
     companyId = (
@@ -879,6 +880,8 @@ describe('city ledger', () => {
     expect(inv.status, JSON.stringify(inv.body)).toBe(201);
     expect(inv.body).toMatchObject({ status: 'ISSUED', customer: { type: 'company', taxId: 'NIF-123' } });
     expect(inv.body.totals.payments).toEqual([{ method: 'CITY_LEDGER', label: 'Compte débiteur', amount: 37_400 }]);
+    expect(inv.body).toMatchObject({ documentKind: 'INTERIM', ledgerAmount: 37_400 });
+    ledgerInvoiceId = inv.body.id;
 
     const st2 = await stayWithNight();
     expect((await pay(st2.folioId, { method: 'CITY_LEDGER', companyId })).status).toBe(201);
@@ -904,6 +907,11 @@ describe('city ledger', () => {
     });
     expect(s.status, JSON.stringify(s.body)).toBe(201);
     expect(s.body.folio.balance).toBe(24_800);
+    // Matched to the city-ledger invoice (oldest first): it becomes PAID.
+    expect(s.body.allocations).toEqual([
+      { settlementId: s.body.payment.id, invoiceId: ledgerInvoiceId, amount: 37_400 },
+    ]);
+    expect((await api('get', `/invoices/${ledgerInvoiceId}`)).body.status).toBe('PAID');
     const denied = await api('post', `/city-ledger/accounts/${companyId}/settlements`, tokCashier).send({
       propertyId: A.propertyId,
       method: 'CASH',
@@ -918,6 +926,50 @@ describe('city ledger', () => {
     expect(aging.body.items[0]).toMatchObject({ companyId, total: 24_800, buckets: { current: 24_800 } });
     const later = await api('get', '/city-ledger/aging').query({ propertyId: A.propertyId, asOf: '2027-01-20' });
     expect(later.body.items[0].buckets.d61_90).toBe(24_800);
+  });
+
+  it('matches settlements to city-ledger invoices: reversal gives them back, partial payment, guard', async () => {
+    const { admin } = env.services;
+    const account = await api('get', `/city-ledger/accounts/${companyId}`).query({ propertyId: A.propertyId });
+    const settlement = account.body.payments.find((p: { amount: number }) => p.amount === 50_000);
+    const rev = await api('post', `/folios/${account.body.id}/payments/${settlement.id}/reverse`).send({ reason: 'Virement rejeté' });
+    expect(rev.status, JSON.stringify(rev.body)).toBe(201);
+    expect((await api('get', `/invoices/${ledgerInvoiceId}`)).body.status).toBe('ISSUED');
+    expect(await admin.ledgerAllocation.count({ where: { invoiceId: ledgerInvoiceId, amount: { lt: 0n } } })).toBe(1);
+
+    const over = await api('post', `/city-ledger/accounts/${companyId}/settlements`).send({
+      propertyId: A.propertyId,
+      method: 'BANK_TRANSFER',
+      amount: 50_000,
+      allocations: [{ invoiceId: ledgerInvoiceId, amount: 40_000 }],
+    });
+    expect(over.status).toBe(409);
+    expect(over.body.meta.reason).toBe('OVER_ALLOCATION');
+    const part = await api('post', `/city-ledger/accounts/${companyId}/settlements`).send({
+      propertyId: A.propertyId,
+      method: 'BANK_TRANSFER',
+      amount: 50_000,
+      reference: `VIR-${uniq()}`,
+      allocations: [{ invoiceId: ledgerInvoiceId, amount: 10_000 }],
+    });
+    expect(part.status, JSON.stringify(part.body)).toBe(201);
+    expect((await api('get', `/invoices/${ledgerInvoiceId}`)).body.status).toBe('PARTIALLY_PAID');
+    // The rest of the settlement is matched on demand.
+    const rest = await api('post', `/city-ledger/accounts/${companyId}/allocations`).send({ propertyId: A.propertyId });
+    expect(rest.status, JSON.stringify(rest.body)).toBe(200);
+    expect(rest.body.invoices).toEqual([
+      expect.objectContaining({ id: ledgerInvoiceId, status: 'PAID', allocated: 37_400, left: 0 }),
+    ]);
+    // The database refuses a status that does not match the allocations.
+    await expect(
+      admin.invoice.update({ where: { id: ledgerInvoiceId }, data: { status: 'ISSUED' } }),
+    ).rejects.toThrow(/does not match its city-ledger allocations/);
+    // ... and an allocation beyond what the invoice owes.
+    await expect(
+      admin.ledgerAllocation.create({
+        data: { tenantId: A.tenantId, settlementId: part.body.payment.id, invoiceId: ledgerInvoiceId, amount: 1n },
+      }),
+    ).rejects.toThrow(/exceed/);
   });
 
   it('is gated by the city_ledger feature', async () => {

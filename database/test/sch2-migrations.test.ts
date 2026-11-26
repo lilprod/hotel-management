@@ -57,6 +57,11 @@ const P_NEXT = id(262);
 const CS_CLOSED = id(270);
 const CS_LEGACY = id(271);
 const CS_OPEN = id(272);
+const I_INTERIM = id(280);
+const I_FINAL = id(281);
+const I_CN = id(282);
+const I_COMPANY = id(283);
+const P_SETTLE = id(284);
 
 const PENALTY = (kind: string, amount: number, computed: number, waived: boolean) =>
   JSON.stringify({
@@ -148,13 +153,28 @@ INSERT INTO audit_logs (id, tenant_id, user_id, action, entity, entity_id, after
                  {"method": "CASH", "currency": "XOF", "expected": 15000, "counted": 14900, "variance": -100}]}', '2026-11-10T20:00:00Z');
 `;
 
+const FIXTURES_INVOICING = `
+INSERT INTO invoices (id, tenant_id, property_id, folio_id, credit_note_of_id, number, issue_date, customer_snapshot, subtotal, tax_total, total, totals, status, updated_at) VALUES
+  ('${I_INTERIM}', '${T}', '${PROP}', '${F_STAY}', NULL, 'FA-1', '2026-11-10', '{}', 20000, 0, 20000,
+   '{"interim": true, "payments": [{"method": "CASH", "amount": 20000}]}', 'PAID', now()),
+  ('${I_FINAL}', '${T}', '${PROP}', '${F_PRE}', NULL, 'FA-2', '2026-11-11', '{}', 30000, 0, 30000,
+   '{"payments": [{"method": "CITY_LEDGER", "amount": 25000}, {"method": "CARD", "amount": 5000}]}', 'ISSUED', now()),
+  ('${I_CN}', '${T}', '${PROP}', '${F_STAY}', '${I_INTERIM}', 'AV-1', '2026-11-11', '{}', -1000, 0, -1000, '{"payments": []}', 'ISSUED', now()),
+  ('${I_COMPANY}', '${T}', '${PROP}', '${F_CL}', NULL, 'FA-3', '2026-11-11', '{}', 5000, 0, 5000, '{"payments": [{"method": "BANK_TRANSFER", "amount": 5000}]}', 'PAID', now());
+INSERT INTO fiscal_documents (id, tenant_id, invoice_id, provider, status, payload, updated_at) VALUES
+  (gen_random_uuid(), '${T}', '${I_INTERIM}', 'none', 'ACCEPTED', '{"skipped": true, "reason": "NOT_APPLICABLE"}', now()),
+  (gen_random_uuid(), '${T}', '${I_FINAL}', 'emecef', 'ACCEPTED', '{"result": "ACCEPTED"}', now());
+INSERT INTO folio_payments (id, tenant_id, property_id, folio_id, amount, method, reference, created_at, updated_at)
+  VALUES ('${P_SETTLE}', '${T}', '${PROP}', '${F_CL}', 30000, 'BANK_TRANSFER', 'VIR-1', '2026-11-12T10:00:00Z', now());
+`;
+
 let pg: TestPostgres;
 const q = (sql: string) => pg.psql(sql).then((s) => s.trim());
 
 beforeAll(async () => {
   pg = await startTestPostgres({ database: 'hm_sch2', migrate: false });
   for (const d of before) await pg.psql(sqlOf(d));
-  await pg.psql(FIXTURES_BASE + FIXTURES_RESERVATIONS + FIXTURES_FOLIO);
+  await pg.psql(FIXTURES_BASE + FIXTURES_RESERVATIONS + FIXTURES_FOLIO + FIXTURES_INVOICING);
   for (const d of sch2) await pg.psql(sqlOf(d));
 });
 afterAll(async () => {
@@ -266,12 +286,13 @@ describe('SCH-2 group 2 — folio & payments', () => {
       `${P_BEFORE}|2026-11-10|REC-2026-000001`,
       `${P_AFTER}|2026-11-11|REC-2026-000002`,
       `${P_NEXT}|2026-11-11|REC-2026-000003`,
+      `${P_SETTLE}|2026-11-12|REC-2026-000004`,
     ]);
     expect(
       await q(
         `SELECT next_value FROM sequences WHERE scope = '${T}:${PROP}' AND key = 'receipt' AND year = 2026`,
       ),
-    ).toBe('4');
+    ).toBe('5');
   });
 
   it('a live (method, reference) is unique by index', async () => {
@@ -298,5 +319,57 @@ describe('SCH-2 group 2 — folio & payments', () => {
       q(`INSERT INTO cash_sessions (id, tenant_id, property_id, user_id, updated_at)
            VALUES (gen_random_uuid(), '${T}', '${PROP}', '${USER}', now())`),
     ).rejects.toThrow(/cash_sessions_one_open_key/);
+  });
+});
+
+describe('SCH-2 group 3 — invoicing', () => {
+  it('derives the invoice kind and the amount payable through the city ledger', async () => {
+    const rows = await q(
+      `SELECT number || '|' || kind || '|' || ledger_amount || '|' || status FROM invoices ORDER BY number`,
+    );
+    expect(rows.split('\n')).toEqual([
+      'AV-1|CREDIT_NOTE|0|ISSUED',
+      'FA-1|INTERIM|0|PAID',
+      'FA-2|FINAL|25000|ISSUED',
+      'FA-3|COMPANY|0|PAID',
+    ]);
+  });
+
+  it('turns "ACCEPTED + skipped" fiscal documents into SKIPPED', async () => {
+    const rows = await q(
+      `SELECT status || '|' || payload::text FROM fiscal_documents ORDER BY status`,
+    );
+    expect(rows.split('\n')).toEqual([
+      'ACCEPTED|{"result": "ACCEPTED"}',
+      'SKIPPED|{"reason": "NOT_APPLICABLE"}',
+    ]);
+  });
+
+  it('a ledger allocation makes the invoice PARTIALLY_PAID then PAID; over-allocation and mutation refused', async () => {
+    const alloc = (amount: number) =>
+      q(`INSERT INTO ledger_allocations (id, tenant_id, settlement_id, invoice_id, amount)
+           VALUES (gen_random_uuid(), '${T}', '${P_SETTLE}', '${I_FINAL}', ${amount})`);
+    await expect(q(`UPDATE invoices SET status = 'PAID' WHERE id = '${I_FINAL}'`)).rejects.toThrow(
+      /does not match its city-ledger allocations/,
+    );
+    await alloc(10000);
+    await q(`UPDATE invoices SET status = 'PARTIALLY_PAID' WHERE id = '${I_FINAL}'`);
+    await expect(alloc(20000)).rejects.toThrow(/exceed the amount payable/);
+    await alloc(15000);
+    await q(`UPDATE invoices SET status = 'PAID' WHERE id = '${I_FINAL}'`);
+    // The settlement (30 000) has 5 000 left, no other invoice owes anything to the city ledger.
+    await expect(
+      q(`INSERT INTO ledger_allocations (id, tenant_id, settlement_id, invoice_id, amount)
+           VALUES (gen_random_uuid(), '${T}', '${P_SETTLE}', '${I_COMPANY}', 1000)`),
+    ).rejects.toThrow(/nothing payable/);
+    await expect(q(`UPDATE ledger_allocations SET amount = 1`)).rejects.toThrow(/append-only/);
+    await expect(q(`UPDATE invoices SET kind = 'FINAL' WHERE id = '${I_CN}'`)).rejects.toThrow(
+      /may only change/,
+    );
+    expect(
+      await q(
+        `SELECT relrowsecurity || '|' || relforcerowsecurity FROM pg_class WHERE relname = 'ledger_allocations'`,
+      ),
+    ).toBe('true|true');
   });
 });

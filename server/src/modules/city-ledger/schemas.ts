@@ -16,6 +16,30 @@ export const settlementBody = z.object({
   method: z.enum(['CASH', 'CARD', 'BANK_TRANSFER', 'MIXX', 'MOOV_MONEY']),
   amount: money.refine((v) => v > 0, 'Must be positive'),
   reference: z.string().trim().min(1).max(100).optional(),
+  /** Invoices settled by this payment; omitted = oldest open city-ledger invoices first. */
+  allocations: z
+    .array(z.object({ invoiceId: uuid, amount: money.refine((v) => v > 0, 'Must be positive') }))
+    .max(100)
+    .optional(),
+});
+
+export const allocateBody = z.object({
+  propertyId: uuid,
+  /** Only this settlement (default: every settlement with an unallocated amount). */
+  settlementId: uuid.optional(),
+});
+
+const ledgerInvoice = z.object({
+  id: uuid,
+  number: z.string(),
+  status: z.string(),
+  ledgerAmount: z.number().int(),
+  allocated: z.number().int(),
+  left: z.number().int(),
+});
+export const allocationResult = z.object({
+  allocations: z.array(z.object({ settlementId: uuid, invoiceId: uuid, amount: z.number().int() })),
+  invoices: z.array(ledgerInvoice),
 });
 
 export const accountSummary = z.object({

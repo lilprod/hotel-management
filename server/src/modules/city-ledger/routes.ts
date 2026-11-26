@@ -63,9 +63,24 @@ export const cityLedgerRouter = createModuleRouter()
     middleware: [can('city_ledger.manage', { property: propertyFromRequest }), feature],
     request: { params: s.companyParams, body: s.settlementBody },
     status: 201,
-    responses: { 201: { description: 'Recorded', schema: paymentResult } },
+    responses: {
+      201: {
+        description: 'Recorded and matched to the city-ledger invoices',
+        schema: paymentResult.extend({ allocations: s.allocationResult.shape.allocations }),
+      },
+    },
     handler: (req, res) =>
       withIdempotency(req, res, `city-ledger:${req.valid.params.companyId}`, 201, () =>
         withRCtx(req, (c) => svc.settle(c, req.valid.params.companyId, req.valid.body)),
       ),
+  })
+  .route({
+    method: 'post',
+    path: '/accounts/:companyId/allocations',
+    tags,
+    summary: 'Matches the unallocated settlements to the open city-ledger invoices (oldest first)',
+    middleware: [can('city_ledger.manage', { property: propertyFromRequest }), feature],
+    request: { params: s.companyParams, body: s.allocateBody },
+    responses: { 200: { description: 'Allocations and invoices', schema: s.allocationResult } },
+    handler: (req) => withRCtx(req, (c) => svc.allocate(c, req.valid.params.companyId, req.valid.body)),
   });

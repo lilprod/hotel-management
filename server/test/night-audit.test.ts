@@ -556,7 +556,7 @@ describe('folio follow-ups', () => {
     await h.api('post', `/folios/${f.id}/payments`).send({ method: 'CARD', amount: f.balance, reference: 'TPE-A' });
     const interim = await h.api('post', '/invoices').send({ folioId: f.id });
     expect(interim.status, JSON.stringify(interim.body)).toBe(201);
-    expect(interim.body.totals).toMatchObject({ interim: true, stay: { nights: 4, invoicedNights: 2 } });
+    expect(interim.body).toMatchObject({ documentKind: 'INTERIM', totals: { stay: { nights: 4, invoicedNights: 2 } } });
     f = await folioOf(h, s1.rrId);
     expect(f.status).toBe('OPEN');
     // The night audit posts the next night on the same folio.

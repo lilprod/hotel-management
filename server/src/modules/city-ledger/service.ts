@@ -11,6 +11,9 @@ import {
   type FolioRow,
 } from '../folio/repository.js';
 import { companyAccountWhere, ensureCompanyFolio, getFolio, type FCtx } from '../folio/service.js';
+import { allocateSettlements, ledgerInvoices } from '../folio/ledger.js';
+import { lockFolio } from '../folio/repository.js';
+import { conflict, invalid } from '../property/common.js';
 import type { agingQuery, accountsQuery, statementQuery } from './schemas.js';
 
 const DAY_MS = 86_400_000;
@@ -133,19 +136,86 @@ export async function statement(ctx: FCtx, companyId: string, q: z.infer<typeof 
   };
 }
 
-/** Settlement (payment) against the company balance. */
+/** Invoices payable to a company account with what is allocated / left, and their status. */
+async function ledgerView(ctx: FCtx, folioId: string) {
+  const rows = await ledgerInvoices(asTx(ctx.db), folioId);
+  const statuses = new Map(
+    (await ctx.db.invoice.findMany({ where: { id: { in: rows.map((r) => r.id) } }, select: { id: true, status: true } })).map(
+      (i) => [i.id, i.status],
+    ),
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    number: r.number,
+    status: statuses.get(r.id) ?? 'ISSUED',
+    ledgerAmount: num(r.ledgerAmount),
+    allocated: num(r.allocated),
+    left: num(r.left),
+  }));
+}
+
+/**
+ * Settlement (payment) against the company balance, matched to the invoices payable through the
+ * city ledger (`ledger_allocations`): the given ones, or the oldest open ones first.
+ */
 export async function settle(
   ctx: FCtx,
   companyId: string,
-  input: { propertyId: string; method: FolioPaymentMethod; amount: number; reference?: string | undefined },
+  input: {
+    propertyId: string;
+    method: FolioPaymentMethod;
+    amount: number;
+    reference?: string | undefined;
+    allocations?: { invoiceId: string; amount: number }[] | undefined;
+  },
 ) {
   const f = await ctx.db.$transaction((tx) => ensureCompanyFolio(ctx, tx, companyId, input.propertyId), TX_OPTS);
-  return recordPayment(ctx, f.id, {
+  if (input.allocations?.length) {
+    const open = new Map((await ledgerInvoices(asTx(ctx.db), f.id)).map((i) => [i.id, i]));
+    let total = 0;
+    for (const [i, a] of input.allocations.entries()) {
+      const inv = open.get(a.invoiceId);
+      if (!inv) throw invalid(`allocations.${i}.invoiceId`, 'Not an invoice payable to this company account');
+      if (BigInt(a.amount) > inv.left)
+        throw conflict('The allocation exceeds what is left on the invoice', {
+          reason: 'OVER_ALLOCATION',
+          invoiceId: inv.id,
+          invoiceLeft: num(inv.left),
+        });
+      total += a.amount;
+    }
+    if (total > input.amount) throw invalid('allocations', 'The allocations exceed the settlement', 'OVER_ALLOCATION');
+  }
+  const out = await recordPayment(ctx, f.id, {
     method: input.method,
     amount: input.amount,
     reference: input.reference,
     isDeposit: false,
   });
+  const allocations = await ctx.db.$transaction(async (tx) => {
+    await lockFolio(tx, f.id);
+    return allocateSettlements(ctx, tx, f.id, {
+      settlementIds: [out.payment.id],
+      ...(input.allocations?.length ? { explicit: input.allocations } : {}),
+    });
+  }, TX_OPTS);
+  return { ...out, allocations };
+}
+
+/** Allocates what is left on the account's settlements (e.g. settlements recorded before invoicing). */
+export async function allocate(ctx: FCtx, companyId: string, input: { propertyId: string; settlementId?: string | undefined }) {
+  assertPropertyAccess(ctx, input.propertyId);
+  const account = must(
+    await ctx.db.folio.findFirst({ where: companyAccountWhere(companyId, input.propertyId) }),
+    'Company account',
+  );
+  const allocations = await ctx.db.$transaction(async (tx) => {
+    await lockFolio(tx, account.id);
+    return allocateSettlements(ctx, tx, account.id, input.settlementId ? { settlementIds: [input.settlementId] } : {});
+  }, TX_OPTS);
+  if (allocations.length)
+    await ctx.audit({ action: 'city_ledger.allocate', entity: 'folio', entityId: account.id, after: { allocations } });
+  return { allocations, invoices: await ledgerView(ctx, account.id) };
 }
 
 const BUCKETS = [
