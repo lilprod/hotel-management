@@ -38,8 +38,9 @@ export interface ProvisionInput {
     phone?: string | null | undefined;
     /** Already hashed (self-signup); absent for an invitation flow. */
     passwordHash?: string | null | undefined;
-    /** `INVITED` until the e-mail is verified / the invitation accepted. */
-    status: 'INVITED' | 'ACTIVE';
+    /** `PENDING_VERIFICATION` (self-signup) until the e-mail is verified, `INVITED` until the
+     * invitation is accepted. */
+    status: 'INVITED' | 'PENDING_VERIFICATION' | 'ACTIVE';
   };
   planId: string;
   billingCycle: 'MONTHLY' | 'QUARTERLY' | 'YEARLY';

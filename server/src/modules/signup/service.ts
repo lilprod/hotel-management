@@ -129,7 +129,8 @@ async function sendVerification(
 
 /**
  * Self-service signup: validation, anti-abuse, then ONE transaction (`provisionTenant`) and the
- * verification e-mail. The owner stays INVITED (cannot log in) until the e-mail is verified.
+ * verification e-mail. The owner stays PENDING_VERIFICATION (cannot log in) until the e-mail is
+ * verified.
  */
 export async function signup(services: Services, req: Request, body: SignupBody) {
   const ip = ipOf(req);
@@ -203,7 +204,7 @@ export async function signup(services: Services, req: Request, body: SignupBody)
           email: body.email,
           phone: phone.e164,
           passwordHash,
-          status: 'INVITED',
+          status: 'PENDING_VERIFICATION',
         },
         property: { city: body.city },
         planId: plan.id,
@@ -300,7 +301,7 @@ export async function verifyEmail(
   const host = user.tenant.tenantDomains[0]?.hostname;
   if (!host) throw invalid('token', 'TOKEN_INVALID', 'Invalid or expired verification link');
 
-  const firstTime = user.status === 'INVITED';
+  const firstTime = user.status === 'PENDING_VERIFICATION';
   if (firstTime) {
     await services.admin.user.update({ where: { id: user.id }, data: { status: 'ACTIVE' } });
     await services.permVersions.bump(tenantId);
@@ -370,9 +371,7 @@ export async function resendVerification(
   const user = await services.admin.user.findFirst({
     where: {
       email: body.email,
-      status: 'INVITED',
-      // Only owners created through the signup have a password (admin invitations do not).
-      passwordHash: { not: null },
+      status: 'PENDING_VERIFICATION',
       deletedAt: null,
       tenant: { slug: body.slug, deletedAt: null },
     },

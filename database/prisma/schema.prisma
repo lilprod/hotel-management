@@ -22,18 +22,47 @@ datasource db {
 // ======================================================================
 
 model PlatformUser {
-  id            String       @id @default(uuid(7)) @db.Uuid
-  email         String       @unique
-  passwordHash  String       @map("password_hash")
-  name          String
-  role          PlatformRole
-  totpSecretEnc String?      @map("totp_secret_enc")
-  isActive      Boolean      @default(true) @map("is_active")
-  lastLoginAt   DateTime?    @map("last_login_at") @db.Timestamptz(6)
-  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id              String                    @id @default(uuid(7)) @db.Uuid
+  email           String                    @unique
+  passwordHash    String                    @map("password_hash")
+  name            String
+  role            PlatformRole
+  totpSecretEnc   String?                   @map("totp_secret_enc")
+  isActive        Boolean                   @default(true) @map("is_active")
+  failedAttempts  Int                       @default(0) @map("failed_attempts")
+  lockedUntil     DateTime?                 @map("locked_until") @db.Timestamptz(6)
+  lastLoginAt     DateTime?                 @map("last_login_at") @db.Timestamptz(6)
+  createdAt       DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  passwordHistory PlatformPasswordHistory[]
+  mfaBackupCodes  PlatformMfaBackupCode[]
 
   @@map("platform_users")
+}
+
+/// Previous password hashes of a platform user (reuse check), newest first by created_at.
+model PlatformPasswordHistory {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  platformUserId String       @map("platform_user_id") @db.Uuid
+  platformUser   PlatformUser @relation(fields: [platformUserId], references: [id], onDelete: Cascade)
+  hash           String
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([platformUserId, createdAt])
+  @@map("platform_password_history")
+}
+
+/// Hashed single-use MFA backup codes of a platform user.
+model PlatformMfaBackupCode {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  platformUserId String       @map("platform_user_id") @db.Uuid
+  platformUser   PlatformUser @relation(fields: [platformUserId], references: [id], onDelete: Cascade)
+  codeHash       String       @map("code_hash")
+  usedAt         DateTime?    @map("used_at") @db.Timestamptz(6)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([platformUserId, codeHash])
+  @@map("platform_mfa_backup_codes")
 }
 
 model Plan {
@@ -112,6 +141,8 @@ model Tenant {
   defaultCurrency         String                   @default("XOF") @map("default_currency") @db.Char(3)
   timezone                String
   allowImpersonation      Boolean                  @default(false) @map("allow_impersonation")
+  /// Permission version (doc 05 §2): bumped on every role / assignment change.
+  permVer                 Int                      @default(0) @map("perm_ver")
   notes                   String?
   tags                    String[]
   deletedAt               DateTime?                @map("deleted_at") @db.Timestamptz(6)
@@ -129,6 +160,8 @@ model Tenant {
   tenantAddons            TenantAddon[]
   couponRedemptions       CouponRedemption[]
   users                   User[]
+  passwordHistory         PasswordHistory[]
+  mfaBackupCodes          MfaBackupCode[]
   userProperties          UserProperty[]
   roles                   Role[]
   rolePermissions         RolePermission[]
@@ -717,6 +750,8 @@ model User {
   userProperties          UserProperty[]
   userRoles               UserRole[]
   sessions                Session[]
+  passwordHistory         PasswordHistory[]
+  mfaBackupCodes          MfaBackupCode[]
   legalAcceptances        LegalAcceptance[]
   cashSessions            CashSession[]
   hkTasks                 HkTask[]
@@ -819,23 +854,57 @@ model SecurityPolicy {
 }
 
 model Session {
-  id          String    @id @default(uuid(7)) @db.Uuid
-  tenantId    String    @map("tenant_id") @db.Uuid
-  tenant      Tenant    @relation(fields: [tenantId], references: [id])
-  userId      String    @map("user_id") @db.Uuid
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  refreshHash String    @unique @map("refresh_hash")
-  ip          String?   @db.Inet
-  userAgent   String?   @map("user_agent")
-  expiresAt   DateTime  @map("expires_at") @db.Timestamptz(6)
-  revokedAt   DateTime? @map("revoked_at") @db.Timestamptz(6)
-  lastSeenAt  DateTime? @map("last_seen_at") @db.Timestamptz(6)
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id             String      @id @default(uuid(7)) @db.Uuid
+  tenantId       String      @map("tenant_id") @db.Uuid
+  tenant         Tenant      @relation(fields: [tenantId], references: [id])
+  userId         String      @map("user_id") @db.Uuid
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshHash    String      @unique @map("refresh_hash")
+  kind           SessionKind @default(STANDARD)
+  /// Platform user acting through a support impersonation (kind = IMPERSONATION).
+  impersonatedBy String?     @map("impersonated_by") @db.Uuid
+  ip             String?     @db.Inet
+  userAgent      String?     @map("user_agent")
+  expiresAt      DateTime    @map("expires_at") @db.Timestamptz(6)
+  revokedAt      DateTime?   @map("revoked_at") @db.Timestamptz(6)
+  lastSeenAt     DateTime?   @map("last_seen_at") @db.Timestamptz(6)
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@index([tenantId])
   @@index([userId])
   @@map("sessions")
+}
+
+/// Previous password hashes of a tenant user (policy `pwd_history`), newest first by created_at.
+model PasswordHistory {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hash      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([tenantId])
+  @@index([userId, createdAt])
+  @@map("password_history")
+}
+
+/// Hashed single-use MFA backup codes of a tenant user (used_at set when consumed).
+model MfaBackupCode {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  userId    String    @map("user_id") @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String    @map("code_hash")
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([userId, codeHash])
+  @@index([tenantId])
+  @@map("mfa_backup_codes")
 }
 
 model AuditLog {
@@ -3768,10 +3837,19 @@ enum LegalDocType {
 
 enum UserStatus {
   INVITED
+  /// Self-signup owner whose e-mail address is not verified yet (cannot log in).
+  PENDING_VERIFICATION
   ACTIVE
   DISABLED
 
   @@map("user_status")
+}
+
+enum SessionKind {
+  STANDARD
+  IMPERSONATION
+
+  @@map("session_kind")
 }
 
 enum MfaMode {

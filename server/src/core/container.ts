@@ -68,7 +68,7 @@ export function createServices(config: Config, opts: CreateServicesOptions): Ser
     entitlements: new EntitlementsService(admin, cache, config.ENTITLEMENTS_CACHE_TTL_S),
     permissions: new PermissionService(db, cache, config.PERMISSIONS_CACHE_TTL_S),
     revocations: new SessionRevocations(redis),
-    permVersions: new PermVersionService(db, redis),
+    permVersions: new PermVersionService(admin, redis),
     securityPolicies: new SecurityPolicyService(db, cache),
     settings: new SettingsService(db, modules.settings, logger),
   };

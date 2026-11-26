@@ -13,7 +13,13 @@ export async function quotaUsage(db: Db, tenantId: string, now = new Date()): Pr
   const [properties, units, users, storage, sms] = await Promise.all([
     db.property.count({ where: { tenantId, deletedAt: null } }),
     db.room.count({ where: { tenantId, deletedAt: null } }),
-    db.user.count({ where: { tenantId, deletedAt: null, status: { in: ['ACTIVE', 'INVITED'] } } }),
+    db.user.count({
+      where: {
+        tenantId,
+        deletedAt: null,
+        status: { in: ['ACTIVE', 'INVITED', 'PENDING_VERIFICATION'] },
+      },
+    }),
     db.file.aggregate({ where: { tenantId }, _sum: { size: true } }),
     db.communication.count({
       where: { tenantId, channel: 'SMS', direction: 'OUTBOUND', createdAt: { gte: monthStart } },

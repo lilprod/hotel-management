@@ -17,6 +17,7 @@ import { fmtDate } from './SessionsPanel';
 const STATUS_COLOR: Record<UserStatus, string> = {
   ACTIVE: 'green',
   INVITED: 'blue',
+  PENDING_VERIFICATION: 'gold',
   DISABLED: 'default',
 };
 
@@ -235,7 +236,7 @@ export function UsersTab() {
             style={{ minWidth: 150 }}
             value={status}
             onChange={setStatus}
-            options={(['ACTIVE', 'INVITED', 'DISABLED'] as const).map((s) => ({
+            options={(['ACTIVE', 'INVITED', 'PENDING_VERIFICATION', 'DISABLED'] as const).map((s) => ({
               value: s,
               label: t(`users.statuses.${s}`),
             }))}

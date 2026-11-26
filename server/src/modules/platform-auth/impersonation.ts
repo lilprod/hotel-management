@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto';
 import type { Request } from 'express';
 import { AppError, forbidden, notFound } from '../../lib/errors.js';
 import { ipOf, writePlatformAudit, writeTenantAudit } from '../audit/service.js';
-import { IMPERSONATION_UA_PREFIX } from '../auth/service.js';
 import { issueAccessToken, randomToken, sha256 } from '../auth/tokens.js';
 
 export const IMPERSONATION_MAX_MINUTES = 30;
@@ -59,8 +58,10 @@ export async function startImpersonation(
       userId: user.id,
       // Not refreshable: the stored hash matches no token ever handed out.
       refreshHash: sha256(`impersonation:${randomToken(32)}`),
+      kind: 'IMPERSONATION',
+      impersonatedBy: agent.id,
       ip: ipOf(req),
-      userAgent: `${IMPERSONATION_UA_PREFIX} ${agent.email}`.slice(0, 512),
+      userAgent: req.header('user-agent')?.slice(0, 512) ?? null,
       expiresAt,
     },
   });
@@ -123,8 +124,7 @@ export async function endImpersonation(req: Request, sessionId: string) {
   const { services } = req;
   const agent = req.platformUser!;
   const session = await services.admin.session.findUnique({ where: { id: sessionId } });
-  if (!session?.userAgent?.startsWith(IMPERSONATION_UA_PREFIX))
-    throw notFound('Impersonation session not found');
+  if (session?.kind !== 'IMPERSONATION') throw notFound('Impersonation session not found');
   if (session.revokedAt)
     throw new AppError('CONFLICT', 'Already ended', { meta: { reason: 'ALREADY_ENDED' } });
   await services.admin.session.update({

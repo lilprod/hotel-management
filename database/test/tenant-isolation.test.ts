@@ -152,3 +152,30 @@ describe('missing tenant context', () => {
     expect(await admin.guest.count({ where: { id: { in: [A.guest.id, B.guest.id] } } })).toBe(2);
   });
 });
+
+describe('SCH-1 tenant tables are isolated', () => {
+  it('password_history / mfa_backup_codes: own rows only, no cross-tenant insert', async () => {
+    const mk = (t: TenantFixture, l: string) =>
+      admin.user.create({
+        data: { tenantId: t.tenantId, email: `sch1-${l}-${Date.now()}@x.test`, name: l },
+      });
+    const [ua, ub] = [await mk(A, 'a'), await mk(B, 'b')];
+    await admin.passwordHistory.create({
+      data: { tenantId: B.tenantId, userId: ub.id, hash: 'hb' },
+    });
+    await admin.mfaBackupCode.create({
+      data: { tenantId: B.tenantId, userId: ub.id, codeHash: 'cb' },
+    });
+    await runWithTenant(A.tenantId, async () => {
+      await app.passwordHistory.create({
+        data: { tenantId: A.tenantId, userId: ua.id, hash: 'ha' },
+      });
+      expect((await app.passwordHistory.findMany()).map((h) => h.hash)).toEqual(['ha']);
+      expect(await app.mfaBackupCode.count()).toBe(0);
+      await expect(
+        app.mfaBackupCode.create({ data: { tenantId: B.tenantId, userId: ub.id, codeHash: 'x' } }),
+      ).rejects.toThrow();
+      expect((await app.mfaBackupCode.updateMany({ data: { usedAt: new Date() } })).count).toBe(0);
+    });
+  });
+});

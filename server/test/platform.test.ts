@@ -84,6 +84,35 @@ beforeEach(async () => {
 });
 
 describe('platform authentication (TOTP mandatory)', () => {
+  it('locks the account after 5 failures (failed_attempts / locked_until columns)', async () => {
+    const u = await platformUser('READ_ONLY');
+    const attempt = (password: string) =>
+      request(app)
+        .post(`${ADMIN}/auth/login`)
+        .set('Host', ADMIN_HOST)
+        .send({ email: u.email, password });
+    for (let i = 0; i < 4; i++) expect((await attempt('wrong-password')).status).toBe(401);
+    expect(
+      (await env.services.admin.platformUser.findUniqueOrThrow({ where: { id: u.id } }))
+        .failedAttempts,
+    ).toBe(4);
+    expect((await attempt('wrong-password')).status).toBe(401);
+    const locked = await attempt(PASSWORD);
+    expect(locked.status).toBe(423);
+    expect(locked.body.code).toBe('ACCOUNT_LOCKED');
+    const row = await env.services.admin.platformUser.findUniqueOrThrow({ where: { id: u.id } });
+    expect(row.lockedUntil!.getTime()).toBeGreaterThan(Date.now());
+    // Lock expired: the right password works and resets the counters.
+    await env.services.admin.platformUser.update({
+      where: { id: u.id },
+      data: { lockedUntil: new Date(Date.now() - 1000), failedAttempts: 0 },
+    });
+    expect((await attempt(PASSWORD)).status).toBe(200);
+    expect(
+      await env.services.admin.platformUser.findUniqueOrThrow({ where: { id: u.id } }),
+    ).toMatchObject({ failedAttempts: 0, lockedUntil: null });
+  });
+
   it('enrols at first login, then always asks for the TOTP', async () => {
     const u = await platformUser('SUPPORT');
     const { token, secret, res } = await platformLogin(u.email);
@@ -275,6 +304,10 @@ describe('impersonation', () => {
       unknown
     >;
     expect(claims.impersonated_by).toBe(support.id);
+    const session = await env.services.admin.session.findUniqueOrThrow({
+      where: { id: start.body.sessionId as string },
+    });
+    expect(session).toMatchObject({ kind: 'IMPERSONATION', impersonatedBy: support.id });
 
     const me = await request(app).get('/api/v1/t/auth/me').set('Host', T.host).set(bearer(token));
     expect(me.status).toBe(200);

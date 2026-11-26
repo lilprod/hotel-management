@@ -12,7 +12,7 @@ import { clearMfa } from '../auth/mfa.js';
 import { INVITE_TTL_S, inviteKey, inviteUserKey, revokeStaffSessions } from '../auth/service.js';
 import { randomToken, sha256 } from '../auth/tokens.js';
 
-type UserStatus = 'INVITED' | 'ACTIVE' | 'DISABLED';
+type UserStatus = 'INVITED' | 'PENDING_VERIFICATION' | 'ACTIVE' | 'DISABLED';
 
 const tenantId = (req: Request) => req.tenant!.id;
 const db = (req: Request) => req.services.db;
@@ -156,7 +156,9 @@ export async function getUser(req: Request, id: string) {
 /** Users counted against the `users` quota (active + pending invitations). */
 export function countSeats(req: Request) {
   return inTenant(req, () =>
-    db(req).user.count({ where: { deletedAt: null, status: { in: ['ACTIVE', 'INVITED'] } } }),
+    db(req).user.count({
+      where: { deletedAt: null, status: { in: ['ACTIVE', 'INVITED', 'PENDING_VERIFICATION'] } },
+    }),
   );
 }
 
@@ -402,7 +404,13 @@ export async function setUserStatus(req: Request, id: string, active: boolean) {
     );
     await assertNotLastOwner(req, user);
   }
-  const status: UserStatus = active ? (user.passwordHash ? 'ACTIVE' : 'INVITED') : 'DISABLED';
+  const status: UserStatus = !active
+    ? 'DISABLED'
+    : user.status === 'PENDING_VERIFICATION'
+      ? 'PENDING_VERIFICATION'
+      : user.passwordHash
+        ? 'ACTIVE'
+        : 'INVITED';
   await inTenant(req, () =>
     db(req).user.update({
       where: { id },

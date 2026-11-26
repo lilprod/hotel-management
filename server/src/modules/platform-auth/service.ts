@@ -19,7 +19,7 @@ import {
   RefreshError,
   rotateRedisSession,
 } from '../auth/redis-sessions.js';
-import { readSecure, writeSecure, type Principal } from '../auth/secure-store.js';
+import { passwordHistory, pushPasswordHistory, type Principal } from '../auth/secure-store.js';
 import {
   accountKey,
   assertCsrf,
@@ -46,8 +46,6 @@ const LOCK_THRESHOLD = 5;
 const LOCK_MINUTES = 15;
 
 const principal = (id: string): Principal => ({ kind: 'platform', id });
-const failKey = (email: string) => `hm:plat-fail:${accountKey(email)}`;
-const lockKey = (email: string) => `hm:plat-lock:${accountKey(email)}`;
 
 const invalidCredentials = () =>
   new AppError('UNAUTHENTICATED', 'Invalid credentials', {
@@ -97,23 +95,27 @@ export async function platformLogin(req: Request, body: { email: string; passwor
     { key: `plogin:ip:${ipKey(req)}`, limit: 20, windowS: 60 },
     { key: `plogin:acct:${accountKey(body.email)}`, limit: 10, windowS: 60 },
   ]);
-  const lockedTtl = await services.redis.ttl(lockKey(body.email));
-  if (lockedTtl > 0)
+  const user = await services.admin.platformUser.findUnique({ where: { email: body.email } });
+  const now = new Date();
+  if (user?.lockedUntil && user.lockedUntil > now)
     throw new AppError('ACCOUNT_LOCKED', undefined, {
       detail: 'Too many failed attempts',
-      meta: { lockedUntil: new Date(Date.now() + lockedTtl * 1000).toISOString() },
+      meta: { lockedUntil: user.lockedUntil.toISOString() },
     });
-  const user = await services.admin.platformUser.findUnique({ where: { email: body.email } });
   const ok = user ? await verifyPassword(user.passwordHash, body.password) : false;
   if (!user) await verifyDummy(body.password);
   if (!user || !ok || !user.isActive) {
     if (user && !ok) {
-      const n = await services.redis.incr(failKey(body.email));
-      await services.redis.expire(failKey(body.email), LOCK_MINUTES * 60);
-      if (n >= LOCK_THRESHOLD) {
-        await services.redis.set(lockKey(body.email), '1', 'EX', LOCK_MINUTES * 60);
-        await services.redis.del(failKey(body.email));
-      }
+      // A lock that has expired starts a new count.
+      const expired = user.lockedUntil !== null && user.lockedUntil <= now;
+      const attempts = (expired ? 0 : user.failedAttempts) + 1;
+      const locks = attempts >= LOCK_THRESHOLD;
+      await services.admin.platformUser.update({
+        where: { id: user.id },
+        data: locks
+          ? { failedAttempts: 0, lockedUntil: new Date(now.getTime() + LOCK_MINUTES * 60_000) }
+          : { failedAttempts: attempts, ...(expired ? { lockedUntil: null } : {}) },
+      });
     }
     await auditNow(req, {
       action: 'platform.auth.login_failed',
@@ -123,7 +125,11 @@ export async function platformLogin(req: Request, body: { email: string; passwor
     });
     throw invalidCredentials();
   }
-  await services.redis.del(failKey(body.email));
+  if (user.failedAttempts || user.lockedUntil)
+    await services.admin.platformUser.update({
+      where: { id: user.id },
+      data: { failedAttempts: 0, lockedUntil: null },
+    });
   const purpose = user.totpSecretEnc ? 'mfa' : 'mfa_setup';
   const challengeToken = await issueChallenge(services, {
     sub: user.id,
@@ -299,8 +305,8 @@ export async function platformPasswordHash(
   const issues = checkPasswordRules(password, PLATFORM_PASSWORD_RULES, {
     email: user?.email,
   });
-  if (user && !issues.length) {
-    const history = await readSecure(services, principal(user.id), 'password_history');
+  if (user?.id && !issues.length) {
+    const history = await passwordHistory(services, principal(user.id));
     const previous = [...(user.passwordHash ? [user.passwordHash] : []), ...history].slice(
       0,
       PLATFORM_PASSWORD_HISTORY,
@@ -308,15 +314,13 @@ export async function platformPasswordHash(
     if (await isReused(password, previous)) issues.push('PASSWORD_REUSED');
   }
   assertPasswordIssues(issues);
-  if (user?.passwordHash) {
-    const history = await readSecure(services, principal(user.id), 'password_history');
-    await writeSecure(
+  if (user?.id && user.passwordHash)
+    await pushPasswordHistory(
       services,
       principal(user.id),
-      'password_history',
-      [user.passwordHash, ...history].slice(0, PLATFORM_PASSWORD_HISTORY),
+      user.passwordHash,
+      PLATFORM_PASSWORD_HISTORY,
     );
-  }
   return hashPassword(password);
 }
 

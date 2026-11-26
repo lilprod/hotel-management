@@ -53,6 +53,7 @@
     "statuses": {
       "ACTIVE": "Active",
       "INVITED": "Invited",
+      "PENDING_VERIFICATION": "E-mail to verify",
       "DISABLED": "Disabled"
     },
     "empty": "No users.",

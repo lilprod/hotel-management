@@ -23,7 +23,7 @@ import {
   verifyDummy,
   verifyPassword,
 } from './passwords.js';
-import { readSecure, writeSecure, type Principal } from './secure-store.js';
+import { passwordHistory, pushPasswordHistory, type Principal } from './secure-store.js';
 import {
   accountKey,
   assertCsrf,
@@ -47,8 +47,6 @@ import {
 
 export const RESET_TTL_S = 30 * 60;
 export const INVITE_TTL_S = 7 * 24 * 3600;
-/** Marker of impersonation sessions in `sessions.user_agent` (no dedicated column). */
-export const IMPERSONATION_UA_PREFIX = '[impersonation]';
 const MAX_LOCK_MINUTES = 24 * 60;
 
 const staffPrincipal = (tenantId: string, id: string): Principal => ({
@@ -113,7 +111,7 @@ export async function setStaffPassword(
     { email: user.email, name: user.name },
   );
   const p = staffPrincipal(tenantId, user.id);
-  const history = await readSecure(services, p, 'password_history');
+  const history = await passwordHistory(services, p);
   const previous = [...(user.passwordHash ? [user.passwordHash] : []), ...history].slice(
     0,
     Math.max(policy.pwdHistory, user.passwordHash ? 1 : 0),
@@ -135,13 +133,8 @@ export async function setStaffPassword(
       },
     }),
   );
-  if (policy.pwdHistory > 0) {
-    const next = [...(user.passwordHash ? [user.passwordHash] : []), ...history].slice(
-      0,
-      Math.min(policy.pwdHistory, 24),
-    );
-    await writeSecure(services, p, 'password_history', next);
-  }
+  if (policy.pwdHistory > 0)
+    await pushPasswordHistory(services, p, user.passwordHash, Math.min(policy.pwdHistory, 24));
 }
 
 // ---------------------------------------------------------------------------
@@ -198,7 +191,7 @@ export async function revokeStaffSessions(
           ? { id: { in: where.ids } }
           : { userId: where.userId, ...(where.exceptId ? { id: { not: where.exceptId } } : {}) }),
       },
-      select: { id: true, userAgent: true },
+      select: { id: true },
     });
     const ids = rows.map((r) => r.id);
     if (!ids.length) return ids;
@@ -226,7 +219,7 @@ async function openStaffSession(
   await inTenant(req, async () => {
     if (policy.maxSessions) {
       const active = (await activeSessions(services, user.id)).filter(
-        (s) => !s.userAgent?.startsWith(IMPERSONATION_UA_PREFIX),
+        (s) => s.kind !== 'IMPERSONATION',
       );
       const excess = active.length - policy.maxSessions + 1;
       if (excess > 0)
@@ -702,6 +695,7 @@ export function serializeSession(
     id: string;
     ip: string | null;
     userAgent: string | null;
+    kind: string;
     createdAt: Date;
     lastSeenAt: Date | null;
     expiresAt: Date;
@@ -716,7 +710,7 @@ export function serializeSession(
     lastSeenAt: s.lastSeenAt?.toISOString() ?? null,
     expiresAt: s.expiresAt.toISOString(),
     current: s.id === currentId,
-    impersonation: !!s.userAgent?.startsWith(IMPERSONATION_UA_PREFIX),
+    impersonation: s.kind === 'IMPERSONATION',
   };
 }
 

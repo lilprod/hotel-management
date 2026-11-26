@@ -230,7 +230,11 @@ describe('POST /public/signup', () => {
 
     expect(tenant.users).toHaveLength(1);
     const owner = tenant.users[0]!;
-    expect(owner).toMatchObject({ email: body.email, status: 'INVITED', phone: '+22890123456' });
+    expect(owner).toMatchObject({
+      email: body.email,
+      status: 'PENDING_VERIFICATION',
+      phone: '+22890123456',
+    });
     expect(owner.passwordHash).toMatch(/^\$argon2id/);
     expect(owner.userRoles.map((r) => r.role.name)).toEqual(['Propriétaire']);
 

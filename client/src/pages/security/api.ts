@@ -1,5 +1,5 @@
 /** Types of the `/api/v1/t/iam` and `/audit` payloads (server/src/modules/{iam,audit}). */
-export type UserStatus = 'INVITED' | 'ACTIVE' | 'DISABLED';
+export type UserStatus = 'INVITED' | 'PENDING_VERIFICATION' | 'ACTIVE' | 'DISABLED';
 
 export interface IamUser {
   id: string;

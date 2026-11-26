@@ -38,6 +38,13 @@ const PAY_WITH_FILE = id(40);
 const PAY_NO_FILE = id(41);
 const FILE_OLD = id(50);
 const FILE_NEW = id(51);
+const U_STAFF = id(60);
+const U_SIGNUP = id(61);
+const U_INVITED = id(62);
+const P_AGENT = id(70);
+const SESS_IMP = id(80);
+const SESS_IMP_UNKNOWN = id(81);
+const SESS_STD = id(82);
 
 const FIXTURES_BILLING = `
 INSERT INTO plans (id, code, name, updated_at) VALUES
@@ -73,13 +80,34 @@ INSERT INTO payments (id, tenant_id, amount, method, paid_at, status, receipt_nu
   ('${PAY_NO_FILE}', '${T}', 5000, 'CASH', '2026-11-01', 'CONFIRMED', 'REC-2026-000002', now());
 `;
 
+const FIXTURES_IAM = `
+INSERT INTO users (id, tenant_id, email, name, password_hash, status, updated_at) VALUES
+  ('${U_STAFF}', '${T}', 'staff@mig.test', 'Staff', '$argon2id$current', 'ACTIVE', now()),
+  ('${U_SIGNUP}', '${T}', 'owner@mig.test', 'Owner', '$argon2id$owner', 'INVITED', now()),
+  ('${U_INVITED}', '${T}', 'invited@mig.test', 'Invited', NULL, 'INVITED', now());
+INSERT INTO settings (id, tenant_id, scope, scope_id, key, value, updated_at) VALUES
+  (gen_random_uuid(), '${T}', 'USER', '${U_STAFF}', '_iam.password_history', '["h-newest", "h-older"]', '2026-11-10T00:00:00Z'),
+  (gen_random_uuid(), '${T}', 'USER', '${U_STAFF}', '_iam.mfa_backup_codes', '["c1", "c2", "c3"]', now()),
+  (gen_random_uuid(), '${T}', 'TENANT', '${T}', '_iam.perm_ver', '7', now()),
+  (gen_random_uuid(), '${T}', 'TENANT', '${T}', 'branding.other', '"kept"', now());
+INSERT INTO platform_users (id, email, password_hash, name, role, updated_at)
+  VALUES ('${P_AGENT}', 'Agent@Platform.test', 'x', 'Agent', 'SUPPORT', now());
+INSERT INTO platform_settings (id, key, value, updated_at) VALUES
+  (gen_random_uuid(), '_platform_user.${P_AGENT}.password_history', '["p1"]', now()),
+  (gen_random_uuid(), '_platform_user.${P_AGENT}.mfa_backup_codes', '["pc1", "pc2"]', now());
+INSERT INTO sessions (id, tenant_id, user_id, refresh_hash, user_agent, expires_at, updated_at) VALUES
+  ('${SESS_IMP}', '${T}', '${U_STAFF}', 'r1', '[impersonation] agent@platform.test', now() + interval '1 hour', now()),
+  ('${SESS_IMP_UNKNOWN}', '${T}', '${U_STAFF}', 'r2', '[impersonation] gone@platform.test', now() + interval '1 hour', now()),
+  ('${SESS_STD}', '${T}', '${U_STAFF}', 'r3', 'Mozilla/5.0', now() + interval '1 hour', now());
+`;
+
 let pg: TestPostgres;
 const q = (sql: string) => pg.psql(sql).then((s) => s.trim());
 
 beforeAll(async () => {
   pg = await startTestPostgres({ database: 'hm_sch1', migrate: false });
   for (const d of before) await pg.psql(sqlOf(d));
-  await pg.psql(FIXTURES_BILLING);
+  await pg.psql(FIXTURES_BILLING + FIXTURES_IAM);
   for (const d of sch1) await pg.psql(sqlOf(d));
 });
 afterAll(async () => {
@@ -150,5 +178,53 @@ describe('SCH-1 group 1 — platform billing', () => {
     await expect(q(`UPDATE payments SET amount = 1 WHERE id = '${PAY_NO_FILE}'`)).rejects.toThrow(
       /may only change/,
     );
+  });
+});
+
+describe('SCH-1 group 2 — IAM / auth', () => {
+  it('moves the password history and backup codes out of settings', async () => {
+    expect(
+      await q(
+        `SELECT hash FROM password_history WHERE user_id = '${U_STAFF}' ORDER BY created_at DESC`,
+      ),
+    ).toBe('h-newest\nh-older');
+    expect(
+      await q(
+        `SELECT count(*) || ':' || count(used_at) FROM mfa_backup_codes WHERE user_id = '${U_STAFF}'`,
+      ),
+    ).toBe('3:0');
+    expect(
+      await q(`SELECT hash FROM platform_password_history WHERE platform_user_id = '${P_AGENT}'`),
+    ).toBe('p1');
+    expect(await q(`SELECT count(*) FROM platform_mfa_backup_codes`)).toBe('2');
+    expect(await q(`SELECT string_agg(key, ',') FROM settings`)).toBe('branding.other');
+    expect(
+      await q(`SELECT count(*) FROM platform_settings WHERE key LIKE '_platform_user.%'`),
+    ).toBe('0');
+  });
+
+  it('moves the permission version to tenants.perm_ver', async () => {
+    expect(await q(`SELECT perm_ver FROM tenants WHERE id = '${T}'`)).toBe('7');
+  });
+
+  it('turns the user-agent prefix into kind + impersonated_by (unknown agent: revoked)', async () => {
+    const rows = await q(
+      `SELECT id || '|' || kind || '|' || coalesce(impersonated_by::text, '-') || '|' || coalesce(user_agent, '-') || '|' || (revoked_at IS NOT NULL)
+         FROM sessions ORDER BY id`,
+    );
+    expect(rows.split('\n')).toEqual([
+      `${SESS_IMP}|IMPERSONATION|${P_AGENT}|-|false`,
+      `${SESS_IMP_UNKNOWN}|IMPERSONATION|-|-|true`,
+      `${SESS_STD}|STANDARD|-|Mozilla/5.0|false`,
+    ]);
+    await expect(
+      q(`UPDATE sessions SET impersonated_by = '${P_AGENT}' WHERE id = '${SESS_STD}'`),
+    ).rejects.toThrow(/sessions_impersonation_check/);
+  });
+
+  it('self-signup owners (INVITED + password) become PENDING_VERIFICATION', async () => {
+    expect(
+      await q(`SELECT string_agg(email || ':' || status, ',' ORDER BY email) FROM users`),
+    ).toBe('invited@mig.test:INVITED,owner@mig.test:PENDING_VERIFICATION,staff@mig.test:ACTIVE');
   });
 });

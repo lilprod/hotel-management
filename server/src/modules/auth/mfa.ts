@@ -1,6 +1,11 @@
 import type { Services } from '../../core/container.js';
 import { AppError } from '../../lib/errors.js';
-import { readSecure, writeSecure, type Principal } from './secure-store.js';
+import {
+  consumeBackupCode,
+  remainingBackupCodes as countBackupCodes,
+  replaceBackupCodes,
+  type Principal,
+} from './secure-store.js';
 import {
   decryptSecret,
   encryptSecret,
@@ -56,18 +61,18 @@ export async function activateMfa(services: Services, p: Principal, code: string
   await services.redis.set(lastStepKey(p), String(step), 'EX', 120);
   await services.redis.del(pendingKey(p));
   const backupCodes = generateBackupCodes();
-  await writeSecure(services, p, 'mfa_backup_codes', backupCodes.map(hashBackupCode));
+  await replaceBackupCodes(services, p, backupCodes.map(hashBackupCode));
   return { secretEnc: encryptSecret(secret, services.config.JWT_ACCESS_SECRET), backupCodes };
 }
 
 export async function regenerateBackupCodes(services: Services, p: Principal): Promise<string[]> {
   const codes = generateBackupCodes();
-  await writeSecure(services, p, 'mfa_backup_codes', codes.map(hashBackupCode));
+  await replaceBackupCodes(services, p, codes.map(hashBackupCode));
   return codes;
 }
 
 export async function clearMfa(services: Services, p: Principal): Promise<void> {
-  await writeSecure(services, p, 'mfa_backup_codes', []);
+  await replaceBackupCodes(services, p, []);
   await services.redis.del(pendingKey(p), lastStepKey(p));
 }
 
@@ -97,20 +102,13 @@ export async function verifySecondFactor(
     return 'totp';
   }
   if (looksLikeBackupCode(raw)) {
-    const hashes = await readSecure(services, p, 'mfa_backup_codes');
-    const h = hashBackupCode(raw);
-    if (!hashes.includes(h)) throw invalidCode();
-    await writeSecure(
-      services,
-      p,
-      'mfa_backup_codes',
-      hashes.filter((x) => x !== h),
-    );
+    // Single use: the first consumer marks it used (atomic conditional update).
+    if (!(await consumeBackupCode(services, p, hashBackupCode(raw)))) throw invalidCode();
     return 'backup_code';
   }
   throw invalidCode();
 }
 
 export async function remainingBackupCodes(services: Services, p: Principal): Promise<number> {
-  return (await readSecure(services, p, 'mfa_backup_codes')).length;
+  return countBackupCodes(services, p);
 }

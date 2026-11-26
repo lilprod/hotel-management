@@ -26,7 +26,9 @@ async function facts(ctx: Ctx) {
     ctx.db.ratePlan.count({ where: { deletedAt: null } }),
     ctx.db.rate.count(),
     ctx.db.tax.count({ where: { deletedAt: null } }),
-    ctx.db.user.count({ where: { deletedAt: null, status: { in: ['ACTIVE', 'INVITED'] } } }),
+    ctx.db.user.count({
+      where: { deletedAt: null, status: { in: ['ACTIVE', 'INVITED', 'PENDING_VERIFICATION'] } },
+    }),
     ctx.db.branding.findFirst({ select: { logoFileId: true } }),
   ]);
   return {

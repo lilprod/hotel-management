@@ -314,6 +314,11 @@ describe('TOTP 2FA', () => {
       .set('Host', A.host)
       .send({ challengeToken: login2.body.challengeToken, code: backupCodes[0] });
     expect(reused.status).toBe(401);
+    // Stored hashed in mfa_backup_codes (used_at set, never the plain code).
+    const rows = await env.services.admin.mfaBackupCode.findMany({ where: { userId: u.id } });
+    expect(rows).toHaveLength(10);
+    expect(rows.filter((r) => r.usedAt).length).toBe(1);
+    expect(rows.some((r) => r.codeHash === backupCodes[0])).toBe(false);
     // A TOTP code of the next step works (the activation step cannot be replayed).
     const totp = await request(app)
       .post(`${T}/auth/mfa/verify`)
@@ -399,6 +404,15 @@ describe('password policy', () => {
     const back = await change(p3, PASSWORD, r3.body.accessToken as string);
     expect(back.status).toBe(422);
     expect(back.body.meta.rules).toContain('PASSWORD_REUSED');
+    // History rows (previous hashes only, tenant-scoped).
+    const history = await env.services.admin.passwordHistory.findMany({ where: { userId: u.id } });
+    expect(history).toHaveLength(2);
+    expect(history.every((h) => h.tenantId === A.tenantId && h.hash.startsWith('$argon2id'))).toBe(
+      true,
+    );
+    expect(
+      await env.services.admin.setting.count({ where: { key: { startsWith: '_iam.' } } }),
+    ).toBe(0);
     await setPolicy(env.services, A.tenantId, { pwdMinLength: 10, pwdHistory: 0 });
   });
 

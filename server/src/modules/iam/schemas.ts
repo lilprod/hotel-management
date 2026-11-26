@@ -8,7 +8,7 @@ const ids = z.array(z.string().uuid()).max(200);
 
 export const userListQuery = z.object({
   q: z.string().trim().max(100).optional(),
-  status: z.enum(['INVITED', 'ACTIVE', 'DISABLED']).optional(),
+  status: z.enum(['INVITED', 'PENDING_VERIFICATION', 'ACTIVE', 'DISABLED']).optional(),
   roleId: z.string().uuid().optional(),
   propertyId: z.string().uuid().optional(),
 });
@@ -38,7 +38,7 @@ export const userSchema = z.object({
   email: z.string(),
   name: z.string(),
   phone: z.string().nullable(),
-  status: z.enum(['INVITED', 'ACTIVE', 'DISABLED']),
+  status: z.enum(['INVITED', 'PENDING_VERIFICATION', 'ACTIVE', 'DISABLED']),
   mfaEnabled: z.boolean(),
   mustChangePassword: z.boolean(),
   lockedUntil: z.string().nullable(),
