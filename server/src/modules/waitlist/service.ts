@@ -35,6 +35,7 @@ const toEntry = (e: EntryRow): EntryDto => ({
   offeredAt: e.offeredAt?.toISOString() ?? null,
   offerExpiresAt: e.offerExpiresAt?.toISOString() ?? null,
   notes: e.notes,
+  reservationId: e.reservationId,
   createdAt: e.createdAt.toISOString(),
 });
 
@@ -188,7 +189,11 @@ export async function acceptOffer(ctx: RCtx, id: string, input: z.infer<typeof a
         notifyGuest: input.notifyGuest,
         joinWaitlistIfUnavailable: false,
       },
-      { sys: { waitlistEntryId: e.id } },
+      {
+        afterWrite: async (tx, reservationId) => {
+          await tx.waitlistEntry.update({ where: { id: e.id }, data: { reservationId } });
+        },
+      },
     );
     return { entry: toEntry(await loadEntry(ctx, id)), ...result };
   } catch (err) {

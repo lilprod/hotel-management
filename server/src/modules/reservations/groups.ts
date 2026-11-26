@@ -2,10 +2,10 @@ import { z } from 'zod';
 import { AppError } from '../../lib/errors.js';
 import { lockInventory, spanOf } from '../availability/inventory.js';
 import type { guestInput } from '../guests/schemas.js';
-import { dayString, formatDay, invalid, must, uuid } from '../property/common.js';
+import { dayString, formatDay, invalid, must, parseDay, uuid } from '../property/common.js';
 import type { RCtx } from './context.js';
 import { publishInventoryReleased, publishPlanningChanged } from './events.js';
-import { splitCustomFields, type ReservationRow } from './repository.js';
+import type { ReservationRow } from './repository.js';
 import { guestRef } from './schemas.js';
 import {
   createReservation,
@@ -17,8 +17,9 @@ import {
 
 /**
  * Groups (OP-17, feature `groups`): a group dossier holds an allotment — a reservation without
- * booker whose unassigned room lines keep the block out of the inventory until the release
- * date. Picking up a room for a guest swaps one held line for the guest's own reservation in
+ * booker (`groups.allotment_reservation_id`) whose unassigned room lines keep the block out of
+ * the inventory until `groups.release_date`; the contracted block per room type is kept in
+ * `group_blocks`. Picking up a room for a guest swaps one held line for the guest's own reservation in
  * the same transaction (inventory unchanged); the rooming list is the group's reservations.
  */
 
@@ -93,7 +94,13 @@ export const groupSchema = z.object({
   arrival: z.string().nullable(),
   departure: z.string().nullable(),
   block: z.array(
-    z.object({ roomTypeId: uuid, held: z.number().int(), pickedUp: z.number().int() }),
+    z.object({
+      roomTypeId: uuid,
+      /** Contracted rooms (group_blocks). */
+      rooms: z.number().int(),
+      held: z.number().int(),
+      pickedUp: z.number().int(),
+    }),
   ),
   roomingList: z.array(
     z.object({
@@ -122,20 +129,26 @@ async function loadGroup(ctx: RCtx, id: string) {
   return g;
 }
 
-async function holderOf(ctx: RCtx, groupId: string): Promise<ReservationRow | null> {
-  const h = await ctx.db.reservation.findFirst({
-    where: { groupId, bookerGuestId: null },
-    orderBy: { createdAt: 'asc' },
-    select: { id: true },
-  });
-  return h ? loadReservation(ctx.db as never, h.id) : null;
+async function holderOf(
+  ctx: RCtx,
+  g: { allotmentReservationId: string | null },
+): Promise<ReservationRow | null> {
+  return g.allotmentReservationId
+    ? loadReservation(ctx.db as never, g.allotmentReservationId)
+    : null;
 }
 
 export async function getGroup(ctx: RCtx, id: string): Promise<GroupDto> {
   const g = await loadGroup(ctx, id);
-  const holder = await holderOf(ctx, id);
+  const holder = await holderOf(ctx, g);
+  const contracted = await ctx.db.groupBlock.findMany({
+    where: { groupId: id },
+    orderBy: { createdAt: 'asc' },
+  });
   const members = await ctx.db.reservationRoom.findMany({
-    where: { reservation: { groupId: id, bookerGuestId: { not: null } } },
+    where: {
+      reservation: { groupId: id, ...(holder ? { id: { not: holder.id } } : {}) },
+    },
     include: {
       room: { select: { number: true } },
       reservation: {
@@ -153,24 +166,27 @@ export async function getGroup(ctx: RCtx, id: string): Promise<GroupDto> {
     },
     orderBy: [{ arrival: 'asc' }, { id: 'asc' }],
   });
-  const block = new Map<string, { roomTypeId: string; held: number; pickedUp: number }>();
+  const block = new Map<
+    string,
+    { roomTypeId: string; rooms: number; held: number; pickedUp: number }
+  >();
   const entry = (t: string) => {
     let e = block.get(t);
-    if (!e) block.set(t, (e = { roomTypeId: t, held: 0, pickedUp: 0 }));
+    if (!e) block.set(t, (e = { roomTypeId: t, rooms: 0, held: 0, pickedUp: 0 }));
     return e;
   };
+  for (const b of contracted) entry(b.roomTypeId).rooms = b.rooms;
   for (const rr of holder?.reservationRooms ?? [])
     if (HOLD.includes(rr.status)) entry(rr.roomTypeId).held++;
   for (const m of members)
     if (m.status !== 'CANCELLED' && m.status !== 'NO_SHOW') entry(m.roomTypeId).pickedUp++;
-  const sys = holder ? splitCustomFields(holder.customFields).sys : {};
   return {
     id: g.id,
     propertyId: g.propertyId,
     name: g.name,
     companyId: g.companyId,
     allotmentReservationId: holder?.id ?? null,
-    releaseDate: sys.allotment?.releaseDate ?? null,
+    releaseDate: g.releaseDate ? formatDay(g.releaseDate) : null,
     arrival: holder ? formatDay(holder.arrival) : null,
     departure: holder ? formatDay(holder.departure) : null,
     block: [...block.values()],
@@ -231,7 +247,19 @@ export async function createGroup(
         propertyId: prop.id,
         name: input.name,
         companyId: input.companyId ?? null,
+        releaseDate: parseDay(input.releaseDate),
       },
+    });
+    const contracted = new Map<string, number>();
+    for (const b of input.blocks)
+      contracted.set(b.roomTypeId, (contracted.get(b.roomTypeId) ?? 0) + b.count);
+    await tx.groupBlock.createMany({
+      data: [...contracted].map(([roomTypeId, rooms]) => ({
+        tenantId: ctx.tenantId,
+        groupId: g.id,
+        roomTypeId,
+        rooms,
+      })),
     });
     await createReservation(
       ctx,
@@ -258,8 +286,13 @@ export async function createGroup(
       {
         groupId: g.id,
         bookerGuestId: null,
-        sys: { allotment: { releaseDate: input.releaseDate } },
         tx,
+        afterWrite: async (t, reservationId) => {
+          await t.group.update({
+            where: { id: g.id },
+            data: { allotmentReservationId: reservationId },
+          });
+        },
       },
     );
     return g.id;
@@ -272,7 +305,7 @@ export async function createGroup(
 /** Rooming list: each entry takes one held room of its type and becomes a reservation. */
 export async function pickUp(ctx: RCtx, groupId: string, input: z.infer<typeof pickUpBody>) {
   const g = await loadGroup(ctx, groupId);
-  const holder = await holderOf(ctx, groupId);
+  const holder = await holderOf(ctx, g);
   if (!holder || !HOLD.includes(holder.status))
     throw new AppError('CONFLICT', undefined, { detail: 'The group has no open allotment' });
   const held = holder.reservationRooms.filter((rr) => HOLD.includes(rr.status));
@@ -345,7 +378,7 @@ export async function releaseAllotment(
   },
 ): Promise<boolean> {
   const holder = await loadReservation(ctx.db as never, holderId);
-  if (!holder.groupId || holder.bookerGuestId) throw invalid('id', 'Not a group allotment');
+  if (!holder.allotmentOfGroup) throw invalid('id', 'Not a group allotment');
   const held = holder.reservationRooms.filter(
     (rr) =>
       HOLD.includes(rr.status) &&
@@ -402,8 +435,8 @@ export async function releaseAllotment(
 }
 
 export async function releaseGroup(ctx: RCtx, groupId: string, input: z.infer<typeof releaseBody>) {
-  await loadGroup(ctx, groupId);
-  const holder = await holderOf(ctx, groupId);
+  const g = await loadGroup(ctx, groupId);
+  const holder = await holderOf(ctx, g);
   if (!holder) throw new AppError('CONFLICT', undefined, { detail: 'The group has no allotment' });
   await releaseAllotment(ctx, holder.id, {
     roomTypeId: input.roomTypeId,

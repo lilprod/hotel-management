@@ -1,39 +1,45 @@
 import type { Prisma, TransactionClient } from '@hm/database';
-import { formatDay, must } from '../property/common.js';
+import { formatDay, must, parseDay } from '../property/common.js';
 import { parseNightPrices, sumNights } from '../availability/pricing.js';
 import type { PenaltyDto, ReservationDto } from './schemas.js';
 
-/**
- * Engine data with no dedicated column (schema gap, reported): stored under the reserved
- * `_sys` key of `reservations.custom_fields`, never validated as a custom field nor exposed in
- * `customFields`.
- */
-export interface SysData {
-  penalty?: PenaltyDto;
-  /** Group allotment holder (rooms held for a group until `releaseDate`). */
-  allotment?: { releaseDate: string };
-  /** Waitlist entry converted into this reservation. */
-  waitlistEntryId?: string;
+/** Penalty stored in the `penalty_*` columns of a reservation (null when none). */
+export function penaltyOf(r: {
+  penaltyKind: 'CANCELLATION' | 'NO_SHOW' | null;
+  penaltyAmount: bigint | null;
+  penaltyComputedAmount: bigint | null;
+  penaltyCurrency: string | null;
+  penaltyWaived: boolean;
+  penaltyBusinessDate: Date | null;
+  penaltyLines: unknown;
+}): PenaltyDto | null {
+  if (!r.penaltyKind || r.penaltyAmount === null || !r.penaltyBusinessDate) return null;
+  return {
+    kind: r.penaltyKind,
+    amount: Number(r.penaltyAmount),
+    computedAmount: Number(r.penaltyComputedAmount ?? r.penaltyAmount),
+    waived: r.penaltyWaived,
+    currency: r.penaltyCurrency ?? 'XOF',
+    businessDate: formatDay(r.penaltyBusinessDate),
+    lines: (Array.isArray(r.penaltyLines) ? r.penaltyLines : []) as PenaltyDto['lines'],
+  };
 }
 
-export const SYS_KEY = '_sys';
-
-export function splitCustomFields(json: unknown): { user: Record<string, unknown>; sys: SysData } {
-  const all = (json && typeof json === 'object' ? json : {}) as Record<string, unknown>;
-  const { [SYS_KEY]: sys, ...user } = all;
-  return { user, sys: (sys && typeof sys === 'object' ? sys : {}) as SysData };
-}
-
-export function joinCustomFields(
-  user: Record<string, unknown>,
-  sys: SysData,
-): Prisma.InputJsonValue {
-  const out: Record<string, unknown> = { ...user };
-  if (Object.keys(sys).length) out[SYS_KEY] = sys;
-  return out as Prisma.InputJsonValue;
+/** Columns written for a penalty (see `penaltyOf`). */
+export function penaltyData(p: PenaltyDto) {
+  return {
+    penaltyKind: p.kind,
+    penaltyAmount: BigInt(p.amount),
+    penaltyComputedAmount: BigInt(p.computedAmount),
+    penaltyCurrency: p.currency,
+    penaltyWaived: p.waived,
+    penaltyBusinessDate: parseDay(p.businessDate),
+    penaltyLines: p.lines as unknown as Prisma.InputJsonValue,
+  } satisfies Prisma.ReservationUncheckedUpdateInput;
 }
 
 export const reservationInclude = {
+  allotmentOfGroup: { select: { id: true } },
   bookerGuest: {
     select: {
       id: true,
@@ -69,7 +75,6 @@ export async function loadReservation(db: RepoDb, id: string): Promise<Reservati
 }
 
 export function toReservation(r: ReservationRow): ReservationDto {
-  const { user, sys } = splitCustomFields(r.customFields);
   const rooms = r.reservationRooms.map((rr) => {
     const daily = parseNightPrices(rr.dailyPrices);
     return {
@@ -109,12 +114,12 @@ export function toReservation(r: ReservationRow): ReservationDto {
     cancelReason: r.cancelReason,
     groupId: r.groupId,
     companyId: r.companyId,
-    isAllotment: !!sys.allotment,
+    isAllotment: !!r.allotmentOfGroup,
     booker: r.bookerGuest,
     currency: rooms[0]?.currency ?? 'XOF',
     roomTotal: (active.length ? active : rooms).reduce((s, x) => s + x.total, 0),
-    penalty: sys.penalty ?? null,
-    customFields: user,
+    penalty: penaltyOf(r),
+    customFields: (r.customFields ?? {}) as Record<string, unknown>,
     rooms,
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),

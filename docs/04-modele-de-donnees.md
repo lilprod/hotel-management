@@ -57,12 +57,13 @@ Conventions : PK `id UUID v7`, `created_at`, `updated_at`, `created_by`. Toute t
 | `policies` | property_id, kind (`CANCELLATION`/`DEPOSIT`), rules (JSONB) |
 | `guests` | tenant_id, first_name, last_name, gender, birth_date, birth_place, nationality, profession, phone, email, address, id_doc_type, id_doc_number_enc, id_doc_file_id, tags[], is_blacklisted, notes |
 | `companies` | tenant_id, name, tax_id, address, contact, credit_limit, rate_plan_id |
-| `reservations` | property_id, number, status, source, segment, booker_guest_id, company_id, group_id, arrival, departure, adults, children, notes, option_expires_at, cancelled_at, cancel_reason |
+| `reservations` | property_id, number, status, source, segment, booker_guest_id, company_id, group_id, arrival, departure, adults, children, notes, option_expires_at, cancelled_at, cancel_reason, penalty_kind (`CANCELLATION`/`NO_SHOW`), penalty_amount (facturé, 0 si exonéré), penalty_computed_amount, penalty_currency, penalty_waived, penalty_business_date, penalty_lines (JSONB, détail par ligne) — pénalité : tout NULL ou tout renseigné (CHECK) ; `custom_fields` ne contient que des champs personnalisés (clé `_sys` refusée) |
 | `reservation_rooms` | reservation_id, room_type_id, room_id (nullable jusqu'à l'affectation), rate_plan_id, arrival, departure, status, daily_prices (JSONB) |
 | `unit_nights` | tenant_id, unit_id (= `rooms.id`), night, reservation_room_id — **UNIQUE (unit_id, night)** |
-| `waitlist_entries` | property_id, guest_id, room_type_id, arrival, departure, adults, children, status (`WAITING`/`OFFERED`/`ACCEPTED`/`EXPIRED`/`CANCELLED`), offered_at, offer_expires_at, priority |
+| `waitlist_entries` | property_id, guest_id, room_type_id, arrival, departure, adults, children, status (`WAITING`/`OFFERED`/`ACCEPTED`/`EXPIRED`/`CANCELLED`), offered_at, offer_expires_at, priority, reservation_id (UNIQUE, réservation créée à l'acceptation) |
 | `reservation_guests` | reservation_room_id, guest_id, is_primary |
-| `groups` | property_id, name, company_id, master_folio_id |
+| `groups` | property_id, name, company_id, master_folio_id, allotment_reservation_id (UNIQUE : réservation sans réservant qui retient le bloc), release_date (libération des chambres non attribuées) |
+| `group_blocks` | group_id, room_type_id, rooms (> 0) — bloc contracté par type, **UNIQUE (group_id, room_type_id)** ; les chambres retenues restent les lignes de la réservation d'allotement (retenues = lignes actives, attribuées = lignes des réservations du groupe) |
 | `stays` | reservation_room_id, checked_in_at, checked_in_by, checked_out_at, checked_out_by |
 | `police_records` | property_id, stay_id, guest_id, business_date, provenance, destination, purpose, snapshot (JSONB, copie légale), signature_file_id — **immuable** |
 | `stay_events` | stay_id, type (`ROOM_CHANGE`/`EXTEND`/`SHORTEN`/`EARLY_DEPARTURE`/`CHECKOUT_OVERRIDE`), reason, actor_id, payload, at — **immuable** |

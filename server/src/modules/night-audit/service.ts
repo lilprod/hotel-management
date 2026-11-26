@@ -3,7 +3,7 @@ import { hasPermission } from '@hm/shared';
 import { AppError, notFound } from '../../lib/errors.js';
 import { assertPropertyAccess, conflict, formatDay, invalid, parseDay } from '../property/common.js';
 import { now, sendGuestNotice, type RCtx } from '../reservations/context.js';
-import { splitCustomFields } from '../reservations/repository.js';
+import { penaltyOf } from '../reservations/repository.js';
 import type { PenaltyDto } from '../reservations/schemas.js';
 import { markNoShow, requireProperty } from '../reservations/service.js';
 import { addDays, postNightsUpTo, postNoShowPenalty } from '../folio/service.js';
@@ -127,12 +127,23 @@ async function stepNoShows(st: RunState) {
     fault?.('no_shows', i++);
     const r = await ctx.db.reservation.findFirst({
       where: { id: d.reservationId, propertyId: st.propertyId },
-      select: { id: true, number: true, status: true, customFields: true },
+      select: {
+        id: true,
+        number: true,
+        status: true,
+        penaltyKind: true,
+        penaltyAmount: true,
+        penaltyComputedAmount: true,
+        penaltyCurrency: true,
+        penaltyWaived: true,
+        penaltyBusinessDate: true,
+        penaltyLines: true,
+      },
     });
     if (!r) continue;
     let penalty: PenaltyDto | null = null;
     if (r.status === 'CONFIRMED') penalty = (await markNoShow(ctx, r.id, d.waivePenalty ?? false)).penalty;
-    else if (r.status === 'NO_SHOW') penalty = splitCustomFields(r.customFields).sys.penalty ?? null;
+    else if (r.status === 'NO_SHOW') penalty = penaltyOf(r);
     else continue; // checked in (or cancelled) meanwhile: nothing to do
     noShows++;
     if (!penalty || penalty.waived) continue;

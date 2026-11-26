@@ -282,6 +282,7 @@ model Tenant {
   webhookDeliveries       WebhookDelivery[]
   dailyStatsProperties    DailyStatsProperty[]
   dailyStatsDepartments   DailyStatsDepartment[]
+  groupBlocks             GroupBlock[]
 
   @@map("tenants")
 }
@@ -1098,6 +1099,7 @@ model RoomType {
   reservationRooms ReservationRoom[]
   waitlistEntries  WaitlistEntry[]
   minibarTemplates MinibarTemplate[]
+  groupBlocks      GroupBlock[]
 
   @@unique([tenantId, propertyId, code])
   @@index([propertyId])
@@ -1365,41 +1367,53 @@ model Company {
 }
 
 model Reservation {
-  id                  String               @id @default(uuid(7)) @db.Uuid
-  tenantId            String               @map("tenant_id") @db.Uuid
-  tenant              Tenant               @relation(fields: [tenantId], references: [id])
-  propertyId          String               @map("property_id") @db.Uuid
-  property            Property             @relation(fields: [propertyId], references: [id])
-  bookerGuestId       String?              @map("booker_guest_id") @db.Uuid
-  bookerGuest         Guest?               @relation(fields: [bookerGuestId], references: [id])
-  companyId           String?              @map("company_id") @db.Uuid
-  company             Company?             @relation(fields: [companyId], references: [id])
-  groupId             String?              @map("group_id") @db.Uuid
-  group               Group?               @relation(fields: [groupId], references: [id])
-  number              String
-  status              ReservationStatus    @default(PENDING)
-  channel             ReservationChannel   @default(FRONT_DESK)
-  source              String?
-  segment             String?
-  arrival             DateTime             @db.Date
-  departure           DateTime             @db.Date
-  adults              Int                  @default(1)
-  children            Int                  @default(0)
-  notes               String?
-  pendingExpiresAt    DateTime?            @map("pending_expires_at") @db.Timestamptz(6)
-  optionExpiresAt     DateTime?            @map("option_expires_at") @db.Timestamptz(6)
-  confirmedAt         DateTime?            @map("confirmed_at") @db.Timestamptz(6)
-  cancelledAt         DateTime?            @map("cancelled_at") @db.Timestamptz(6)
-  cancelReason        String?              @map("cancel_reason")
-  customFields        Json                 @default("{}") @map("custom_fields")
-  createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt           DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
-  createdBy           String?              @map("created_by") @db.Uuid
-  reservationRooms    ReservationRoom[]
-  depositDeclarations DepositDeclaration[]
-  tableReservations   TableReservation[]
-  appointments        Appointment[]
-  activityBookings    ActivityBooking[]
+  id                    String               @id @default(uuid(7)) @db.Uuid
+  tenantId              String               @map("tenant_id") @db.Uuid
+  tenant                Tenant               @relation(fields: [tenantId], references: [id])
+  propertyId            String               @map("property_id") @db.Uuid
+  property              Property             @relation(fields: [propertyId], references: [id])
+  bookerGuestId         String?              @map("booker_guest_id") @db.Uuid
+  bookerGuest           Guest?               @relation(fields: [bookerGuestId], references: [id])
+  companyId             String?              @map("company_id") @db.Uuid
+  company               Company?             @relation(fields: [companyId], references: [id])
+  groupId               String?              @map("group_id") @db.Uuid
+  group                 Group?               @relation("GroupReservations", fields: [groupId], references: [id])
+  number                String
+  status                ReservationStatus    @default(PENDING)
+  channel               ReservationChannel   @default(FRONT_DESK)
+  source                String?
+  segment               String?
+  arrival               DateTime             @db.Date
+  departure             DateTime             @db.Date
+  adults                Int                  @default(1)
+  children              Int                  @default(0)
+  notes                 String?
+  pendingExpiresAt      DateTime?            @map("pending_expires_at") @db.Timestamptz(6)
+  optionExpiresAt       DateTime?            @map("option_expires_at") @db.Timestamptz(6)
+  confirmedAt           DateTime?            @map("confirmed_at") @db.Timestamptz(6)
+  cancelledAt           DateTime?            @map("cancelled_at") @db.Timestamptz(6)
+  cancelReason          String?              @map("cancel_reason")
+  /// Cancellation / no-show penalty (all NULL, or all set — CHECK reservations_penalty_check).
+  penaltyKind           PenaltyKind?         @map("penalty_kind")
+  /// Amount actually charged (0 when waived).
+  penaltyAmount         BigInt?              @map("penalty_amount")
+  penaltyComputedAmount BigInt?              @map("penalty_computed_amount")
+  penaltyCurrency       String?              @map("penalty_currency") @db.Char(3)
+  penaltyWaived         Boolean              @default(false) @map("penalty_waived")
+  penaltyBusinessDate   DateTime?            @map("penalty_business_date") @db.Date
+  /// Per room line: policy, tier, percent, amount (detail of the computation).
+  penaltyLines          Json?                @map("penalty_lines")
+  customFields          Json                 @default("{}") @map("custom_fields")
+  createdAt             DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy             String?              @map("created_by") @db.Uuid
+  allotmentOfGroup      Group?               @relation("GroupAllotment")
+  waitlistEntry         WaitlistEntry?
+  reservationRooms      ReservationRoom[]
+  depositDeclarations   DepositDeclaration[]
+  tableReservations     TableReservation[]
+  appointments          Appointment[]
+  activityBookings      ActivityBooking[]
 
   @@unique([tenantId, propertyId, number])
   @@index([tenantId, bookerGuestId])
@@ -1486,6 +1500,9 @@ model WaitlistEntry {
   offerExpiresAt DateTime?      @map("offer_expires_at") @db.Timestamptz(6)
   priority       Int            @default(0)
   notes          String?
+  /// Reservation created when the offer was accepted.
+  reservationId  String?        @unique @map("reservation_id") @db.Uuid
+  reservation    Reservation?   @relation(fields: [reservationId], references: [id], onDelete: SetNull)
   createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -1515,25 +1532,50 @@ model ReservationGuest {
 }
 
 model Group {
-  id            String        @id @default(uuid(7)) @db.Uuid
-  tenantId      String        @map("tenant_id") @db.Uuid
-  tenant        Tenant        @relation(fields: [tenantId], references: [id])
-  propertyId    String        @map("property_id") @db.Uuid
-  property      Property      @relation(fields: [propertyId], references: [id])
-  companyId     String?       @map("company_id") @db.Uuid
-  company       Company?      @relation(fields: [companyId], references: [id])
-  masterFolioId String?       @unique @map("master_folio_id") @db.Uuid
-  masterFolio   Folio?        @relation("GroupMasterFolio", fields: [masterFolioId], references: [id])
-  name          String
-  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
-  reservations  Reservation[]
-  folios        Folio[]       @relation("FolioGroup")
+  id                     String        @id @default(uuid(7)) @db.Uuid
+  tenantId               String        @map("tenant_id") @db.Uuid
+  tenant                 Tenant        @relation(fields: [tenantId], references: [id])
+  propertyId             String        @map("property_id") @db.Uuid
+  property               Property      @relation(fields: [propertyId], references: [id])
+  companyId              String?       @map("company_id") @db.Uuid
+  company                Company?      @relation(fields: [companyId], references: [id])
+  masterFolioId          String?       @unique @map("master_folio_id") @db.Uuid
+  masterFolio            Folio?        @relation("GroupMasterFolio", fields: [masterFolioId], references: [id])
+  name                   String
+  /// Allotment holder: reservation without booker whose unassigned lines hold the block.
+  allotmentReservationId String?       @unique @map("allotment_reservation_id") @db.Uuid
+  allotmentReservation   Reservation?  @relation("GroupAllotment", fields: [allotmentReservationId], references: [id], onDelete: SetNull)
+  /// Held rooms not picked up by then go back to the inventory.
+  releaseDate            DateTime?     @map("release_date") @db.Date
+  createdAt              DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  reservations           Reservation[] @relation("GroupReservations")
+  folios                 Folio[]       @relation("FolioGroup")
+  blocks                 GroupBlock[]
 
   @@index([tenantId])
   @@index([propertyId])
   @@index([companyId])
+  @@index([releaseDate])
   @@map("groups")
+}
+
+/// Contracted block of a group per room type (the held lines live on the allotment reservation).
+model GroupBlock {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  groupId    String   @map("group_id") @db.Uuid
+  group      Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  roomTypeId String   @map("room_type_id") @db.Uuid
+  roomType   RoomType @relation(fields: [roomTypeId], references: [id])
+  rooms      Int
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([groupId, roomTypeId])
+  @@index([tenantId])
+  @@index([roomTypeId])
+  @@map("group_blocks")
 }
 
 model Stay {
@@ -4012,6 +4054,13 @@ enum StayEventType {
   CHECKOUT_OVERRIDE
 
   @@map("stay_event_type")
+}
+
+enum PenaltyKind {
+  CANCELLATION
+  NO_SHOW
+
+  @@map("penalty_kind")
 }
 
 enum FolioStatus {

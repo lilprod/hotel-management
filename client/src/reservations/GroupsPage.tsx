@@ -317,6 +317,7 @@ function GroupDrawer({ id, onClose }: { id: string | null; onClose: () => void }
                   key: 'type',
                   render: (_: unknown, b) => typeName(b.roomTypeId),
                 },
+                { title: t('groups.contracted'), dataIndex: 'rooms' },
                 { title: t('groups.held'), dataIndex: 'held' },
                 { title: t('groups.pickedUp'), dataIndex: 'pickedUp' },
                 {

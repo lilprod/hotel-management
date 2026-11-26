@@ -227,7 +227,7 @@ export interface Group {
   releaseDate: string | null;
   arrival: string | null;
   departure: string | null;
-  block: { roomTypeId: string; held: number; pickedUp: number }[];
+  block: { roomTypeId: string; rooms: number; held: number; pickedUp: number }[];
   roomingList: {
     reservationId: string;
     reservationRoomId: string;

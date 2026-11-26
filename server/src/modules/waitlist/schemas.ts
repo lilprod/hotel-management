@@ -63,6 +63,8 @@ export const entrySchema = z.object({
   offeredAt: z.string().nullable(),
   offerExpiresAt: z.string().nullable(),
   notes: z.string().nullable(),
+  /** Reservation created when the offer was accepted. */
+  reservationId: uuid.nullable(),
   createdAt: z.string(),
 });
 export type EntryDto = z.infer<typeof entrySchema>;

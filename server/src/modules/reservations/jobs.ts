@@ -1,11 +1,10 @@
 import type { Services } from '../../core/container.js';
 import { defineJob } from '../../jobs/context.js';
-import { addDays, formatDay, localDay } from '../availability/dates.js';
+import { addDays, localDay } from '../availability/dates.js';
 import { matchWaitlist } from '../waitlist/service.js';
 import { RESERVATIONS_QUEUE } from '../waitlist/jobs.js';
 import { now, runSystem, sendGuestNotice } from './context.js';
 import { releaseAllotment } from './groups.js';
-import { splitCustomFields } from './repository.js';
 import { expireOption, settingAt } from './service.js';
 import { reservationSettings } from './settings.js';
 
@@ -52,23 +51,22 @@ export async function runPendingExpiry(
       services.logger.error('option expiry failed', { err, reservationId: r.id });
     }
 
-  const holders = await services.admin.reservation.findMany({
+  const groups = await services.admin.group.findMany({
     where: {
-      groupId: { not: null },
-      bookerGuestId: null,
-      status: { in: ['PENDING', 'CONFIRMED'] },
+      releaseDate: { not: null },
+      allotmentReservation: { status: { in: ['PENDING', 'CONFIRMED'] } },
     },
     select: {
-      id: true,
+      allotmentReservationId: true,
       tenantId: true,
-      customFields: true,
+      releaseDate: true,
       property: { select: { businessDate: true } },
     },
     take: 500,
   });
-  for (const h of holders) {
-    const release = splitCustomFields(h.customFields).sys.allotment?.releaseDate;
-    if (!release || release > formatDay(h.property.businessDate)) continue;
+  for (const g of groups) {
+    const h = { id: g.allotmentReservationId!, tenantId: g.tenantId };
+    if (!g.releaseDate || g.releaseDate > g.property.businessDate) continue;
     try {
       if (
         await runSystem(services, h.tenantId, (ctx) =>

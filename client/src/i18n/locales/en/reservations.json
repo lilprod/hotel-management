@@ -316,6 +316,7 @@
     "addBlock": "Add a type",
     "removeBlock": "Remove line",
     "held": "Held",
+    "contracted": "Contracted",
     "pickedUp": "Picked up",
     "release": "Release",
     "released": "Rooms released.",

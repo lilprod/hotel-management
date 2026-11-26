@@ -39,14 +39,12 @@ import {
   type ReservationStatusName,
 } from './lifecycle.js';
 import {
-  joinCustomFields,
   loadReservation,
+  penaltyData,
   reservationInclude,
-  splitCustomFields,
   toReservation,
   type ReservationRoomRow,
   type ReservationRow,
-  type SysData,
 } from './repository.js';
 import type {
   CreateReservationInput,
@@ -305,7 +303,8 @@ async function auditReservation(
 
 export interface CreateOptions {
   groupId?: string;
-  sys?: SysData;
+  /** Runs in the creation transaction once the reservation exists (allotment link, waitlist). */
+  afterWrite?: (tx: Tx, reservationId: string) => Promise<void>;
   /** Reservation rooms deleted in the same transaction before the check (group pick-up). */
   releaseLineIds?: readonly string[];
   /** Reuse the caller's transaction (group pick-up of a rooming list). */
@@ -493,7 +492,7 @@ async function writeCreate(
       pendingExpiresAt: plan.pendingExpiresAt,
       optionExpiresAt: plan.pendingExpiresAt,
       confirmedAt: status === 'CONFIRMED' ? at : null,
-      customFields: joinCustomFields(plan.customFields, opts.sys ?? {}),
+      customFields: plan.customFields as Prisma.InputJsonValue,
       createdBy: ctx.actorId,
     },
   });
@@ -534,6 +533,7 @@ async function writeCreate(
     number,
     status,
   });
+  if (opts.afterWrite) await opts.afterWrite(tx, r.id);
   return { id: r.id, lineIds: created.map((c) => c.id) };
 }
 
@@ -700,7 +700,7 @@ export async function listReservations(ctx: RCtx, q: ListQuery) {
     });
   }
   // Allotment holders (group blocks) are the only dossiers without a booker.
-  if (!q.includeAllotments) and.push({ NOT: { groupId: { not: null }, bookerGuestId: null } });
+  if (!q.includeAllotments) and.push({ allotmentOfGroup: { is: null } });
   const rows = await ctx.db.reservation.findMany({
     where: { AND: and },
     include: reservationInclude,
@@ -735,7 +735,6 @@ export interface RebookOptions {
   action: string;
   requote?: boolean;
   header?: Prisma.ReservationUncheckedUpdateInput;
-  sys?: SysData;
   /** Only the departure may change (CHECKED_IN extension / early departure). */
   departureOnly?: boolean;
   /** Computes prices and checks availability, then stops (nothing written): see MovePreviewSignal. */
@@ -854,7 +853,7 @@ export async function rebook(
     }
     changed.push(spec);
   });
-  if (!changed.length && !removed.length && !opts.header && !opts.sys) return before;
+  if (!changed.length && !removed.length && !opts.header) return before;
 
   await assertGuests(
     ctx.db as never,
@@ -1004,13 +1003,6 @@ export async function rebook(
       ...(afterLines.length ? headerOf(afterLines) : {}),
       ...opts.header,
     };
-    if (opts.sys) {
-      const { user, sys } = splitCustomFields(cur.customFields);
-      header.customFields = joinCustomFields(
-        (header.customFields as Record<string, unknown> | undefined) ?? user,
-        { ...sys, ...opts.sys },
-      );
-    }
     await tx.reservation.update({ where: { id: reservationId }, data: header });
     const span = spanOf([
       ...oldTouched,
@@ -1077,9 +1069,8 @@ export async function updateReservation(ctx: RCtx, id: string, input: UpdateRese
     header.optionExpiresAt = at;
   }
   if (input.customFields !== undefined) {
-    const { user } = splitCustomFields(cur.customFields);
     const merged = await validateCustomFields(ctx.db, 'reservation', {
-      ...user,
+      ...(cur.customFields as Record<string, unknown>),
       ...input.customFields,
     });
     header.customFields = merged as Prisma.InputJsonValue;
@@ -1092,10 +1083,6 @@ export async function updateReservation(ctx: RCtx, id: string, input: UpdateRese
     cur.status !== 'CHECKED_IN'
   )
     throw conflict(`A ${cur.status} reservation cannot be modified`, { reason: 'NOT_EDITABLE' });
-  if (header.customFields) {
-    const { sys } = splitCustomFields(cur.customFields);
-    header.customFields = joinCustomFields(header.customFields as Record<string, unknown>, sys);
-  }
   if (headerOnly) {
     const before = toReservation(cur);
     await ctx.db.reservation.update({ where: { id }, data: header });
@@ -1379,12 +1366,7 @@ async function closeReservation(
         status: to,
         ...(to === 'CANCELLED' ? { cancelledAt: now(), cancelReason: opts.reason } : {}),
         pendingExpiresAt: null,
-        ...(opts.penalty
-          ? (() => {
-              const { user, sys } = splitCustomFields(cur.customFields);
-              return { customFields: joinCustomFields(user, { ...sys, penalty: opts.penalty }) };
-            })()
-          : {}),
+        ...(opts.penalty ? penaltyData(opts.penalty) : {}),
       },
     });
     if (n.count !== 1) throw conflict('The reservation changed meanwhile, retry');

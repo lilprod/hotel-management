@@ -430,6 +430,15 @@ describe('reservation lifecycle', () => {
     const got = await asA('get', `/reservations/${id}`);
     expect(got.body.penalty.amount).toBe(30_000);
     expect(got.body.customFields).toEqual({});
+    // Stored in the penalty_* columns, the custom fields stay clean.
+    const stored = await env.services.admin.reservation.findUnique({ where: { id } });
+    expect(stored).toMatchObject({
+      penaltyKind: 'CANCELLATION',
+      penaltyAmount: 30_000n,
+      penaltyCurrency: 'XOF',
+      penaltyWaived: false,
+      customFields: {},
+    });
     expect(
       await env.services.admin.unitNight.count({
         where: { reservationRoom: { reservationId: id } },
@@ -648,6 +657,7 @@ describe('waitlist', () => {
     const acc = await asA('post', `/waitlist/${e2.body.id}/accept`).send({ ratePlanId: S.bar });
     expect(acc.status, JSON.stringify(acc.body)).toBe(201);
     expect(acc.body.entry.status).toBe('ACCEPTED');
+    expect(acc.body.entry.reservationId).toBe(acc.body.reservation.id);
     expect(acc.body.reservation).toMatchObject({ status: 'CONFIRMED', arrival: '2027-03-01' });
     const twice = await asA('post', `/waitlist/${e2.body.id}/accept`).send({ ratePlanId: S.bar });
     expect(twice.status).toBe(409);
@@ -666,7 +676,16 @@ describe('groups', () => {
       blocks: [{ roomTypeId: S.std, count: 2 }],
     });
     expect(g.status, JSON.stringify(g.body)).toBe(201);
-    expect(g.body.block).toEqual([{ roomTypeId: S.std, held: 2, pickedUp: 0 }]);
+    expect(g.body.block).toEqual([{ roomTypeId: S.std, rooms: 2, held: 2, pickedUp: 0 }]);
+    // Real columns: allotment link, release date and contracted block (no `_sys` JSON).
+    const row = await env.services.admin.group.findUnique({
+      where: { id: g.body.id },
+      include: { blocks: true, allotmentReservation: { select: { customFields: true } } },
+    });
+    expect(row?.allotmentReservationId).toBe(g.body.allotmentReservationId);
+    expect(row?.releaseDate?.toISOString().slice(0, 10)).toBe('2027-03-25');
+    expect(row?.blocks.map((b) => [b.roomTypeId, b.rooms])).toEqual([[S.std, 2]]);
+    expect(row?.allotmentReservation?.customFields).toEqual({});
     expect((await free('2027-04-01', '2027-04-03', S.std)).minFree).toBe(1);
 
     const p = await asA('post', `/groups/${g.body.id}/pick-up`).send({
@@ -675,7 +694,7 @@ describe('groups', () => {
       ],
     });
     expect(p.status, JSON.stringify(p.body)).toBe(201);
-    expect(p.body.group.block).toEqual([{ roomTypeId: S.std, held: 1, pickedUp: 1 }]);
+    expect(p.body.group.block).toEqual([{ roomTypeId: S.std, rooms: 2, held: 1, pickedUp: 1 }]);
     expect(p.body.group.roomingList[0]).toMatchObject({
       guestName: 'Kossi Member',
       status: 'CONFIRMED',
@@ -714,7 +733,7 @@ describe('groups', () => {
     }
     expect((await free('2027-04-01', '2027-04-03', S.std)).minFree).toBe(2);
     const after = await asA('get', `/groups/${g.body.id}`);
-    expect(after.body.block).toEqual([{ roomTypeId: S.std, held: 0, pickedUp: 1 }]);
+    expect(after.body.block).toEqual([{ roomTypeId: S.std, rooms: 2, held: 0, pickedUp: 1 }]);
   });
 
   it('requires the groups feature', async () => {
