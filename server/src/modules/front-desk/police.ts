@@ -6,7 +6,7 @@ import { notificationDeps } from '../notifications/deps.js';
 import { renderPdf } from '../notifications/jobs.js';
 import { sellerParty } from '../folio/parties.js';
 import { asTx } from '../folio/repository.js';
-import { formatDay, must, toPage } from '../property/common.js';
+import { formatDay, must, parseDay, toPage } from '../property/common.js';
 import type { RCtx } from '../reservations/context.js';
 import { requireProperty } from '../reservations/service.js';
 import { hasPerm, loadReservationRoom } from './common.js';
@@ -47,9 +47,9 @@ function toDto(ctx: RCtx, r: Row, unmasked: boolean): PoliceRecordDto {
     idDocNumber: readIdNumber(ctx, s.idDocNumberEnc ?? null, unmasked),
     idIssuedOn: s.idIssuedOn ?? null,
     idIssuedPlace: unmasked ? (s.idIssuedPlace ?? null) : null,
-    provenance: s.provenance ?? null,
-    destination: s.destination ?? null,
-    purpose: s.purpose ?? null,
+    provenance: r.provenance,
+    destination: r.destination,
+    purpose: r.purpose,
     arrival: s.arrival,
     departure: s.departure,
     roomNumber: s.roomNumber ?? null,
@@ -61,20 +61,15 @@ function toDto(ctx: RCtx, r: Row, unmasked: boolean): PoliceRecordDto {
 }
 
 /**
- * Records of a period: by the business date of the check-in (`snapshot.businessDate`), which is
- * the arrival date of the register, not the wall-clock time of the desk operation.
+ * Records of a period: by the business date of the check-in (`business_date`), which is the
+ * arrival date of the register, not the wall-clock time of the desk operation.
  */
-async function whereOf(
-  ctx: RCtx,
+function whereOf(
   q: Pick<z.infer<typeof policeListQuery>, 'propertyId' | 'from' | 'to' | 'search'>,
-): Promise<Prisma.PoliceRecordWhereInput> {
-  const ids = await ctx.db.$queryRaw<{ id: string }[]>`
-    SELECT pr.id::text AS id FROM police_records pr
-    JOIN stays s ON s.id = pr.stay_id
-    WHERE s.property_id = ${q.propertyId}::uuid
-      AND pr.snapshot->>'businessDate' BETWEEN ${q.from} AND ${q.to}`;
+): Prisma.PoliceRecordWhereInput {
   return {
-    id: { in: ids.map((r) => r.id) },
+    propertyId: q.propertyId,
+    businessDate: { gte: parseDay(q.from), lte: parseDay(q.to) },
     ...(q.search
       ? {
           guest: {
@@ -93,7 +88,7 @@ export async function listPolice(ctx: RCtx, q: z.infer<typeof policeListQuery>) 
   await requireProperty(ctx, q.propertyId);
   const unmasked = canSeeSensitive(ctx);
   const rows = await ctx.db.policeRecord.findMany({
-    where: await whereOf(ctx, q),
+    where: whereOf(q),
     include: recordInclude,
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: q.limit + 1,
@@ -148,7 +143,7 @@ export async function exportPolice(
   const prop = await requireProperty(ctx, q.propertyId);
   const unmasked = canSeeSensitive(ctx);
   const rows = await ctx.db.policeRecord.findMany({
-    where: await whereOf(ctx, q),
+    where: whereOf(q),
     include: recordInclude,
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     take: MAX_EXPORT,

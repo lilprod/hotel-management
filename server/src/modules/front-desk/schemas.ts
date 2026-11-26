@@ -102,8 +102,11 @@ export const roomChangeBody = z.object({
   changeRoomType: z.boolean().default(false),
   overrideDirty: z.boolean().default(false),
 });
-export const departureBody = z.object({ departure: dayString });
-export const earlyDepartureBody = z.object({ departure: dayString.optional() });
+export const departureBody = z.object({ departure: dayString, reason: text(300).optional() });
+export const earlyDepartureBody = z.object({
+  departure: dayString.optional(),
+  reason: text(300).optional(),
+});
 
 const invoiceCustomer = z.discriminatedUnion('type', [
   z.object({ type: z.literal('guest'), guestId: uuid }),

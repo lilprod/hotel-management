@@ -371,3 +371,41 @@ describe('SCH-1 group 4 — lodging', () => {
     ).rejects.toThrow(/rates_stay_check/);
   });
 });
+
+describe('SCH-1 group 5 — front desk', () => {
+  it('fills police_records.property_id, business_date and the structured fields', async () => {
+    expect(
+      await q(
+        `SELECT concat_ws('|', property_id, business_date, provenance, destination, purpose, snapshot->>'provenance')
+           FROM police_records WHERE id = '${POLICE}'`,
+      ),
+    ).toBe(`${PROP}|2026-11-01|Accra|Kara|Affaires|Accra`);
+  });
+
+  it('moves the stay reasons from the audit trail into stay_events', async () => {
+    const rows = await q(
+      `SELECT concat_ws('|', type, coalesce(reason, '-'), coalesce(actor_id::text, '-'), at, payload->'after'->>'roomNumber')
+         FROM stay_events WHERE stay_id = '${STAY}' ORDER BY at`,
+    );
+    expect(rows.split('\n')).toEqual([
+      `ROOM_CHANGE|Clim en panne|${U_STAFF}|2026-11-02 09:00:00+00|104`,
+      `EXTEND|-|${U_STAFF}|2026-11-02 10:00:00+00`,
+      'CHECKOUT_OVERRIDE|Accord du directeur|-|2026-11-04 11:00:00+00',
+    ]);
+    // Audit rows of unknown stays and other actions are not copied.
+    expect(await q(`SELECT count(*) FROM stay_events`)).toBe('3');
+  });
+
+  it('stay_events are append-only, police records immutable (signature set once)', async () => {
+    await expect(q(`UPDATE stay_events SET reason = 'x'`)).rejects.toThrow(/append-only/);
+    await expect(q(`DELETE FROM stay_events`)).rejects.toThrow(/append-only/);
+    await expect(
+      q(`UPDATE police_records SET purpose = 'Tourisme' WHERE id = '${POLICE}'`),
+    ).rejects.toThrow(/may only add the signature/);
+    await q(`UPDATE police_records SET signature_file_id = '${FILE_OLD}' WHERE id = '${POLICE}'`);
+    await expect(
+      q(`UPDATE police_records SET signature_file_id = '${FILE_NEW}' WHERE id = '${POLICE}'`),
+    ).rejects.toThrow(/may only add the signature/);
+    await expect(q(`DELETE FROM police_records`)).rejects.toThrow(/immutable/);
+  });
+});

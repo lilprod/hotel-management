@@ -308,6 +308,12 @@ describe('check-in', () => {
     expect(snap).toMatchObject({ lastName: expect.any(String), provenance: 'Accra', destination: 'Cotonou', purpose: 'Affaires' });
     expect(JSON.stringify(snap)).not.toContain('PASS-998877');
     expect(typeof snap.idDocNumberEnc).toBe('string');
+    // Structured columns next to the legal snapshot.
+    expect(rec).toMatchObject({ propertyId: A.propertyId, provenance: 'Accra', destination: 'Cotonou', purpose: 'Affaires' });
+    expect(rec.businessDate.toISOString().slice(0, 10)).toBe(snap.businessDate);
+    // The register is immutable: no rewrite, no deletion.
+    await expect(admin.policeRecord.update({ where: { id: rec.id }, data: { purpose: 'Tourisme' } })).rejects.toThrow(/may only add the signature/);
+    await expect(admin.policeRecord.delete({ where: { id: rec.id } })).rejects.toThrow(/immutable/);
     const guest = await admin.guest.findFirstOrThrow({ where: { id: b.guestId } });
     expect(guest.idDocNumberEnc).toBeTruthy();
     expect(guest.idDocNumberEnc).not.toContain('PASS-998877');
@@ -570,6 +576,11 @@ describe('in-stay operations', () => {
     expect(await admin.roomStatusHistory.count({ where: { roomId: s.roomId, toStatus: 'DIRTY' } })).toBe(1);
     const audit = await auditOf('front_desk.room_change', s.stayId);
     expect(audit[0]!.after).toMatchObject({ reason: 'Climatisation en panne', movedNights: 3 });
+    const ev = await admin.stayEvent.findMany({ where: { stayId: s.stayId } });
+    expect(ev).toHaveLength(1);
+    expect(ev[0]).toMatchObject({ type: 'ROOM_CHANGE', reason: 'Climatisation en panne', actorId: A.userId });
+    expect(ev[0]!.payload).toMatchObject({ fromRoomId: s.roomId, toRoomId: target.id, movedNights: 3 });
+    await expect(admin.stayEvent.update({ where: { id: ev[0]!.id }, data: { reason: 'x' } })).rejects.toThrow(/append-only/);
 
     // Target occupied → 409; dirty target → refused without override; same room → 422.
     const other = await checkedIn({ departure: addDay(BD, 2) });
@@ -585,7 +596,7 @@ describe('in-stay operations', () => {
 
   it('extends (re-quoted, availability checked), shortens and handles an early departure', async () => {
     const s = await checkedIn({ departure: addDay(BD, 2) });
-    const ext = await api('post', `/front-desk/stays/${s.stayId}/extend`, tokA).send({ departure: addDay(BD, 4) });
+    const ext = await api('post', `/front-desk/stays/${s.stayId}/extend`, tokA).send({ departure: addDay(BD, 4), reason: 'Réunion prolongée' });
     expect(ext.status, JSON.stringify(ext.body)).toBe(200);
     const rr = ext.body.reservation.rooms[0];
     expect(rr.departure).toBe(addDay(BD, 4));
@@ -603,6 +614,13 @@ describe('in-stay operations', () => {
     expect(early.status, JSON.stringify(early.body)).toBe(200);
     expect(early.body.reservation.rooms[0].departure).toBe(addDay(BD, 1));
     await auditOf('front_desk.early_departure', s.stayId);
+    const drawer = await api('get', `/front-desk/stays/${s.stayId}`, tokA);
+    expect(drawer.body.events.map((e: { type: string; reason: string | null }) => [e.type, e.reason])).toEqual([
+      ['EXTEND', 'Réunion prolongée'],
+      ['SHORTEN', null],
+      ['EARLY_DEPARTURE', null],
+    ]);
+    expect(drawer.body.events[0].payload).toEqual({ before: { departure: addDay(BD, 2) }, after: { departure: addDay(BD, 4) } });
 
     // Extending into a night another reservation holds on the same unit is refused.
     const blocker = await book({ roomId: s.roomId, arrival: addDay(BD, 1), departure: addDay(BD, 3) });
@@ -719,6 +737,9 @@ describe('check-out', () => {
     expect(ok.body.overridden).toContain('UNPAID_BALANCE');
     const audit = await auditOf('front_desk.check_out.override', s.stayId);
     expect(audit[0]!.after).toMatchObject({ overrideReason: 'Accord du directeur' });
+    const ev = await env.services.admin.stayEvent.findFirstOrThrow({ where: { stayId: s.stayId, type: 'CHECKOUT_OVERRIDE' } });
+    expect(ev.reason).toBe('Accord du directeur');
+    expect((ev.payload as { blockers: string[] }).blockers).toContain('UNPAID_BALANCE');
   });
 
   it('an early check-out must be confirmed and releases the remaining nights', async () => {
@@ -851,6 +872,16 @@ describe('police register', () => {
 
     const none = await api('get', `/front-desk/police-records?propertyId=${A.propertyId}&from=2020-01-01&to=2020-01-02`, tokDesk);
     expect(none.body.items).toEqual([]);
+    // Filtered on police_records.property_id: a record of another property never shows up.
+    const other = await env.services.admin.property.create({
+      data: { tenantId: A.tenantId, name: 'Annexe registre', country: 'TG', timezone: 'Africa/Lome', businessDate: new Date(BD) },
+    });
+    const rec = await env.services.admin.policeRecord.findFirstOrThrow({ where: { stayId: s.stayId } });
+    await env.services.admin.policeRecord.create({
+      data: { tenantId: A.tenantId, propertyId: other.id, stayId: s.stayId, guestId: rec.guestId, businessDate: new Date(BD), snapshot: rec.snapshot as object },
+    });
+    const scoped = await api('get', `/front-desk/police-records?${q}`, tokExport);
+    expect(scoped.body.items.filter((i: { stayId: string }) => i.stayId === s.stayId)).toHaveLength(1);
   });
 });
 

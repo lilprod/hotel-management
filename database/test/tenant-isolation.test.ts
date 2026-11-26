@@ -178,4 +178,32 @@ describe('SCH-1 tenant tables are isolated', () => {
       expect((await app.mfaBackupCode.updateMany({ data: { usedAt: new Date() } })).count).toBe(0);
     });
   });
+
+  it('stay_events: own rows only, append-only for hm_app too', async () => {
+    const stayOf = (t: TenantFixture) =>
+      admin.stay.create({
+        data: {
+          tenantId: t.tenantId,
+          propertyId: t.propertyId,
+          reservationRoomId: t.reservationRoom.id,
+          checkedInAt: new Date(),
+        },
+      });
+    const [sa, sb] = [await stayOf(A), await stayOf(B)];
+    await admin.stayEvent.create({
+      data: { tenantId: B.tenantId, stayId: sb.id, type: 'EXTEND', reason: 'B' },
+    });
+    await runWithTenant(A.tenantId, async () => {
+      const ev = await app.stayEvent.create({
+        data: { tenantId: A.tenantId, stayId: sa.id, type: 'ROOM_CHANGE', reason: 'A' },
+      });
+      expect((await app.stayEvent.findMany()).map((e) => e.reason)).toEqual(['A']);
+      await expect(
+        app.stayEvent.create({ data: { tenantId: B.tenantId, stayId: sb.id, type: 'SHORTEN' } }),
+      ).rejects.toThrow();
+      await expect(
+        app.stayEvent.update({ where: { id: ev.id }, data: { reason: 'x' } }),
+      ).rejects.toThrow();
+    });
+  });
 });

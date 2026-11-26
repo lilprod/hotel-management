@@ -3,7 +3,7 @@ import { AppError } from '../../lib/errors.js';
 import { nightsOf } from '../availability/dates.js';
 import { loadInventory, unitStatus } from '../availability/index.js';
 import { ensureRoomFolio, recordPayment } from '../folio/index.js';
-import { conflict, formatDay, invalid, must } from '../property/common.js';
+import { conflict, formatDay, invalid, must, parseDay } from '../property/common.js';
 import { publishPlanningChanged } from '../reservations/events.js';
 import { guardTransition, type ReservationStatusName } from '../reservations/lifecycle.js';
 import type { RCtx } from '../reservations/context.js';
@@ -149,8 +149,13 @@ async function checkInTx(ctx: RCtx, tx: Tx, rrId: string, input: CheckInInput): 
     const rec = await tx.policeRecord.create({
       data: {
         tenantId: ctx.tenantId,
+        propertyId: rr.propertyId,
         stayId: stay.id,
         guestId: guest.id,
+        businessDate: parseDay(prop.businessDate),
+        provenance: snapshot.provenance,
+        destination: snapshot.destination,
+        purpose: snapshot.purpose,
         snapshot: snapshot as unknown as Prisma.InputJsonValue,
         signatureFileId: i === 0 ? (input.signatureFileId ?? null) : null,
       },

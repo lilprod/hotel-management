@@ -465,7 +465,11 @@ export function planHousekeeping(
     if (!l.roomId || RELEASED_STATUSES.has(l.status)) continue;
     if (l.status === 'CHECKED_IN' && l.arrival <= referenceDate && referenceDate < l.departure)
       inHouse.set(l.roomId, l);
-    if (l.status !== 'CHECKED_OUT' && l.arrival <= addDays(referenceDate, 1) && l.departure > referenceDate)
+    if (
+      l.status !== 'CHECKED_OUT' &&
+      l.arrival <= addDays(referenceDate, 1) &&
+      l.departure > referenceDate
+    )
       arrivingSoon.add(l.roomId);
     if (l.status !== 'CHECKED_OUT' && l.arrival < windowTo && l.departure > windowFrom)
       busy.add(l.roomId);
@@ -481,7 +485,8 @@ export function planHousekeeping(
     let status: HkStatus;
     const line = inHouse.get(room.id);
     if (ooo.has(room.id)) status = 'OUT_OF_ORDER';
-    else if (line) status = line.arrival === referenceDate || stayover++ % 2 === 1 ? 'CLEAN' : 'DIRTY';
+    else if (line)
+      status = line.arrival === referenceDate || stayover++ % 2 === 1 ? 'CLEAN' : 'DIRTY';
     else if (arrivingSoon.has(room.id)) status = vacant++ % 2 === 0 ? 'INSPECTED' : 'CLEAN';
     else {
       const k = vacant++;
@@ -708,7 +713,9 @@ async function seedInHouseStays(admin: AdminClient, plan: TenantPlan, referenceD
   });
   const byId = new Map(guests.map((g) => [g.id, g]));
   for (const { r, l } of lines) {
-    const checkedInAt = new Date(`${l.arrival <= referenceDate ? l.arrival : referenceDate}T14:00:00Z`);
+    const checkedInAt = new Date(
+      `${l.arrival <= referenceDate ? l.arrival : referenceDate}T14:00:00Z`,
+    );
     await admin.stay.createMany({
       data: [
         {
@@ -731,8 +738,10 @@ async function seedInHouseStays(admin: AdminClient, plan: TenantPlan, referenceD
         {
           id: seedId(`police:${l.id}:${guestId}`),
           tenantId: plan.tenantId,
+          propertyId: plan.propertyId,
           stayId: stay.id,
           guestId,
+          businessDate: new Date(`${l.arrival}T00:00:00Z`),
           snapshot: {
             version: 1,
             firstName: g.firstName,

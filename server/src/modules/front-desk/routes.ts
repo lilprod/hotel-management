@@ -166,7 +166,7 @@ export const frontDeskRouter = createModuleRouter()
     request: { params: idParams, body: departureBody },
     responses: { 200: { description: 'Extended', schema: loose } },
     handler: (req) =>
-      withRCtx(req, (ctx) => extendStay(ctx, req.valid.params.id, req.valid.body.departure)),
+      withRCtx(req, (ctx) => extendStay(ctx, req.valid.params.id, req.valid.body.departure, req.valid.body.reason)),
   })
   .route({
     method: 'post',
@@ -177,7 +177,7 @@ export const frontDeskRouter = createModuleRouter()
     request: { params: idParams, body: departureBody },
     responses: { 200: { description: 'Shortened', schema: loose } },
     handler: (req) =>
-      withRCtx(req, (ctx) => shortenStay(ctx, req.valid.params.id, req.valid.body.departure)),
+      withRCtx(req, (ctx) => shortenStay(ctx, req.valid.params.id, req.valid.body.departure, req.valid.body.reason)),
   })
   .route({
     method: 'post',
@@ -188,7 +188,7 @@ export const frontDeskRouter = createModuleRouter()
     request: { params: idParams, body: earlyDepartureBody },
     responses: { 200: { description: 'Shortened', schema: loose } },
     handler: (req) =>
-      withRCtx(req, (ctx) => earlyDeparture(ctx, req.valid.params.id, req.valid.body.departure)),
+      withRCtx(req, (ctx) => earlyDeparture(ctx, req.valid.params.id, req.valid.body.departure, req.valid.body.reason)),
   })
   .route({
     method: 'post',

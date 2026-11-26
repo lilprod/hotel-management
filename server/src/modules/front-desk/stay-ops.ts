@@ -18,7 +18,7 @@ import { FRONT_DESK_EVENTS, publishStayEvent } from './events.js';
 /**
  * Room change during the stay (OP-22): the nights from the business date on move to another unit
  * (nights already spent stay on the previous unit), the old room becomes DIRTY, the reason is
- * audited. The new room must be ready (or `front_desk.override_dirty`) and free for the nights.
+ * kept in `stay_events` (and audited). The new room must be ready (or `front_desk.override_dirty`) and free for the nights.
  */
 export async function changeRoom(
   ctx: RCtx,
@@ -97,6 +97,24 @@ export async function changeRoom(
         to: departure,
         cause: 'room_change',
       });
+    await tx.stayEvent.create({
+      data: {
+        tenantId: ctx.tenantId,
+        stayId,
+        type: 'ROOM_CHANGE',
+        reason: input.reason,
+        actorId: ctx.actorId,
+        payload: {
+          fromRoomId: oldRoom.id,
+          fromRoomNumber: oldRoom.number,
+          toRoomId: target.id,
+          toRoomNumber: target.number,
+          from,
+          movedNights: nights.length,
+          overrideDirty: overrideUsed,
+        },
+      },
+    });
     await publishStayEvent(tx, FRONT_DESK_EVENTS.roomChanged, {
       propertyId: prop.id,
       stayId,
@@ -124,7 +142,16 @@ export async function changeRoom(
   return { stayId, reservationRoomId: rr.id, from: oldRoom.number, to: target.number, movedNights: moved, effectiveFrom: from };
 }
 
-async function applyDeparture(ctx: RCtx, id: string, departure: string, mode: 'extend' | 'shorten', action: string) {
+const DEPARTURE_EVENT = { extend: 'EXTEND', shorten: 'SHORTEN', early_departure: 'EARLY_DEPARTURE' } as const;
+
+async function applyDeparture(
+  ctx: RCtx,
+  id: string,
+  departure: string,
+  mode: 'extend' | 'shorten',
+  action: keyof typeof DEPARTURE_EVENT,
+  reason?: string,
+) {
   const { rr, stayId } = await resolveStay(ctx, id);
   if (rr.status !== 'CHECKED_IN')
     throw conflict('Only an in-house stay can be extended or shortened here', {
@@ -143,38 +170,49 @@ async function applyDeparture(ctx: RCtx, id: string, departure: string, mode: 'e
     action,
     departureOnly: true,
   });
+  await ctx.db.stayEvent.create({
+    data: {
+      tenantId: ctx.tenantId,
+      stayId,
+      type: DEPARTURE_EVENT[action],
+      reason: reason ?? null,
+      actorId: ctx.actorId,
+      payload: { before: { departure: old }, after: { departure } },
+    },
+  });
   await ctx.audit({
     action: `front_desk.${action}`,
     entity: 'stay',
     entityId: stayId,
     before: { departure: old },
-    after: { departure },
+    after: { departure, ...(reason ? { reason } : {}) },
   });
   return { stayId, reservationRoomId: rr.id, reservation };
 }
 
-export const extendStay = (ctx: RCtx, id: string, departure: string) =>
-  applyDeparture(ctx, id, departure, 'extend', 'extend');
+export const extendStay = (ctx: RCtx, id: string, departure: string, reason?: string) =>
+  applyDeparture(ctx, id, departure, 'extend', 'extend', reason);
 
-export const shortenStay = (ctx: RCtx, id: string, departure: string) =>
-  applyDeparture(ctx, id, departure, 'shorten', 'shorten');
+export const shortenStay = (ctx: RCtx, id: string, departure: string, reason?: string) =>
+  applyDeparture(ctx, id, departure, 'shorten', 'shorten', reason);
 
 /** Departure earlier than planned: default = today (the minimum is arrival + 1 night). */
-export async function earlyDeparture(ctx: RCtx, id: string, departure?: string) {
+export async function earlyDeparture(ctx: RCtx, id: string, departure?: string, reason?: string) {
   const { rr } = await resolveStay(ctx, id);
   const prop = await requireProperty(ctx, rr.propertyId);
   const minimum = addDays(formatDay(rr.arrival), 1);
   const target = departure ?? (prop.businessDate > minimum ? prop.businessDate : minimum);
-  return applyDeparture(ctx, id, target, 'shorten', 'early_departure');
+  return applyDeparture(ctx, id, target, 'shorten', 'early_departure', reason);
 }
 
 /** Stay summary for the desk drawers (lazy-creates the stay of seeded in-house reservations). */
 export async function getStay(ctx: RCtx, id: string) {
   const { rr, stayId } = await resolveStay(ctx, id);
-  const [stay, reservation, policeRecords] = await Promise.all([
+  const [stay, reservation, policeRecords, events] = await Promise.all([
     ctx.db.stay.findFirst({ where: { id: stayId } }).then((s) => must(s, 'Stay')),
     loadReservation(ctx.db as never, rr.reservationId),
     ctx.db.policeRecord.count({ where: { stayId } }),
+    ctx.db.stayEvent.findMany({ where: { stayId }, orderBy: [{ at: 'asc' }, { id: 'asc' }] }),
   ]);
   return {
     stayId,
@@ -183,5 +221,13 @@ export async function getStay(ctx: RCtx, id: string) {
     checkedInAt: stay.checkedInAt.toISOString(),
     checkedOutAt: stay.checkedOutAt?.toISOString() ?? null,
     policeRecords,
+    events: events.map((e) => ({
+      id: e.id,
+      type: e.type,
+      reason: e.reason,
+      actorId: e.actorId,
+      payload: e.payload as Record<string, unknown>,
+      at: e.at.toISOString(),
+    })),
   };
 }

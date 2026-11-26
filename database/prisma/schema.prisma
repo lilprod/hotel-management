@@ -190,6 +190,7 @@ model Tenant {
   reservationGuests       ReservationGuest[]
   groups                  Group[]
   stays                   Stay[]
+  stayEvents              StayEvent[]
   policeRecords           PoliceRecord[]
   folios                  Folio[]
   folioLines              FolioLine[]
@@ -1030,6 +1031,7 @@ model Property {
   waitlistEntries       WaitlistEntry[]
   groups                Group[]
   stays                 Stay[]
+  policeRecords         PoliceRecord[]
   folios                Folio[]
   folioLines            FolioLine[]
   invoices              Invoice[]
@@ -1549,6 +1551,7 @@ model Stay {
   createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
   policeRecords     PoliceRecord[]
+  stayEvents        StayEvent[]
   folios            Folio[]
   guestRequests     GuestRequest[]
   orders            Order[]
@@ -1563,19 +1566,48 @@ model PoliceRecord {
   id              String   @id @default(uuid(7)) @db.Uuid
   tenantId        String   @map("tenant_id") @db.Uuid
   tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  propertyId      String   @map("property_id") @db.Uuid
+  property        Property @relation(fields: [propertyId], references: [id])
   stayId          String   @map("stay_id") @db.Uuid
   stay            Stay     @relation(fields: [stayId], references: [id])
   guestId         String   @map("guest_id") @db.Uuid
   guest           Guest    @relation(fields: [guestId], references: [id])
+  /// Business date of the check-in (register period).
+  businessDate    DateTime @map("business_date") @db.Date
+  provenance      String?
+  destination     String?
+  purpose         String?
+  /// Full legal copy at check-in (identity, document, stay); never rewritten.
   snapshot        Json
   signatureFileId String?  @map("signature_file_id") @db.Uuid
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@index([tenantId, guestId])
+  @@index([propertyId, businessDate])
   @@index([stayId])
   @@index([guestId])
   @@map("police_records")
+}
+
+/// Stay operations with their reason (append-only): room change, extension, shortening, early
+/// departure, forced check-out.
+model StayEvent {
+  id       String        @id @default(uuid(7)) @db.Uuid
+  tenantId String        @map("tenant_id") @db.Uuid
+  tenant   Tenant        @relation(fields: [tenantId], references: [id])
+  stayId   String        @map("stay_id") @db.Uuid
+  stay     Stay          @relation(fields: [stayId], references: [id])
+  type     StayEventType
+  reason   String?
+  /// Staff user who performed it (null = system / job).
+  actorId  String?       @map("actor_id") @db.Uuid
+  payload  Json          @default("{}")
+  at       DateTime      @default(now()) @db.Timestamptz(6)
+
+  @@index([tenantId])
+  @@index([stayId, at])
+  @@map("stay_events")
 }
 
 model Folio {
@@ -3970,6 +4002,16 @@ enum WaitlistStatus {
   CANCELLED
 
   @@map("waitlist_status")
+}
+
+enum StayEventType {
+  ROOM_CHANGE
+  EXTEND
+  SHORTEN
+  EARLY_DEPARTURE
+  CHECKOUT_OVERRIDE
+
+  @@map("stay_event_type")
 }
 
 enum FolioStatus {

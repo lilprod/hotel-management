@@ -220,6 +220,17 @@ export async function checkOut(ctx: RCtx, id: string, input: CheckoutInput) {
       to: formatDay(rr.departure),
       reservationRoomIds: [rr.id],
     });
+    if (overridden.length)
+      await tx.stayEvent.create({
+        data: {
+          tenantId: ctx.tenantId,
+          stayId,
+          type: 'CHECKOUT_OVERRIDE',
+          reason: input.overrideReason ?? null,
+          actorId: ctx.actorId,
+          payload: { blockers: overridden.map((b) => b.code), balance: prep.balance },
+        },
+      });
     await publishStayEvent(tx, FRONT_DESK_EVENTS.checkedOut, {
       propertyId: rr.propertyId,
       stayId,

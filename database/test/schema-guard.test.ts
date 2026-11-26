@@ -79,7 +79,7 @@ describe('schema guard', () => {
   it('hm_app cannot write append-only tables beyond INSERT', async () => {
     const rows = await admin.$queryRaw<{ t: string; upd: boolean; del: boolean }[]>`
       SELECT t, has_table_privilege('hm_app', t, 'UPDATE') AS upd, has_table_privilege('hm_app', t, 'DELETE') AS del
-      FROM unnest(ARRAY['audit_logs', 'folio_lines', 'loyalty_transactions', 'stock_movements']) AS t`;
+      FROM unnest(ARRAY['audit_logs', 'folio_lines', 'loyalty_transactions', 'stock_movements', 'stay_events']) AS t`;
     expect(rows.every((r) => !r.upd && !r.del)).toBe(true);
   });
 });
