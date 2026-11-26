@@ -949,7 +949,14 @@ export async function rebook(
         ),
       );
     }
-    if (removed.length) await tx.reservationRoom.deleteMany({ where: { id: { in: removed } } });
+    if (removed.length) {
+      // A room line with a folio (deposit taken) keeps it: folios.reservation_room_id is RESTRICT.
+      if (await tx.folio.count({ where: { reservationRoomId: { in: removed } } }))
+        throw conflict('A room line with a folio cannot be removed: cancel it instead', {
+          reason: 'HAS_FOLIO',
+        });
+      await tx.reservationRoom.deleteMany({ where: { id: { in: removed } } });
+    }
     const written: { id: string; roomId: string | null; arrival: string; departure: string }[] = [];
     for (const l of changed) {
       const data = {

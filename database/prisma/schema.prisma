@@ -1408,6 +1408,7 @@ model Reservation {
   updatedAt             DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
   createdBy             String?              @map("created_by") @db.Uuid
   allotmentOfGroup      Group?               @relation("GroupAllotment")
+  folios                Folio[]
   waitlistEntry         WaitlistEntry?
   reservationRooms      ReservationRoom[]
   depositDeclarations   DepositDeclaration[]
@@ -1453,6 +1454,7 @@ model ReservationRoom {
   unitNights        UnitNight[]
   reservationGuests ReservationGuest[]
   stay              Stay?
+  folios            Folio[]
 
   @@index([tenantId, propertyId, arrival])
   @@index([tenantId, propertyId, departure])
@@ -1664,6 +1666,12 @@ model Folio {
   group              Group?            @relation("FolioGroup", fields: [groupId], references: [id])
   companyId          String?           @map("company_id") @db.Uuid
   company            Company?          @relation(fields: [companyId], references: [id])
+  /// STAY (reservation room, before and after check-in), GROUP (master/split), COMPANY (city ledger).
+  kind               FolioKind         @default(OTHER)
+  reservationId      String?           @map("reservation_id") @db.Uuid
+  reservation        Reservation?      @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+  reservationRoomId  String?           @map("reservation_room_id") @db.Uuid
+  reservationRoom    ReservationRoom?  @relation(fields: [reservationRoomId], references: [id], onDelete: Restrict)
   number             String
   status             FolioStatus       @default(OPEN)
   currency           String            @default("XOF") @db.Char(3)
@@ -1685,6 +1693,8 @@ model Folio {
   @@index([stayId])
   @@index([groupId])
   @@index([companyId])
+  @@index([reservationId])
+  @@index([reservationRoomId])
   @@map("folios")
 }
 
@@ -1713,6 +1723,8 @@ model FolioLine {
   taxAmount      BigInt        @default(0) @map("tax_amount")
   sourceType     String?       @map("source_type")
   sourceId       String?       @map("source_id") @db.Uuid
+  /// Reason of a correction (reversal, discount, transfer, credit note).
+  reason         String?       @db.VarChar(200)
   createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   createdBy      String?       @map("created_by") @db.Uuid
   reversal       FolioLine?    @relation("FolioLineReversalOf")
@@ -1777,6 +1789,10 @@ model FolioPayment {
   isDeposit          Boolean             @default(false) @map("is_deposit")
   status             PaymentStatus       @default(CONFIRMED)
   paidAt             DateTime            @default(now()) @map("paid_at") @db.Timestamptz(6)
+  /// Business day of the property when the payment was recorded (night audit, reports).
+  businessDate       DateTime            @map("business_date") @db.Date
+  /// Gap-free receipt number per property and year (sequence `receipt`), set at creation.
+  receiptNumber      String              @map("receipt_number") @db.VarChar(40)
   tenderedCurrency   String?             @map("tendered_currency") @db.Char(3)
   tenderedAmount     BigInt?             @map("tendered_amount")
   rate               Decimal?            @db.Decimal(18, 8)
@@ -1788,10 +1804,12 @@ model FolioPayment {
   reversalOf         FolioPayment?       @relation("FolioPaymentReversedBy")
   depositDeclaration DepositDeclaration?
 
+  @@unique([tenantId, propertyId, receiptNumber])
   @@index([tenantId])
   @@index([propertyId])
   @@index([folioId])
   @@index([cashSessionId])
+  @@index([propertyId, businessDate])
   @@map("folio_payments")
 }
 
@@ -1810,6 +1828,10 @@ model CashSession {
   countedAmount  BigInt?        @map("counted_amount")
   expectedAmount BigInt?        @map("expected_amount")
   variance       BigInt?
+  /// At close: expected amount per tender [{method, currency, expected}].
+  expected       Json?
+  /// At close: counted amount per tender [{method, currency, expected, counted, variance}].
+  counted        Json?
   note           String?
   createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -4061,6 +4083,15 @@ enum PenaltyKind {
   NO_SHOW
 
   @@map("penalty_kind")
+}
+
+enum FolioKind {
+  STAY
+  GROUP
+  COMPANY
+  OTHER
+
+  @@map("folio_kind")
 }
 
 enum FolioStatus {

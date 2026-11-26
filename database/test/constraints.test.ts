@@ -250,6 +250,8 @@ describe('immutability triggers', () => {
           folioId: T.folio.id,
           amount: 50_000n,
           method: 'CASH',
+          businessDate: new Date('2026-12-01'),
+          receiptNumber: 'REC-C-1',
         },
       }),
     );
@@ -267,6 +269,83 @@ describe('immutability triggers', () => {
     await expect(admin.folioPayment.delete({ where: { id: p.id } })).rejects.toThrow(
       /DELETE .* forbidden/,
     );
+  });
+});
+
+describe('SCH-2 partial unique indexes (replace advisory locks)', () => {
+  const pay = (n: string, reference: string | null, amount = 10_000n) =>
+    runWithTenant(T.tenantId, () =>
+      app.folioPayment.create({
+        data: {
+          tenantId: T.tenantId,
+          propertyId: T.propertyId,
+          folioId: T.folio.id,
+          amount,
+          method: 'MIXX',
+          reference,
+          businessDate: new Date('2026-12-01'),
+          receiptNumber: `REC-U-${n}`,
+        },
+      }),
+    );
+
+  it('folio_payments: a live (method, reference) is used once; reversed / negative ones repeat it', async () => {
+    const first = await pay('1', 'MX-DUP-1');
+    await expect(pay('2', 'MX-DUP-1')).rejects.toMatchObject({ code: 'P2002' });
+    // a counter-payment / refund (negative) may carry the same reference
+    await pay('3', 'MX-DUP-1', -10_000n);
+    await runWithTenant(T.tenantId, () =>
+      app.folioPayment.update({ where: { id: first.id }, data: { status: 'REVERSED' } }),
+    );
+    await pay('4', 'MX-DUP-1');
+    await pay('5', null);
+    await pay('6', null);
+    // gap-free receipt numbers are unique per property
+    await expect(pay('6', 'MX-OTHER')).rejects.toMatchObject({ code: 'P2002' });
+  });
+
+  it('cash_sessions: one open session per cashier and property', async () => {
+    const user = await admin.user.create({
+      data: { tenantId: T.tenantId, email: `cashier-${Date.now()}@c.test`, name: 'Cashier' },
+    });
+    const open = () =>
+      runWithTenant(T.tenantId, () =>
+        app.cashSession.create({
+          data: { tenantId: T.tenantId, propertyId: T.propertyId, userId: user.id },
+        }),
+      );
+    const s = await open();
+    await expect(open()).rejects.toMatchObject({ code: 'P2002' });
+    // closing requires the counted / expected detail
+    await expect(
+      admin.cashSession.update({ where: { id: s.id }, data: { closedAt: new Date() } }),
+    ).rejects.toThrow(/cash_sessions_close_detail_check/);
+    await admin.cashSession.update({
+      where: { id: s.id },
+      data: { closedAt: new Date(), counted: [], expected: [] },
+    });
+    await open();
+  });
+
+  it('folios: one city-ledger account per company and property', async () => {
+    const company = await admin.company.create({ data: { tenantId: T.tenantId, name: 'ACME' } });
+    const account = (n: string) =>
+      admin.folio.create({
+        data: {
+          tenantId: T.tenantId,
+          propertyId: T.propertyId,
+          number: n,
+          kind: 'COMPANY',
+          companyId: company.id,
+        },
+      });
+    await account('CL-T-1');
+    await expect(account('CL-T-2')).rejects.toMatchObject({ code: 'P2002' });
+    await expect(
+      admin.folio.create({
+        data: { tenantId: T.tenantId, propertyId: T.propertyId, number: 'ST-1', kind: 'STAY' },
+      }),
+    ).rejects.toThrow(/folios_kind_check/);
   });
 });
 

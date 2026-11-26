@@ -26,7 +26,7 @@ function propertyScope(ctx: FCtx, propertyId: string | undefined) {
 async function accountsOf(ctx: FCtx, companyId: string | undefined, propertyId: string | undefined) {
   return ctx.db.folio.findMany({
     where: {
-      ...(companyId ? companyAccountWhere(companyId) : { ...companyAccountWhere(''), companyId: { not: null } }),
+      ...companyAccountWhere(companyId),
       ...propertyScope(ctx, propertyId),
     },
     include: { company: { select: { id: true, name: true, taxId: true, creditLimit: true, currency: true } } },

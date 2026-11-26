@@ -1,10 +1,11 @@
-import type { TransactionClient } from '@hm/database';
+import type { Prisma, TransactionClient } from '@hm/database';
 import type { z } from 'zod';
 import { AppError } from '../../lib/errors.js';
 import { writeTenantAudit } from '../audit/service.js';
 import { assertPropertyAccess, conflict, must, num } from '../property/common.js';
 import { publishFinance, FOLIO_EVENTS } from '../folio/events.js';
-import { advisoryLock, asTx, loadProperty } from '../folio/repository.js';
+import { isUniqueViolation } from '../availability/inventory.js';
+import { asTx, loadProperty } from '../folio/repository.js';
 import { hasPermission, type FCtx } from '../folio/service.js';
 import { TX_OPTS } from '../reservations/service.js';
 import type { closeSessionBody, listSessionsQuery, movementBody, openSessionBody } from './schemas.js';
@@ -54,15 +55,20 @@ async function loadSession(ctx: FCtx, id: string, opts: { owner?: 'required' | '
   return s;
 }
 
-/** Opens the drawer of the current user (one open session per user and property). */
+const alreadyOpen = (sessionId: string | undefined) =>
+  conflict('A cash session is already open', { reason: 'SESSION_ALREADY_OPEN', sessionId });
+
+/**
+ * Opens the drawer of the current user: one open session per user and property, guaranteed by
+ * the partial UNIQUE index `cash_sessions_one_open_key` (a concurrent open gets a 409).
+ */
 export async function openSession(ctx: FCtx, input: z.infer<typeof openSessionBody>) {
   assertPropertyAccess(ctx, input.propertyId);
   const prop = await loadProperty(asTx(ctx.db), input.propertyId);
-  const s = await ctx.db.$transaction(async (tx) => {
-    await advisoryLock(tx, `cash:${ctx.userId}:${input.propertyId}`);
-    const open = await openSessionOf(tx, ctx.userId, input.propertyId);
-    if (open) throw conflict('A cash session is already open', { reason: 'SESSION_ALREADY_OPEN', sessionId: open.id });
-    return tx.cashSession.create({
+  const open = await openSessionOf(asTx(ctx.db), ctx.userId, input.propertyId);
+  if (open) throw alreadyOpen(open.id);
+  const s = await ctx.db.cashSession
+    .create({
       data: {
         tenantId: ctx.tenantId,
         propertyId: input.propertyId,
@@ -71,8 +77,11 @@ export async function openSession(ctx: FCtx, input: z.infer<typeof openSessionBo
         openingFloat: BigInt(input.openingFloat),
         note: input.note ?? null,
       },
+    })
+    .catch(async (err: unknown) => {
+      if (!isUniqueViolation(err)) throw err;
+      throw alreadyOpen((await openSessionOf(asTx(ctx.db), ctx.userId, input.propertyId))?.id);
     });
-  }, TX_OPTS);
   await ctx.audit({ action: 'cash.session.open', entity: 'cash_session', entityId: s.id, after: toSession(s) });
   return { ...toSession(s), expected: (await computeTotals(asTx(ctx.db), s)).expected };
 }
@@ -222,25 +231,21 @@ export async function xReport(ctx: FCtx, id: string) {
   return { kind: 'X' as const, session: toSession(s), generatedAt: new Date().toISOString(), ...(await computeTotals(asTx(ctx.db), s)), counted: null };
 }
 
-interface CloseRecord {
-  counted: (ExpectedRow & { counted: number; variance: number })[];
-}
+type CountedRow = ExpectedRow & { counted: number; variance: number };
 
 /** Z report: closing report with the counted amounts and variances. */
 export async function zReport(ctx: FCtx, id: string) {
   const s = await loadSession(ctx, id, { owner: 'or-reader' });
   if (!s.closedAt) throw conflict('The session is still open: use the X report', { reason: 'SESSION_OPEN' });
-  const log = await ctx.db.auditLog.findFirst({
-    where: { entity: 'cash_session', entityId: s.id, action: 'cash.session.close' },
-    orderBy: { at: 'desc' },
-  });
-  const rec = (log?.after ?? null) as CloseRecord | null;
+  const totals = await computeTotals(asTx(ctx.db), s);
   return {
     kind: 'Z' as const,
     session: toSession(s),
     generatedAt: new Date().toISOString(),
-    ...(await computeTotals(asTx(ctx.db), s)),
-    counted: rec?.counted ?? null,
+    ...totals,
+    // Frozen at close (`cash_sessions.expected` / `counted`): later reversals do not rewrite it.
+    expected: (s.expected as ExpectedRow[] | null) ?? totals.expected,
+    counted: (s.counted as CountedRow[] | null) ?? null,
   };
 }
 
@@ -285,6 +290,8 @@ export async function closeSession(ctx: FCtx, id: string, input: z.infer<typeof 
         expectedAmount: BigInt(cash.expected),
         countedAmount: BigInt(cash.counted),
         variance: BigInt(cash.variance),
+        expected: totals.expected as unknown as Prisma.InputJsonValue,
+        counted: rows as unknown as Prisma.InputJsonValue,
         note: input.note ?? s.note,
       },
     });
@@ -296,7 +303,6 @@ export async function closeSession(ctx: FCtx, id: string, input: z.infer<typeof 
     });
     return { closed, rows };
   }, TX_OPTS);
-  // Written at once (not after the response): the Z report reads the counted detail from it.
   await writeTenantAudit(ctx.services, {
     tenantId: ctx.tenantId,
     userId: ctx.actorId,

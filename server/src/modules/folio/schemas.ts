@@ -123,6 +123,8 @@ export const lineSchema = z.object({
   productId: uuid.nullable(),
   sourceType: z.string().nullable(),
   sourceId: uuid.nullable(),
+  /** Reason of a correction (reversal, discount, transfer, credit note). */
+  reason: z.string().nullable(),
   reversalOfId: uuid.nullable(),
   reversedById: uuid.nullable(),
   createdAt: z.string(),
@@ -139,6 +141,10 @@ export const paymentSchema = z.object({
   isDeposit: z.boolean(),
   status: z.string(),
   paidAt: z.string(),
+  /** Business day of the property when the payment was recorded. */
+  businessDate: z.string(),
+  /** Gap-free receipt number (per property and year). */
+  receiptNumber: z.string(),
   cashSessionId: uuid.nullable(),
   tenderedCurrency: z.string().nullable(),
   tenderedAmount: z.number().int().nullable(),

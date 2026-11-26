@@ -58,7 +58,6 @@ export type FolioKind = 'STAY' | 'GROUP' | 'COMPANY' | 'OTHER';
 
 /** Company (city-ledger) accounts are numbered `CL-…`, other standalone folios `FO-…`. */
 const COMPANY_PREFIX = 'CL-';
-const STAY_NUMBER_RE = /^(.+)-(\d{1,3})-(\d{1,3})$/;
 
 async function nextNumber(ctx: FCtx, tx: Tx, propertyId: string, key: 'folio' | 'city_ledger') {
   const p = await loadProperty(tx, propertyId);
@@ -106,23 +105,15 @@ async function roomRef(db: Db, reservationRoomId: string): Promise<RoomRef> {
 }
 
 /**
- * Folios of a reservation room. A stay folio is numbered `<reservation number>-<room #>-<n>`
- * (n = 1 for the main folio, 2… for split folios), which links it to the room line even before
- * check-in (deposits); once the stay exists the folio also carries `stay_id`.
+ * Folios of a reservation room (`folios.reservation_room_id`, set from the first deposit, before
+ * check-in), main folio first then the split folios; once the stay exists the main folio also
+ * carries `stay_id`. Stay folios are numbered `<reservation number>-<room #>-<n>`.
  */
 async function roomFolios(db: Db, ref: RoomRef): Promise<FolioRow[]> {
-  const prefix = `${ref.reservationNumber}-${ref.ordinal}-`;
-  const rows = await db.folio.findMany({
-    where: {
-      propertyId: ref.propertyId,
-      OR: [
-        ...(ref.stayId ? [{ stayId: ref.stayId }] : []),
-        { number: { startsWith: prefix }, stayId: null, groupId: null, companyId: null },
-      ],
-    },
+  return db.folio.findMany({
+    where: { reservationRoomId: ref.id, kind: 'STAY' },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
   });
-  const n = (f: FolioRow) => Number(STAY_NUMBER_RE.exec(f.number)?.[3] ?? 999);
-  return rows.sort((a, b) => n(a) - n(b) || a.number.localeCompare(b.number));
 }
 
 async function createFolio(
@@ -131,9 +122,12 @@ async function createFolio(
   data: {
     propertyId: string;
     number: string;
+    kind: FolioKind;
     stayId?: string | null;
     groupId?: string | null;
     companyId?: string | null;
+    reservationId?: string | null;
+    reservationRoomId?: string | null;
   },
 ): Promise<FolioRow> {
   const p = await loadProperty(tx, data.propertyId);
@@ -142,9 +136,12 @@ async function createFolio(
       tenantId: ctx.tenantId,
       propertyId: data.propertyId,
       number: data.number,
+      kind: data.kind,
       stayId: data.stayId ?? null,
       groupId: data.groupId ?? null,
       companyId: data.companyId ?? null,
+      reservationId: data.reservationId ?? null,
+      reservationRoomId: data.reservationRoomId ?? null,
       currency: p.currency,
     },
   });
@@ -168,7 +165,10 @@ export async function ensureRoomFolio(ctx: FCtx, tx: Tx, reservationRoomId: stri
   return createFolio(ctx, tx, {
     propertyId: ref.propertyId,
     number: `${ref.reservationNumber}-${ref.ordinal}-1`,
+    kind: 'STAY',
     stayId: ref.stayId,
+    reservationId: ref.reservationId,
+    reservationRoomId: ref.id,
   });
 }
 
@@ -180,13 +180,17 @@ export async function ensureGroupFolio(ctx: FCtx, tx: Tx, groupId: string) {
   const f = await createFolio(ctx, tx, {
     propertyId: g.propertyId,
     number: await nextNumber(ctx, tx, g.propertyId, 'folio'),
+    kind: 'GROUP',
     groupId: g.id,
   });
   await tx.group.update({ where: { id: g.id }, data: { masterFolioId: f.id } });
   return f;
 }
 
-/** City-ledger account of a company at a property (one per company and property). */
+/**
+ * City-ledger account of a company at a property: one per company and property (partial UNIQUE
+ * `folios_company_account_key`; the lock serialises the creation and its gap-free number).
+ */
 export async function ensureCompanyFolio(ctx: FCtx, tx: Tx, companyId: string, propertyId: string) {
   assertPropertyAccess(ctx, propertyId);
   must(await tx.company.findFirst({ where: { id: companyId, deletedAt: null } }), 'Company');
@@ -196,16 +200,15 @@ export async function ensureCompanyFolio(ctx: FCtx, tx: Tx, companyId: string, p
   return createFolio(ctx, tx, {
     propertyId,
     number: await nextNumber(ctx, tx, propertyId, 'city_ledger'),
+    kind: 'COMPANY',
     companyId,
   });
 }
 
-export const companyAccountWhere = (companyId: string, propertyId?: string) => ({
-  companyId,
+export const companyAccountWhere = (companyId?: string, propertyId?: string) => ({
+  kind: 'COMPANY' as const,
+  ...(companyId ? { companyId } : {}),
   ...(propertyId ? { propertyId } : {}),
-  stayId: null,
-  groupId: null,
-  number: { startsWith: COMPANY_PREFIX },
 });
 
 export type ResolveInput =
@@ -254,17 +257,21 @@ export async function createSplitFolio(
       return createFolio(ctx, tx, {
         propertyId: g.propertyId,
         number: await nextNumber(ctx, tx, g.propertyId, 'folio'),
+        kind: 'GROUP',
         groupId: g.id,
       });
     }
     const main = await ensureRoomFolio(ctx, tx, input.reservationRoomId);
     const ref = await roomRef(tx, input.reservationRoomId);
+    await advisoryLock(tx, `folio:rr:${ref.id}`);
     const all = await roomFolios(tx, ref);
-    const max = Math.max(...all.map((x) => Number(STAY_NUMBER_RE.exec(x.number)?.[3] ?? 1)));
     return createFolio(ctx, tx, {
       propertyId: main.propertyId,
-      number: `${ref.reservationNumber}-${ref.ordinal}-${max + 1}`,
+      number: `${ref.reservationNumber}-${ref.ordinal}-${all.length + 1}`,
+      kind: 'STAY',
       stayId: ref.stayId,
+      reservationId: ref.reservationId,
+      reservationRoomId: ref.id,
     });
   }, TX_OPTS);
   return getFolio(ctx, f.id);
@@ -279,33 +286,17 @@ export interface FolioLinks {
   reservationRoomId: string | null;
 }
 
+/** Links of a folio, from its columns (`kind`, `reservation_id`, `reservation_room_id`). */
 export async function linksOf(db: Db, f: FolioRow): Promise<FolioLinks> {
-  if (f.companyId && f.number.startsWith(COMPANY_PREFIX))
-    return { kind: 'COMPANY', reservationId: null, reservationNumber: null, reservationRoomId: null };
-  if (f.groupId) return { kind: 'GROUP', reservationId: null, reservationNumber: null, reservationRoomId: null };
-  if (f.stayId) {
-    const s = await db.reservationRoom.findFirst({
-      where: { stay: { id: f.stayId } },
-      include: { reservation: { select: { id: true, number: true } } },
-    });
-    if (s)
-      return { kind: 'STAY', reservationId: s.reservation.id, reservationNumber: s.reservation.number, reservationRoomId: s.id };
-  }
-  const m = STAY_NUMBER_RE.exec(f.number);
-  if (m) {
-    const r = await db.reservation.findFirst({
-      where: { propertyId: f.propertyId, number: m[1]! },
-      include: { reservationRooms: { select: { id: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] } },
-    });
-    if (r)
-      return {
-        kind: 'STAY',
-        reservationId: r.id,
-        reservationNumber: r.number,
-        reservationRoomId: r.reservationRooms[Number(m[2]) - 1]?.id ?? null,
-      };
-  }
-  return { kind: 'OTHER', reservationId: null, reservationNumber: null, reservationRoomId: null };
+  const r = f.reservationId
+    ? await db.reservation.findFirst({ where: { id: f.reservationId }, select: { number: true } })
+    : null;
+  return {
+    kind: f.kind,
+    reservationId: f.reservationId,
+    reservationNumber: r?.number ?? null,
+    reservationRoomId: f.reservationRoomId,
+  };
 }
 
 export const toFolioHeader = (f: FolioRow, links: FolioLinks) => ({
@@ -377,14 +368,11 @@ export async function listFolios(ctx: FCtx, q: ListFoliosQuery) {
   if (q.propertyId) assertPropertyAccess(ctx, q.propertyId);
   else if (!ctx.grants.permissions.includes('*')) where.propertyId = { in: ctx.grants.propertyIds };
   if (q.reservationRoomId) {
-    const ref = await roomRef(db, q.reservationRoomId);
-    where.id = { in: (await roomFolios(db, ref)).map((f) => f.id) };
+    await roomRef(db, q.reservationRoomId);
+    where.reservationRoomId = q.reservationRoomId;
   } else if (q.reservationId) {
-    const r = must(await db.reservation.findFirst({ where: { id: q.reservationId } }), 'Reservation');
-    const rooms = await db.reservationRoom.findMany({ where: { reservationId: r.id }, select: { id: true } });
-    const ids: string[] = [];
-    for (const rr of rooms) ids.push(...(await roomFolios(db, await roomRef(db, rr.id))).map((f) => f.id));
-    where.id = { in: ids };
+    must(await db.reservation.findFirst({ where: { id: q.reservationId } }), 'Reservation');
+    where.reservationId = q.reservationId;
   }
   const rows = await db.folio.findMany({
     where,
@@ -645,6 +633,8 @@ export async function writeReversal(
   group: LineRow[],
   labelPrefix: string,
   businessDate: string,
+  /** Reason of the correction, stored on every reversal line (`folio_lines.reason`). */
+  reason: string,
 ): Promise<Map<string, LineRow>> {
   await assertDayOpen(tx, folio.propertyId, businessDate);
   const map = new Map<string, LineRow>();
@@ -669,6 +659,7 @@ export async function writeReversal(
         taxAmount: -l.taxAmount,
         sourceType: l.sourceType,
         sourceId,
+        reason: reason.slice(0, 200),
         createdBy: ctx.actorId,
       },
       include: lineInclude,
@@ -688,7 +679,7 @@ export async function reverseLine(ctx: FCtx, folioId: string, lineId: string, re
     assertReversible(line);
     const group = await lineGroup(tx, folio.id, line);
     const prop = await loadProperty(tx, folio.propertyId);
-    const map = await writeReversal(ctx, tx, folio, group, `Contre-passation (${reason}) : `, prop.businessDate);
+    const map = await writeReversal(ctx, tx, folio, group, `Contre-passation (${reason}) : `, prop.businessDate, reason);
     await finishPosting(ctx, tx, folio, 'line_reversed', { lineId });
     await ctx.audit({
       action: 'folio.line.reverse',
@@ -747,6 +738,7 @@ export async function postDiscount(ctx: FCtx, folioId: string, input: DiscountIn
         type: 'DISCOUNT',
         departmentCode: target.departmentCode ?? DEPT.discount,
         label: `Remise sur ${target.label} : ${input.reason}`.slice(0, 250),
+        reason: input.reason.slice(0, 200),
         qty: '1',
         currency: folio.currency,
         unitAmount: -split.net,
@@ -822,7 +814,7 @@ export async function moveLines(
       if (line.type === 'DISCOUNT') throw conflict('Move the discounted charge instead', { reason: 'DISCOUNT_LINE' });
       const group = await lineGroup(tx, src.id, line);
       group.forEach((l) => seen.add(l.id));
-      await writeReversal(ctx, tx, src, group, `Transfert vers ${dst.number} : `, prop.businessDate);
+      await writeReversal(ctx, tx, src, group, `Transfert vers ${dst.number} : `, prop.businessDate, input.reason);
       const map = new Map<string, string>();
       for (const l of parentFirst(group)) {
         const n = await tx.folioLine.create({

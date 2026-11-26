@@ -520,7 +520,7 @@ export async function issueCreditNote(ctx: FCtx, invoiceId: string, input: z.inf
     const nightOf = new Map<string, string>();
     for (const l of selected) {
       const group = await lineGroup(tx, folio.id, l);
-      const map = await writeReversal(ctx, tx, folio, group, `Avoir ${number} : `, prop.businessDate);
+      const map = await writeReversal(ctx, tx, folio, group, `Avoir ${number} : `, prop.businessDate, input.reason);
       for (const [orig, rev] of map) {
         const o = group.find((g) => g.id === orig);
         if (o) nightOf.set(rev.id, formatDay(o.businessDate));

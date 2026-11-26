@@ -2,14 +2,15 @@ import type { FolioPaymentMethod } from '@hm/database';
 import { AppError } from '../../lib/errors.js';
 import { renderPdf } from '../notifications/jobs.js';
 import { notificationDeps } from '../notifications/deps.js';
-import { conflict, formatDay, invalid, must, num } from '../property/common.js';
+import { conflict, formatDay, invalid, must, num, parseDay } from '../property/common.js';
+import { isUniqueViolation } from '../availability/inventory.js';
+import { formatSequence, nextSequence, sequenceScope } from '../sequences/service.js';
 import { TX_OPTS } from '../reservations/service.js';
 import { openSessionOf } from '../cashier/service.js';
 import { rateFor } from '../cashier/exchange-rates.js';
 import { FOLIO_EVENTS, publishFinance, publishFolioChanged } from './events.js';
 import { customerParty, defaultCustomer, sellerParty } from './parties.js';
 import {
-  advisoryLock,
   assertOpen,
   DEPT,
   folioSums,
@@ -57,29 +58,47 @@ const notInPlan = (feature: string) =>
 
 export const changeReason = (paymentId: string) => `Rendu de monnaie — paiement ${paymentId}`;
 
-async function checkReference(
-  tx: Tx,
-  patterns: Record<string, string>,
-  method: FolioPaymentMethod,
-  reference: string,
-) {
+function checkReference(patterns: Record<string, string>, method: FolioPaymentMethod, reference: string) {
   const re = patterns[method];
   if (re && !new RegExp(re).test(reference))
     throw invalid('reference', `Invalid ${method} reference format`, 'REFERENCE_FORMAT');
-  await advisoryLock(tx, `payref:${method}:${reference}`);
-  const dup = await tx.folioPayment.findFirst({
+}
+
+/**
+ * A live (method, reference) pair is unique by the partial index
+ * `folio_payments_method_reference_active_key`; its violation becomes a 409 naming the payment.
+ */
+async function duplicateReference(ctx: FCtx, err: unknown, method: FolioPaymentMethod, reference: string | null) {
+  if (!reference || !isUniqueViolation(err)) return err;
+  const dup = await ctx.db.folioPayment.findFirst({
     where: { method, reference, status: { not: 'REVERSED' }, amount: { gt: 0n } },
-    select: { id: true, folioId: true },
+    select: { id: true },
   });
-  if (dup)
-    throw conflict(`Reference ${reference} is already used by another ${method} payment`, {
-      reason: 'DUPLICATE_REFERENCE',
-      paymentId: dup.id,
-    });
+  if (!dup) return err;
+  return conflict(`Reference ${reference} is already used by another ${method} payment`, {
+    reason: 'DUPLICATE_REFERENCE',
+    paymentId: dup.id,
+  });
+}
+
+/** Gap-free receipt number of a payment (per property and business year), in its transaction. */
+export async function nextReceiptNumber(ctx: FCtx, tx: Tx, propertyId: string, businessDate: string) {
+  const year = Number(businessDate.slice(0, 4));
+  const seq = await nextSequence(tx, sequenceScope(ctx.tenantId, propertyId), 'receipt', { year });
+  return formatSequence('REC-{YYYY}-{seq:6}', seq, year);
+}
+
+/** Columns every new folio payment carries: business day and receipt number. */
+async function paymentStamp(ctx: FCtx, tx: Tx, propertyId: string) {
+  const prop = await loadProperty(tx, propertyId);
+  return {
+    businessDate: parseDay(prop.businessDate),
+    receiptNumber: await nextReceiptNumber(ctx, tx, propertyId, prop.businessDate),
+  };
 }
 
 /** Is a folio pre-arrival (reservation folio without stay)? Its payments are deposits. */
-const isReservationFolio = (f: FolioRow) => !f.stayId && !f.groupId && !f.companyId;
+const isReservationFolio = (f: FolioRow) => f.kind === 'STAY' && !f.stayId;
 
 async function companyBalance(tx: Tx, companyId: string) {
   const accounts = await tx.folio.findMany({ where: companyAccountWhere(companyId), select: { id: true } });
@@ -112,6 +131,7 @@ export async function recordPayment(ctx: FCtx, folioId: string, input: PaymentIn
     setting(ctx, folioSettings.fxMaxRateAgeDays, f0.propertyId),
     setting(ctx, folioSettings.fxRounding, f0.propertyId),
   ]);
+  if (reference) checkReference(patterns, input.method, reference);
   const out = await ctx.db.$transaction(async (tx) => {
     const folio = await lockFolio(tx, f0.id);
     assertOpen(folio);
@@ -158,11 +178,10 @@ export async function recordPayment(ctx: FCtx, folioId: string, input: PaymentIn
     const change = tender ? tender.converted - applied : 0n;
     if (change > 0n && input.method !== 'CASH')
       throw invalid('tenderedAmount', 'Change can only be given on a cash payment', 'NO_CHANGE');
-    if (reference) await checkReference(tx, patterns, input.method, reference);
 
     let company: Awaited<ReturnType<typeof ensureCompanyFolio>> | null = null;
     if (input.method === 'CITY_LEDGER') {
-      if (folio.companyId && folio.number.startsWith('CL-'))
+      if (folio.kind === 'COMPANY')
         throw invalid('method', 'A company account cannot be transferred to the city ledger');
       if (applied > balance)
         throw invalid('amount', 'A city-ledger transfer cannot exceed the balance', 'TOO_LARGE');
@@ -189,6 +208,7 @@ export async function recordPayment(ctx: FCtx, folioId: string, input: PaymentIn
         amount: applied,
         method: input.method,
         reference,
+        ...(await paymentStamp(ctx, tx, folio.propertyId)),
         isDeposit: input.isDeposit ?? isReservationFolio(folio),
         tenderedCurrency: tender?.currency ?? null,
         tenderedAmount: tender?.amount ?? null,
@@ -248,7 +268,9 @@ export async function recordPayment(ctx: FCtx, folioId: string, input: PaymentIn
       after: { ...toPayment(p), change: num(change), companyFolioId: company?.id ?? null },
     });
     return { p, change, converted: tender?.converted ?? applied, companyFolioId: company?.id ?? null };
-  }, TX_OPTS);
+  }, TX_OPTS).catch(async (err: unknown) => {
+    throw await duplicateReference(ctx, err, input.method, reference);
+  });
   return {
     payment: toPayment(out.p),
     convertedAmount: num(out.converted),
@@ -289,6 +311,7 @@ export async function recordRefund(
         amount: -BigInt(input.amount),
         method: input.method,
         reference: input.reference?.trim() || null,
+        ...(await paymentStamp(ctx, tx, folio.propertyId)),
         createdBy: ctx.actorId,
       },
     });
@@ -335,6 +358,7 @@ export async function reversePayment(ctx: FCtx, folioId: string, paymentId: stri
         currency: p.currency,
         amount: -p.amount,
         method: p.method,
+        ...(await paymentStamp(ctx, tx, folio.propertyId)),
         isDeposit: p.isDeposit,
         tenderedCurrency: p.tenderedCurrency,
         tenderedAmount: p.tenderedAmount === null ? null : -p.tenderedAmount,
@@ -368,7 +392,7 @@ export async function reversePayment(ctx: FCtx, folioId: string, paymentId: stri
       if (line) {
         const account = await lockFolio(tx, line.folioId);
         const prop = await loadProperty(tx, account.propertyId);
-        await writeReversal(ctx, tx, account, [line], `Annulation (${reason}) : `, prop.businessDate);
+        await writeReversal(ctx, tx, account, [line], `Annulation (${reason}) : `, prop.businessDate, reason);
         await refreshBalance(tx, account.id);
         await publishFolioChanged(tx, account, 'city_ledger_transfer_reversed', { paymentId: p.id });
       }
@@ -387,10 +411,6 @@ export async function reversePayment(ctx: FCtx, folioId: string, paymentId: stri
   return { reversal: toPayment(rev), folio: await getFolio(ctx, f0.id) };
 }
 
-/** Receipt number of a payment (no column: derived from the immutable payment id). */
-export const receiptNumber = (paymentId: string) =>
-  `REC-${paymentId.replace(/-/g, '').slice(-10).toUpperCase()}`;
-
 /** Receipt PDF of a payment: 80 mm ticket or A4 receipt, via renderPdf (stored as a file). */
 export async function renderReceipt(
   ctx: FCtx,
@@ -404,7 +424,7 @@ export async function renderReceipt(
   const fdto = await getFolio(ctx, folio.id);
   const customer = await defaultCustomer(db, folio, fdto);
   const seller = await sellerParty(ctx.services, db, ctx.tenantId, folio.propertyId);
-  const number = receiptNumber(p.id);
+  const number = p.receiptNumber;
   // Method code: the document template translates it in the document language.
   const method: string = p.method;
   const issuedAt = formatDay(p.paidAt);
