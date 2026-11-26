@@ -124,6 +124,50 @@ describe('priceStay', () => {
     expect(priceStay(data({ rates }), stay('2026-11-16', '2026-11-19')).minStay).toBe(3);
   });
 
+  it('max stay from the arrival night rate (null = no maximum)', () => {
+    const rates = [rate({ id: 'r', maxStay: 2 })];
+    expect(() => priceStay(data({ rates }), stay('2026-11-16', '2026-11-19'))).toThrowError(
+      expect.objectContaining({ code: 'MAX_STAY', meta: { maxStay: 2, nights: 3 } }),
+    );
+    expect(priceStay(data({ rates }), stay('2026-11-16', '2026-11-18')).maxStay).toBe(2);
+    expect(priceStay(data(), stay('2026-11-16', '2026-11-30')).maxStay).toBeNull();
+  });
+
+  it('closed to arrival on the nights of the restricted rate only', () => {
+    // Weekend rate closed to arrival: Friday arrival refused, Thursday arrival through it allowed.
+    const rates = [rate({ id: 'a' }), rate({ id: 'w', dowMask: FRI_SAT, closedToArrival: true })];
+    expect(() => priceStay(data({ rates }), stay('2026-11-20', '2026-11-22'))).toThrowError(
+      expect.objectContaining({ code: 'CLOSED_TO_ARRIVAL', meta: { date: '2026-11-20' } }),
+    );
+    expect(priceStay(data({ rates }), stay('2026-11-19', '2026-11-22')).nights).toBe(3);
+  });
+
+  it('closed to departure on the day the restricted rate applies to', () => {
+    const rates = [rate({ id: 'a' }), rate({ id: 'w', dowMask: FRI_SAT, closedToDeparture: true })];
+    // Departure on Saturday 2026-11-21: refused; on Sunday: allowed (the Sat night is fine).
+    expect(() => priceStay(data({ rates }), stay('2026-11-19', '2026-11-21'))).toThrowError(
+      expect.objectContaining({ code: 'CLOSED_TO_DEPARTURE', meta: { date: '2026-11-21' } }),
+    );
+    expect(priceStay(data({ rates }), stay('2026-11-19', '2026-11-22')).nights).toBe(3);
+  });
+
+  it('restrictions follow the season rate (per season)', () => {
+    const seasons: QuoteSeason[] = [
+      { id: 'hi', fromDate: '2026-12-20', toDate: '2027-01-05', priority: 10 },
+    ];
+    const rates = [
+      rate({ id: 'base' }),
+      rate({ id: 'xmas', seasonId: 'hi', minStay: 2, maxStay: 7, closedToArrival: false }),
+    ];
+    expect(() =>
+      priceStay(data({ rates, seasons }), stay('2026-12-24', '2026-12-25')),
+    ).toThrowError(expect.objectContaining({ code: 'MIN_STAY' }));
+    expect(() =>
+      priceStay(data({ rates, seasons }), stay('2026-12-20', '2026-12-30')),
+    ).toThrowError(expect.objectContaining({ code: 'MAX_STAY' }));
+    expect(priceStay(data({ rates, seasons }), stay('2026-12-10', '2026-12-11')).nights).toBe(1);
+  });
+
   it('VAT exclusive is added to the price', () => {
     const q = priceStay(data({ taxes: [VAT_EXCL] }), stay('2026-11-16', '2026-11-17'));
     expect(q.netSubtotal).toBe(30000);

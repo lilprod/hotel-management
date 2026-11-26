@@ -87,6 +87,10 @@ export const createRateBody = z.object({
   extraAdult: money.default(0),
   extraChild: money.default(0),
   minStay: z.number().int().min(1).max(365).default(1),
+  /** Maximum stay in nights (null = none), checked against the arrival night's rate. */
+  maxStay: z.number().int().min(1).max(365).nullish(),
+  closedToArrival: z.boolean().default(false),
+  closedToDeparture: z.boolean().default(false),
 });
 export const updateRateBody = z
   .object({
@@ -96,6 +100,9 @@ export const updateRateBody = z
     extraAdult: money.optional(),
     extraChild: money.optional(),
     minStay: z.number().int().min(1).max(365).optional(),
+    maxStay: z.number().int().min(1).max(365).nullable().optional(),
+    closedToArrival: z.boolean().optional(),
+    closedToDeparture: z.boolean().optional(),
   })
   .strict();
 export const rateSchema = z.object({
@@ -109,6 +116,9 @@ export const rateSchema = z.object({
   extraAdult: z.number().int(),
   extraChild: z.number().int(),
   minStay: z.number().int(),
+  maxStay: z.number().int().nullable(),
+  closedToArrival: z.boolean(),
+  closedToDeparture: z.boolean(),
 });
 export const listRatesQuery = z.object({
   ratePlanId: uuid,
@@ -255,4 +265,5 @@ export const quoteSchema = z.object({
   exclusiveTaxTotal: z.number().int(),
   total: z.number().int(),
   minStay: z.number().int(),
+  maxStay: z.number().int().nullable(),
 });

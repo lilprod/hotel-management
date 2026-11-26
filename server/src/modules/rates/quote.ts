@@ -21,6 +21,12 @@ export interface QuoteRate {
   extraAdult: number;
   extraChild: number;
   minStay: number;
+  /** Maximum stay when this rate applies on the arrival night (null = none). */
+  maxStay?: number | null;
+  /** No arrival on a night this rate applies to. */
+  closedToArrival?: boolean;
+  /** No departure on a day this rate applies to. */
+  closedToDeparture?: boolean;
 }
 
 export interface QuoteSeason {
@@ -101,11 +107,20 @@ export interface Quote {
   /** What the guest pays: gross subtotal + exclusive taxes. */
   total: number;
   minStay: number;
+  maxStay: number | null;
 }
 
 export class QuoteError extends Error {
   constructor(
-    readonly code: 'INVALID_DATES' | 'INVALID_OCCUPANCY' | 'NO_RATE' | 'MIN_STAY' | 'INVALID_DATA',
+    readonly code:
+      | 'INVALID_DATES'
+      | 'INVALID_OCCUPANCY'
+      | 'NO_RATE'
+      | 'MIN_STAY'
+      | 'MAX_STAY'
+      | 'CLOSED_TO_ARRIVAL'
+      | 'CLOSED_TO_DEPARTURE'
+      | 'INVALID_DATA',
     message: string,
     readonly meta: Record<string, unknown> = {},
   ) {
@@ -226,12 +241,29 @@ export function priceStay(data: QuoteData, input: QuoteInput): Quote {
     });
   }
 
-  // Minimum stay is driven by the rate applied on the arrival night.
+  // Stay restrictions are driven by the rate applied on the arrival night (min / max stay,
+  // closed to arrival) and by the rate that would apply on the departure day (closed to
+  // departure; no rate that day = no restriction).
   const minStay = firstRate?.minStay ?? 1;
   if (nights.length < minStay)
     throw new QuoteError('MIN_STAY', `Minimum stay is ${minStay} night(s)`, {
       minStay,
       nights: nights.length,
+    });
+  const maxStay = firstRate?.maxStay ?? null;
+  if (maxStay !== null && nights.length > maxStay)
+    throw new QuoteError('MAX_STAY', `Maximum stay is ${maxStay} night(s)`, {
+      maxStay,
+      nights: nights.length,
+    });
+  if (firstRate?.closedToArrival)
+    throw new QuoteError('CLOSED_TO_ARRIVAL', `No arrival on ${input.arrival}`, {
+      date: input.arrival,
+    });
+  const depDow = new Date(parseDay(input.departure)).getUTCDay();
+  if (pickRate(data.rates, seasons, input.departure, depDow)?.closedToDeparture)
+    throw new QuoteError('CLOSED_TO_DEPARTURE', `No departure on ${input.departure}`, {
+      date: input.departure,
     });
 
   const roomTotal = nightly.reduce((s, n) => s + n.base, 0);
@@ -296,5 +328,6 @@ export function priceStay(data: QuoteData, input: QuoteInput): Quote {
     exclusiveTaxTotal,
     total: gross + exclusiveTaxTotal,
     minStay,
+    maxStay,
   };
 }

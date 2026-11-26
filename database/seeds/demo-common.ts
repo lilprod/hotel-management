@@ -5,7 +5,7 @@ import {
   type DefaultPlanCode,
   type SystemRoleKey,
 } from '@hm/shared';
-import type { AdminClient } from '../src/index.js';
+import { Prisma, type AdminClient } from '../src/index.js';
 import { TOGO_TAX_RULE_IDS } from './togo.js';
 import {
   ensurePasswordHash,
@@ -402,6 +402,8 @@ export async function seedDemoTenant(
         code: rt.code,
         name: rt.name,
         description: rt.description,
+        nameI18n: { fr: rt.name },
+        descriptionI18n: rt.description ? { fr: rt.description } : Prisma.DbNull,
         maxAdults: rt.maxAdults,
         maxChildren: rt.maxChildren,
         baseOccupancy: rt.baseOccupancy,
@@ -409,12 +411,19 @@ export async function seedDemoTenant(
         sizeM2: rt.sizeM2,
         amenities: rt.amenities,
       },
-      update: { name: rt.name, description: rt.description, maxAdults: rt.maxAdults },
+      update: {
+        name: rt.name,
+        description: rt.description,
+        nameI18n: { fr: rt.name },
+        descriptionI18n: rt.description ? { fr: rt.description } : Prisma.DbNull,
+        maxAdults: rt.maxAdults,
+      },
     });
     for (let i = 0; i < rt.count; i += 1) {
       const number = `${rt.numberPrefix}${pad(rt.numberStart + i)}`;
+      // Deterministic id: the room number is only unique among non-deleted rooms.
       await admin.room.upsert({
-        where: { tenantId_propertyId_number: { tenantId, propertyId, number } },
+        where: { id: seedId(`room:${slug}:${number}`) },
         create: {
           id: seedId(`room:${slug}:${number}`),
           tenantId,

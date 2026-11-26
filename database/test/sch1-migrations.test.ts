@@ -47,6 +47,18 @@ const SESS_IMP_UNKNOWN = id(81);
 const SESS_STD = id(82);
 const T2 = id(2);
 const BRANDING_T2 = id(90);
+const PROP = id(100);
+const RT_DBL = id(101);
+const RT_STE = id(102);
+const ROOM_DEL_POLICE = 'a0000103-0000-4000-8000-000000000103';
+const ROOM_DEL_NONE = 'b0000104-0000-4000-8000-000000000104';
+const ROOM_LIVE = 'c0000105-0000-4000-8000-000000000105';
+const RP = id(106);
+const GUEST = id(107);
+const RES = id(108);
+const RR = id(109);
+const STAY = id(110);
+const POLICE = id(111);
 
 const FIXTURES_BILLING = `
 INSERT INTO plans (id, code, name, updated_at) VALUES
@@ -116,13 +128,43 @@ INSERT INTO settings (id, tenant_id, scope, scope_id, key, value, updated_at) VA
    '{"legalForm": null, "nif": null, "rccm": null, "taxRegime": "TPU", "address": null}', now());
 `;
 
+const FIXTURES_LODGING = `
+INSERT INTO properties (id, tenant_id, name, country, timezone, business_date, updated_at)
+  VALUES ('${PROP}', '${T}', 'Mig Lomé', 'TG', 'Africa/Lome', '2026-11-01', now());
+INSERT INTO room_types (id, tenant_id, property_id, code, name, description, max_adults, base_occupancy, updated_at) VALUES
+  ('${RT_DBL}', '${T}', '${PROP}', 'DBL', 'Double', NULL, 2, 2, now()),
+  ('${RT_STE}', '${T}', '${PROP}', 'STE', 'Suite', 'Vue mer', 3, 2, now());
+INSERT INTO rooms (id, tenant_id, property_id, room_type_id, number, deleted_at, updated_at) VALUES
+  ('${ROOM_DEL_POLICE}', '${T}', '${PROP}', '${RT_DBL}', '${ROOM_DEL_POLICE.slice(0, 8)}~deleted', now(), now()),
+  ('${ROOM_DEL_NONE}', '${T}', '${PROP}', '${RT_DBL}', '${ROOM_DEL_NONE.slice(0, 8)}~deleted', now(), now()),
+  ('${ROOM_LIVE}', '${T}', '${PROP}', '${RT_DBL}', '104', NULL, now());
+INSERT INTO rate_plans (id, tenant_id, property_id, code, name, updated_at) VALUES ('${RP}', '${T}', '${PROP}', 'BAR', 'BAR', now());
+INSERT INTO guests (id, tenant_id, first_name, last_name, updated_at) VALUES ('${GUEST}', '${T}', 'Ama', 'Mensah', now());
+INSERT INTO reservations (id, tenant_id, property_id, number, arrival, departure, updated_at)
+  VALUES ('${RES}', '${T}', '${PROP}', 'R-1', '2026-11-01', '2026-11-03', now());
+INSERT INTO reservation_rooms (id, tenant_id, property_id, reservation_id, room_type_id, room_id, rate_plan_id, arrival, departure, updated_at)
+  VALUES ('${RR}', '${T}', '${PROP}', '${RES}', '${RT_DBL}', '${ROOM_DEL_POLICE}', '${RP}', '2026-11-01', '2026-11-03', now());
+INSERT INTO stays (id, tenant_id, property_id, reservation_room_id, checked_in_at, updated_at)
+  VALUES ('${STAY}', '${T}', '${PROP}', '${RR}', '2026-11-01T14:00:00Z', now());
+INSERT INTO police_records (id, tenant_id, stay_id, guest_id, snapshot, updated_at) VALUES ('${POLICE}', '${T}', '${STAY}', '${GUEST}',
+  '{"roomNumber": "104", "provenance": "Accra", "destination": "Kara", "purpose": "Affaires", "businessDate": "2026-11-01", "arrival": "2026-11-01", "departure": "2026-11-03"}', now());
+INSERT INTO audit_logs (id, tenant_id, user_id, action, entity, entity_id, before, after, at) VALUES
+  (gen_random_uuid(), '${T}', '${U_STAFF}', 'front_desk.room_change', 'stay', '${STAY}',
+   '{"roomId": "${ROOM_DEL_POLICE}", "roomNumber": "104"}', '{"roomId": "${ROOM_LIVE}", "roomNumber": "104", "reason": "Clim en panne", "movedNights": 1}', '2026-11-02T09:00:00Z'),
+  (gen_random_uuid(), '${T}', '${U_STAFF}', 'front_desk.extend', 'stay', '${STAY}', '{"departure": "2026-11-03"}', '{"departure": "2026-11-04"}', '2026-11-02T10:00:00Z'),
+  (gen_random_uuid(), '${T}', NULL, 'front_desk.check_out.override', 'stay', '${STAY}', NULL,
+   '{"overrideReason": "Accord du directeur", "blockers": ["BALANCE_DUE"], "balance": 5000}', '2026-11-04T11:00:00Z'),
+  (gen_random_uuid(), '${T}', NULL, 'front_desk.check_in', 'stay', '${STAY}', NULL, '{}', '2026-11-01T14:00:00Z'),
+  (gen_random_uuid(), '${T}', NULL, 'front_desk.extend', 'stay', '${id(999)}', NULL, '{"departure": "2026-11-09"}', now());
+`;
+
 let pg: TestPostgres;
 const q = (sql: string) => pg.psql(sql).then((s) => s.trim());
 
 beforeAll(async () => {
   pg = await startTestPostgres({ database: 'hm_sch1', migrate: false });
   for (const d of before) await pg.psql(sqlOf(d));
-  await pg.psql(FIXTURES_BILLING + FIXTURES_IAM + FIXTURES_BRANDING);
+  await pg.psql(FIXTURES_BILLING + FIXTURES_IAM + FIXTURES_BRANDING + FIXTURES_LODGING);
   for (const d of sch1) await pg.psql(sqlOf(d));
 });
 afterAll(async () => {
@@ -275,5 +317,57 @@ describe('SCH-1 group 3 — branding legal identity / public profile', () => {
     await expect(
       q(`UPDATE branding SET public_languages = '{}' WHERE tenant_id = '${T}'`),
     ).rejects.toThrow(/branding_public_languages_check/);
+  });
+});
+
+describe('SCH-1 group 4 — lodging', () => {
+  it('backfills room type translations in the tenant default locale', async () => {
+    expect(
+      await q(
+        `SELECT code || '|' || name_i18n::text || '|' || coalesce(description_i18n::text, '-') FROM room_types ORDER BY code`,
+      ),
+    ).toBe('DBL|{"fr": "Double"}|-\nSTE|{"fr": "Suite"}|{"fr": "Vue mer"}');
+  });
+
+  it('restores deleted room numbers from the police records where possible', async () => {
+    expect(
+      await q(
+        `SELECT id || '|' || number || '|' || (deleted_at IS NOT NULL) FROM rooms ORDER BY id`,
+      ),
+    ).toBe(
+      [
+        `${ROOM_DEL_POLICE}|104|true`,
+        `${ROOM_DEL_NONE}|${ROOM_DEL_NONE.slice(0, 8)}~deleted|true`,
+        `${ROOM_LIVE}|104|false`,
+      ].join('\n'),
+    );
+  });
+
+  it('partial unique index: a deleted number can be re-created, two live ones cannot', async () => {
+    await q(
+      `INSERT INTO rooms (id, tenant_id, property_id, room_type_id, number, updated_at)
+         VALUES (gen_random_uuid(), '${T}', '${PROP}', '${RT_DBL}', '${ROOM_DEL_NONE.slice(0, 8)}~deleted', now())`,
+    );
+    await expect(
+      q(
+        `INSERT INTO rooms (id, tenant_id, property_id, room_type_id, number, updated_at)
+           VALUES (gen_random_uuid(), '${T}', '${PROP}', '${RT_DBL}', '104', now())`,
+      ),
+    ).rejects.toThrow(/rooms_number_active_key/);
+  });
+
+  it('rates get the stay restrictions with consistent defaults', async () => {
+    await q(
+      `INSERT INTO rates (id, tenant_id, rate_plan_id, room_type_id, price, updated_at)
+         VALUES ('${id(120)}', '${T}', '${RP}', '${RT_DBL}', 20000, now())`,
+    );
+    expect(
+      await q(
+        `SELECT coalesce(max_stay::text, '-') || '|' || closed_to_arrival || '|' || closed_to_departure FROM rates`,
+      ),
+    ).toBe('-|false|false');
+    await expect(
+      q(`UPDATE rates SET min_stay = 3, max_stay = 2 WHERE id = '${id(120)}'`),
+    ).rejects.toThrow(/rates_stay_check/);
   });
 });

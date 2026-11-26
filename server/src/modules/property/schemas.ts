@@ -5,6 +5,9 @@ const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Expected HH:mm');
 const country = z.string().regex(/^[A-Z]{2}$/);
 const currency = z.string().regex(/^[A-Z]{3}$/);
 const optText = (max: number) => z.string().trim().max(max).nullish();
+/** Translations {locale: text} (locale = ISO 639-1, e.g. "fr", "en"). */
+const i18nText = (max: number) =>
+  z.record(z.string().regex(/^[a-z]{2}$/), z.string().trim().min(1).max(max));
 
 export { idParams };
 
@@ -52,6 +55,9 @@ export const roomTypeBase = z.object({
   code: z.string().regex(/^[A-Za-z0-9_-]{1,20}$/),
   name: z.string().trim().min(1).max(120),
   description: optText(2000),
+  /** Translations of the name; `name` is the label in the tenant default locale. */
+  nameI18n: i18nText(120).optional(),
+  descriptionI18n: i18nText(2000).nullish(),
   maxAdults: z.number().int().min(1).max(20),
   maxChildren: z.number().int().min(0).max(20).default(0),
   baseOccupancy: z.number().int().min(1).max(20),
@@ -76,6 +82,8 @@ export const roomTypeSchema = z.object({
   code: z.string(),
   name: z.string(),
   description: z.string().nullable(),
+  nameI18n: z.record(z.string(), z.string()),
+  descriptionI18n: z.record(z.string(), z.string()).nullable(),
   maxAdults: z.number().int(),
   maxChildren: z.number().int(),
   baseOccupancy: z.number().int(),

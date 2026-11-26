@@ -89,6 +89,9 @@ export async function loadPricing(
       extraAdult: num(r.extraAdult),
       extraChild: num(r.extraChild),
       minStay: r.minStay,
+      maxStay: r.maxStay,
+      closedToArrival: r.closedToArrival,
+      closedToDeparture: r.closedToDeparture,
     });
     ratesByKey.set(k, list);
   }

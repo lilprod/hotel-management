@@ -168,6 +168,9 @@ const toRate = (r: Prisma.RateGetPayload<object>) => ({
   extraAdult: num(r.extraAdult),
   extraChild: num(r.extraChild),
   minStay: r.minStay,
+  maxStay: r.maxStay,
+  closedToArrival: r.closedToArrival,
+  closedToDeparture: r.closedToDeparture,
 });
 async function checkRateRefs(
   ctx: Ctx,
@@ -208,6 +211,8 @@ async function loadRate(ctx: Ctx, id: string) {
 export async function createRate(ctx: Ctx, input: In<typeof createRateBody>) {
   const plan = await loadPlan(ctx, input.ratePlanId);
   await checkRateRefs(ctx, plan.propertyId, input.roomTypeId, input.seasonId);
+  if (input.maxStay != null && input.maxStay < input.minStay)
+    throw invalid('maxStay', 'Maximum stay cannot be shorter than the minimum stay');
   const dup = await ctx.db.rate.findFirst({
     where: {
       ratePlanId: input.ratePlanId,
@@ -230,6 +235,9 @@ export async function createRate(ctx: Ctx, input: In<typeof createRateBody>) {
       extraAdult: BigInt(input.extraAdult),
       extraChild: BigInt(input.extraChild),
       minStay: input.minStay,
+      maxStay: input.maxStay ?? null,
+      closedToArrival: input.closedToArrival,
+      closedToDeparture: input.closedToDeparture,
     },
   });
   return toRate(row);
@@ -237,6 +245,10 @@ export async function createRate(ctx: Ctx, input: In<typeof createRateBody>) {
 export async function updateRate(ctx: Ctx, id: string, input: In<typeof updateRateBody>) {
   const cur = await loadRate(ctx, id);
   await checkRateRefs(ctx, cur.ratePlan.propertyId, undefined, input.seasonId);
+  const minStay = input.minStay ?? cur.minStay;
+  const maxStay = input.maxStay !== undefined ? input.maxStay : cur.maxStay;
+  if (maxStay !== null && maxStay < minStay)
+    throw invalid('maxStay', 'Maximum stay cannot be shorter than the minimum stay');
   const row = await ctx.db.rate.update({
     where: { id },
     data: {
@@ -246,6 +258,11 @@ export async function updateRate(ctx: Ctx, id: string, input: In<typeof updateRa
       ...(input.extraAdult !== undefined ? { extraAdult: BigInt(input.extraAdult) } : {}),
       ...(input.extraChild !== undefined ? { extraChild: BigInt(input.extraChild) } : {}),
       ...(input.minStay !== undefined ? { minStay: input.minStay } : {}),
+      ...(input.maxStay !== undefined ? { maxStay: input.maxStay } : {}),
+      ...(input.closedToArrival !== undefined ? { closedToArrival: input.closedToArrival } : {}),
+      ...(input.closedToDeparture !== undefined
+        ? { closedToDeparture: input.closedToDeparture }
+        : {}),
     },
   });
   return toRate(row);
@@ -440,6 +457,9 @@ export async function quoteStay(ctx: Ctx, input: In<typeof quoteBody>): Promise<
           extraAdult: num(r.extraAdult),
           extraChild: num(r.extraChild),
           minStay: r.minStay,
+          maxStay: r.maxStay,
+          closedToArrival: r.closedToArrival,
+          closedToDeparture: r.closedToDeparture,
         })),
         seasons: seasons.map((s) => ({
           id: s.id,
@@ -460,7 +480,11 @@ export async function quoteStay(ctx: Ctx, input: In<typeof quoteBody>): Promise<
     );
   } catch (e) {
     if (e instanceof QuoteError)
-      throw invalid(e.code === 'MIN_STAY' ? 'departure' : 'arrival', e.message, e.code);
+      throw invalid(
+        ['MIN_STAY', 'MAX_STAY', 'CLOSED_TO_DEPARTURE'].includes(e.code) ? 'departure' : 'arrival',
+        e.message,
+        e.code,
+      );
     throw e;
   }
 }

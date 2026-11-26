@@ -164,6 +164,58 @@ describe('room types, rooms and quotas', () => {
     const list = await call('get', A, tokA, `${P}/room-types/${roomTypeId}/photos`);
     expect(list.body.items).toHaveLength(1);
   });
+
+  it('a deleted room frees its number (partial unique index), the number is kept', async () => {
+    const rooms = await call('get', A, tokA, `${P}/rooms?propertyId=${A.propertyId}`);
+    const r103 = rooms.body.items.find((r: { number: string }) => r.number === '103');
+    expect((await call('delete', A, tokA, `${P}/rooms/${r103.id}`)).status).toBe(204);
+    const again = await call('post', A, tokA, `${P}/rooms`).send({
+      propertyId: A.propertyId,
+      roomTypeId,
+      number: '103',
+    });
+    expect(again.status, JSON.stringify(again.body)).toBe(201);
+    expect(again.body.id).not.toBe(r103.id);
+    const deleted = await env.services.admin.room.findUniqueOrThrow({ where: { id: r103.id } });
+    expect(deleted.number).toBe('103');
+    expect(deleted.deletedAt).not.toBeNull();
+    // Two live rooms with the same number are still refused by the database.
+    await expect(
+      env.services.admin.room.create({
+        data: { tenantId: A.tenantId, propertyId: A.propertyId, roomTypeId, number: '103' },
+      }),
+    ).rejects.toThrow(/rooms_number_active_key|Unique constraint/);
+  });
+
+  it('stores room type translations, name staying the default-locale label', async () => {
+    const rt = await call('post', A, tokA, `${P}/room-types`).send({
+      propertyId: A.propertyId,
+      code: 'ZZ',
+      name: 'Suite junior',
+      description: 'Vue mer',
+      nameI18n: { en: 'Junior suite' },
+      maxAdults: 2,
+      baseOccupancy: 2,
+    });
+    expect(rt.status, JSON.stringify(rt.body)).toBe(201);
+    expect(rt.body.nameI18n).toEqual({ fr: 'Suite junior', en: 'Junior suite' });
+    expect(rt.body.descriptionI18n).toEqual({ fr: 'Vue mer' });
+    const upd = await call('patch', A, tokA, `${P}/room-types/${rt.body.id}`).send({
+      nameI18n: { fr: 'Junior suite', en: 'Junior suite (sea view)' },
+    });
+    expect(upd.status).toBe(200);
+    expect(upd.body.name).toBe('Junior suite');
+    expect(upd.body.nameI18n).toEqual({ fr: 'Junior suite', en: 'Junior suite (sea view)' });
+    expect(upd.body.description).toBe('Vue mer');
+    expect(
+      (
+        await call('patch', A, tokA, `${P}/room-types/${rt.body.id}`).send({
+          nameI18n: { xx1: 'x' },
+        })
+      ).status,
+    ).toBe(422);
+    expect((await call('delete', A, tokA, `${P}/room-types/${rt.body.id}`)).status).toBe(204);
+  });
 });
 
 describe('pricing API', () => {
@@ -230,6 +282,79 @@ describe('pricing API', () => {
       adults: 9,
     });
     expect(bad.status).toBe(422);
+  });
+
+  it('enforces max stay, closed to arrival / departure in quotes and availability', async () => {
+    const rts = await call('get', A, tokA, `${P}/room-types?propertyId=${A.propertyId}`);
+    const roomTypeId = rts.body.items[0].id;
+    const plan = await call('post', A, tokA, `${R}/rate-plans`).send({
+      propertyId: A.propertyId,
+      code: 'RESTR',
+      name: 'Restricted',
+    });
+    expect(plan.status).toBe(201);
+    const base = { ratePlanId: plan.body.id, roomTypeId, price: 20000 };
+    const bad = await call('post', A, tokA, `${R}/rates`).send({ ...base, minStay: 3, maxStay: 2 });
+    expect(bad.status).toBe(422);
+    const all = await call('post', A, tokA, `${R}/rates`).send({ ...base, maxStay: 5 });
+    expect(all.status, JSON.stringify(all.body)).toBe(201);
+    expect(all.body).toMatchObject({
+      maxStay: 5,
+      closedToArrival: false,
+      closedToDeparture: false,
+    });
+    // Fridays and Saturdays: no arrival; Sundays: no departure.
+    const weekend = await call('post', A, tokA, `${R}/rates`).send({
+      ...base,
+      dowMask: (1 << 5) | (1 << 6),
+      closedToArrival: true,
+    });
+    expect(weekend.status).toBe(201);
+    const sunday = await call('post', A, tokA, `${R}/rates`).send({
+      ...base,
+      dowMask: 1,
+      closedToDeparture: true,
+    });
+    expect(sunday.status).toBe(201);
+    const quote = (arrival: string, departure: string) =>
+      call('post', A, tokA, `${R}/quote`).send({
+        propertyId: A.propertyId,
+        roomTypeId,
+        ratePlanId: plan.body.id,
+        arrival,
+        departure,
+        adults: 2,
+      });
+    // 2027-01-08 is a Friday, 2027-01-10 a Sunday.
+    const cta = await quote('2027-01-08', '2027-01-09');
+    expect(cta.status).toBe(422);
+    expect(cta.body.errors[0]).toMatchObject({ path: 'arrival', code: 'CLOSED_TO_ARRIVAL' });
+    const ctd = await quote('2027-01-07', '2027-01-10');
+    expect(ctd.body.errors[0]).toMatchObject({ path: 'departure', code: 'CLOSED_TO_DEPARTURE' });
+    const long = await quote('2027-01-04', '2027-01-10');
+    expect(long.body.errors[0]).toMatchObject({ code: 'MAX_STAY' });
+    expect((await quote('2027-01-07', '2027-01-09')).status).toBe(200);
+    const patched = await call('patch', A, tokA, `${R}/rates/${weekend.body.id}`).send({
+      closedToArrival: false,
+    });
+    expect(patched.body.closedToArrival).toBe(false);
+    expect((await quote('2027-01-08', '2027-01-09')).status).toBe(200);
+    // Availability reports the restriction per rate plan.
+    const av = await call('get', A, tokA, '/api/v1/t/availability').query({
+      propertyId: A.propertyId,
+      arrival: '2027-01-07',
+      departure: '2027-01-10',
+      adults: 2,
+      roomTypeId,
+    });
+    expect(av.status, JSON.stringify(av.body)).toBe(200);
+    const restricted = av.body.roomTypes[0].ratePlans.find(
+      (p: { code: string }) => p.code === 'RESTR',
+    );
+    expect(restricted).toMatchObject({ available: false, reason: 'CLOSED_TO_DEPARTURE' });
+    await call('delete', A, tokA, `${R}/rates/${sunday.body.id}`);
+    await call('delete', A, tokA, `${R}/rates/${weekend.body.id}`);
+    await call('delete', A, tokA, `${R}/rates/${all.body.id}`);
   });
 
   it('validates policy rules and hides other tenants data', async () => {

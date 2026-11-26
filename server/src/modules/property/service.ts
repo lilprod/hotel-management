@@ -1,4 +1,4 @@
-import type { Prisma } from '@hm/database';
+import { Prisma } from '@hm/database';
 import { TenantStorage } from '../../lib/storage.js';
 import { validateCustomFields } from '../custom-fields/validation.js';
 import {
@@ -113,6 +113,8 @@ const toRoomType = (r: Prisma.RoomTypeGetPayload<object>): RoomTypeDto => ({
   code: r.code,
   name: r.name,
   description: r.description,
+  nameI18n: (r.nameI18n ?? {}) as Record<string, string>,
+  descriptionI18n: (r.descriptionI18n ?? null) as Record<string, string> | null,
   maxAdults: r.maxAdults,
   maxChildren: r.maxChildren,
   baseOccupancy: r.baseOccupancy,
@@ -156,9 +158,70 @@ export async function getRoomType(ctx: Ctx, id: string) {
   return toRoomType(await loadRoomType(ctx, id));
 }
 
+/** Default locale of the tenant: the language of the plain `name` / `description` columns. */
+async function defaultLocale(ctx: Ctx): Promise<string> {
+  const t = await ctx.services.admin.tenant.findUnique({
+    where: { id: ctx.tenantId },
+    select: { defaultLocale: true },
+  });
+  return t?.defaultLocale ?? 'fr';
+}
+
+type I18n = Record<string, string>;
+
+/**
+ * Keeps `name` / `description` (default-locale fallback) and their translations in sync: an
+ * explicit translation of the default locale wins, otherwise the plain column feeds it.
+ */
+function syncI18n(
+  locale: string,
+  cur: { name: string; description: string | null; nameI18n: I18n; descriptionI18n: I18n | null },
+  input: {
+    name?: string | undefined;
+    description?: string | null | undefined;
+    nameI18n?: I18n | undefined;
+    descriptionI18n?: I18n | null | undefined;
+  },
+) {
+  const nameI18n: I18n = { ...cur.nameI18n, ...(input.nameI18n ?? {}) };
+  if (input.name !== undefined && input.nameI18n?.[locale] === undefined)
+    nameI18n[locale] = input.name;
+  const name = nameI18n[locale] ?? input.name ?? cur.name;
+  nameI18n[locale] = name;
+  let descriptionI18n: I18n | null =
+    input.descriptionI18n === null
+      ? null
+      : { ...(cur.descriptionI18n ?? {}), ...(input.descriptionI18n ?? {}) };
+  if (input.description !== undefined && input.descriptionI18n?.[locale] === undefined) {
+    descriptionI18n ??= {};
+    if (input.description === null) delete descriptionI18n[locale];
+    else descriptionI18n[locale] = input.description;
+  }
+  const description =
+    descriptionI18n?.[locale] ??
+    (input.description !== undefined ? input.description : cur.description) ??
+    null;
+  if (descriptionI18n && !Object.keys(descriptionI18n).length) descriptionI18n = null;
+  return { name, description, nameI18n, descriptionI18n };
+}
+
+const jsonOrNull = (v: I18n | null) => (v === null ? Prisma.DbNull : v);
+
 export async function createRoomType(ctx: Ctx, input: In<typeof createRoomTypeBody>) {
   await requireProperty(ctx, input.propertyId);
-  const row = await ctx.db.roomType.create({ data: { ...input, tenantId: ctx.tenantId } });
+  const i18n = syncI18n(
+    await defaultLocale(ctx),
+    { name: input.name, description: null, nameI18n: {}, descriptionI18n: null },
+    input,
+  );
+  const row = await ctx.db.roomType.create({
+    data: {
+      ...input,
+      ...i18n,
+      descriptionI18n: jsonOrNull(i18n.descriptionI18n),
+      tenantId: ctx.tenantId,
+    },
+  });
   return toRoomType(row);
 }
 
@@ -167,7 +230,22 @@ export async function updateRoomType(ctx: Ctx, id: string, input: In<typeof upda
   const adults = input.maxAdults ?? cur.maxAdults;
   if ((input.baseOccupancy ?? cur.baseOccupancy) > adults)
     throw invalid('baseOccupancy', 'Base occupancy cannot exceed max adults');
-  return toRoomType(await ctx.db.roomType.update({ where: { id }, data: input }));
+  const { nameI18n, descriptionI18n, ...columns } = input;
+  const touchesText =
+    input.name !== undefined ||
+    input.description !== undefined ||
+    nameI18n !== undefined ||
+    descriptionI18n !== undefined;
+  const i18n = touchesText ? syncI18n(await defaultLocale(ctx), toRoomType(cur), input) : null;
+  return toRoomType(
+    await ctx.db.roomType.update({
+      where: { id },
+      data: {
+        ...columns,
+        ...(i18n ? { ...i18n, descriptionI18n: jsonOrNull(i18n.descriptionI18n) } : {}),
+      },
+    }),
+  );
 }
 
 export async function deleteRoomType(ctx: Ctx, id: string): Promise<void> {
@@ -302,7 +380,7 @@ export async function createRoom(ctx: Ctx, input: In<typeof createRoomBody>) {
   await requireRoomTypeIn(ctx, input.roomTypeId, input.propertyId);
   const customFields = await validateCustomFields(ctx.db, 'room', input.customFields);
   const exists = await ctx.db.room.findFirst({
-    where: { propertyId: input.propertyId, number: input.number },
+    where: { propertyId: input.propertyId, number: input.number, deletedAt: null },
     select: { id: true },
   });
   if (exists) throw conflict(`Room ${input.number} already exists`, { number: input.number });
@@ -318,7 +396,7 @@ export async function bulkCreateRooms(ctx: Ctx, input: In<typeof bulkRoomsBody>)
   const numbers: string[] = [];
   for (let n = input.from; n <= input.to; n++) numbers.push(`${input.prefix}${n}`);
   const existing = await ctx.db.room.findMany({
-    where: { propertyId: input.propertyId, number: { in: numbers } },
+    where: { propertyId: input.propertyId, number: { in: numbers }, deletedAt: null },
     select: { number: true },
   });
   if (existing.length)
@@ -350,7 +428,7 @@ export async function updateRoom(ctx: Ctx, id: string, input: In<typeof updateRo
   if (input.roomTypeId) await requireRoomTypeIn(ctx, input.roomTypeId, cur.propertyId);
   if (input.number && input.number !== cur.number) {
     const dup = await ctx.db.room.findFirst({
-      where: { propertyId: cur.propertyId, number: input.number },
+      where: { propertyId: cur.propertyId, number: input.number, deletedAt: null },
       select: { id: true },
     });
     if (dup) throw conflict(`Room ${input.number} already exists`, { number: input.number });
@@ -369,11 +447,8 @@ export async function updateRoom(ctx: Ctx, id: string, input: In<typeof updateRo
 
 export async function deleteRoom(ctx: Ctx, id: string): Promise<void> {
   await loadRoom(ctx, id);
-  // The number stays reserved only while the room exists: rename to free it for reuse.
-  await ctx.db.room.update({
-    where: { id },
-    data: { deletedAt: new Date(), isActive: false, number: `${id.slice(0, 8)}~deleted` },
-  });
+  // Soft delete: the partial unique index (deleted_at IS NULL) frees the number for reuse.
+  await ctx.db.room.update({ where: { id }, data: { deletedAt: new Date(), isActive: false } });
 }
 
 // ───────────────────────────── room blocks ─────────────────────────────

@@ -1073,8 +1073,12 @@ model RoomType {
   propertyId       String            @map("property_id") @db.Uuid
   property         Property          @relation(fields: [propertyId], references: [id])
   code             String
+  /// Label in the tenant default locale (fallback of name_i18n).
   name             String
   description      String?
+  /// Translations {locale: label} (e.g. {"fr": "Double", "en": "Double room"}).
+  nameI18n         Json              @default("{}") @map("name_i18n")
+  descriptionI18n  Json?             @map("description_i18n")
   maxAdults        Int               @map("max_adults")
   maxChildren      Int               @default(0) @map("max_children")
   baseOccupancy    Int               @map("base_occupancy")
@@ -1128,7 +1132,8 @@ model Room {
   minibarCounts       MinibarCount[]
   lostFoundItems      LostFoundItem[]
 
-  @@unique([tenantId, propertyId, number])
+  // UNIQUE (tenant_id, property_id, number) WHERE deleted_at IS NULL: partial index in the
+  // hand-written migration *_sch1_lodging (a deleted room frees its number).
   @@index([propertyId])
   @@index([roomTypeId])
   @@map("rooms")
@@ -1233,23 +1238,29 @@ model Season {
 }
 
 model Rate {
-  id         String   @id @default(uuid(7)) @db.Uuid
-  tenantId   String   @map("tenant_id") @db.Uuid
-  tenant     Tenant   @relation(fields: [tenantId], references: [id])
-  ratePlanId String   @map("rate_plan_id") @db.Uuid
-  ratePlan   RatePlan @relation(fields: [ratePlanId], references: [id], onDelete: Cascade)
-  roomTypeId String   @map("room_type_id") @db.Uuid
-  roomType   RoomType @relation(fields: [roomTypeId], references: [id])
-  seasonId   String?  @map("season_id") @db.Uuid
-  season     Season?  @relation(fields: [seasonId], references: [id])
-  dowMask    Int      @default(127) @map("dow_mask")
-  currency   String   @default("XOF") @db.Char(3)
-  price      BigInt
-  extraAdult BigInt   @default(0) @map("extra_adult")
-  extraChild BigInt   @default(0) @map("extra_child")
-  minStay    Int      @default(1) @map("min_stay")
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                String   @id @default(uuid(7)) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+  ratePlanId        String   @map("rate_plan_id") @db.Uuid
+  ratePlan          RatePlan @relation(fields: [ratePlanId], references: [id], onDelete: Cascade)
+  roomTypeId        String   @map("room_type_id") @db.Uuid
+  roomType          RoomType @relation(fields: [roomTypeId], references: [id])
+  seasonId          String?  @map("season_id") @db.Uuid
+  season            Season?  @relation(fields: [seasonId], references: [id])
+  dowMask           Int      @default(127) @map("dow_mask")
+  currency          String   @default("XOF") @db.Char(3)
+  price             BigInt
+  extraAdult        BigInt   @default(0) @map("extra_adult")
+  extraChild        BigInt   @default(0) @map("extra_child")
+  minStay           Int      @default(1) @map("min_stay")
+  /// Maximum stay (nights) when this rate applies on the arrival night; NULL = no maximum.
+  maxStay           Int?     @map("max_stay")
+  /// No arrival on the nights this rate applies to.
+  closedToArrival   Boolean  @default(false) @map("closed_to_arrival")
+  /// No departure on the days this rate applies to.
+  closedToDeparture Boolean  @default(false) @map("closed_to_departure")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@index([ratePlanId, roomTypeId])
   @@index([tenantId])
