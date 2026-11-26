@@ -77,19 +77,16 @@ export function assertOpen(f: FolioRow): void {
 // ─────────────────────────────── closed days ───────────────────────────────
 
 /**
- * Last business date closed by a night audit (`night_audits.summary.locked = true`), or null.
- * Postings dated on or before it are refused; corrections are reversals dated in the open day.
+ * Last business date closed by a night audit (`properties.closed_through_date`), or null.
+ * Postings dated on or before it are refused (also by the `hm_closed_day_guard` trigger);
+ * corrections are reversals dated in the open day.
  */
 export async function lastClosedDate(
-  db: Pick<TransactionClient, 'nightAudit'>,
+  db: Pick<TransactionClient, 'property'>,
   propertyId: string,
 ): Promise<string | null> {
-  const a = await db.nightAudit.findFirst({
-    where: { propertyId, summary: { path: ['locked'], equals: true } },
-    orderBy: { businessDate: 'desc' },
-    select: { businessDate: true },
-  });
-  return a ? formatDay(a.businessDate) : null;
+  const p = await db.property.findFirst({ where: { id: propertyId }, select: { closedThroughDate: true } });
+  return p?.closedThroughDate ? formatDay(p.closedThroughDate) : null;
 }
 
 export function dayClosed(date: string, closed: string | null): AppError {
@@ -108,7 +105,7 @@ export const dayLockKey = (propertyId: string) => `business_day:${propertyId}`;
  * are committed (and later ones see the closing).
  */
 export async function assertDayOpen(
-  db: Pick<TransactionClient, 'nightAudit' | '$queryRaw'>,
+  db: Pick<TransactionClient, 'property' | '$queryRaw'>,
   propertyId: string,
   date: string,
 ): Promise<void> {

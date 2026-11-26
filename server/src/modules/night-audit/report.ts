@@ -8,9 +8,12 @@ import { asTx } from '../folio/repository.js';
 import type { DayStats } from './stats.js';
 
 /** Manager report of a closed day (KPIs, revenue by department, payments by method, taxes). */
-export async function buildReportData(ctx: RCtx, audit: NightAudit): Promise<NightAuditReportData> {
-  const s = (audit.summary ?? {}) as { kpis?: DayStats; lockedAt?: string; warnings?: { code: string; count: number }[] };
-  const k = s.kpis;
+export async function buildReportData(
+  ctx: RCtx,
+  audit: NightAudit,
+  k: DayStats | null,
+): Promise<NightAuditReportData> {
+  const s = (audit.summary ?? {}) as { warnings?: { code: string; count: number }[] };
   if (!k) throw new Error('The day statistics are not computed');
   const m = (amount: number) => ({ amount, currency: k.currency });
   const [hotel, departments, starter] = await Promise.all([
@@ -27,7 +30,7 @@ export async function buildReportData(ctx: RCtx, audit: NightAudit): Promise<Nig
   return {
     hotel,
     businessDate: formatDay(audit.businessDate),
-    closedAt: s.lockedAt ?? new Date().toISOString(),
+    closedAt: (audit.lockedAt ?? new Date()).toISOString(),
     ...(starter ? { closedBy: starter.name } : {}),
     kpis: {
       occupancy: k.occupancy,
@@ -57,8 +60,8 @@ export async function buildReportData(ctx: RCtx, audit: NightAudit): Promise<Nig
   };
 }
 
-export async function renderAuditReport(ctx: RCtx, audit: NightAudit) {
-  const data = await buildReportData(ctx, audit);
+export async function renderAuditReport(ctx: RCtx, audit: NightAudit, kpis: DayStats | null) {
+  const data = await buildReportData(ctx, audit, kpis);
   return renderPdf(ctx.services, {
     type: 'night_audit_report',
     data,

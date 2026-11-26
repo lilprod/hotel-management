@@ -1018,6 +1018,8 @@ model Property {
   checkinTime           String                 @default("14:00") @map("checkin_time") @db.VarChar(5)
   checkoutTime          String                 @default("12:00") @map("checkout_time") @db.VarChar(5)
   businessDate          DateTime               @map("business_date") @db.Date
+  /// Last business date closed by the night audit: postings dated on or before it are refused.
+  closedThroughDate     DateTime?              @map("closed_through_date") @db.Date
   deletedAt             DateTime?              @map("deleted_at") @db.Timestamptz(6)
   createdAt             DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -1904,6 +1906,8 @@ model NightAudit {
   startedBy    String?          @map("started_by") @db.Uuid
   startedAt    DateTime         @default(now()) @map("started_at") @db.Timestamptz(6)
   completedAt  DateTime?        @map("completed_at") @db.Timestamptz(6)
+  /// When the day was closed (lock step): end of the time window of the day's check-ins/outs.
+  lockedAt     DateTime?        @map("locked_at") @db.Timestamptz(6)
   summary      Json?
   createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -3785,23 +3789,38 @@ model WebhookDelivery {
 }
 
 model DailyStatsProperty {
-  id            String   @id @default(uuid(7)) @db.Uuid
-  tenantId      String   @map("tenant_id") @db.Uuid
-  tenant        Tenant   @relation(fields: [tenantId], references: [id])
-  propertyId    String   @map("property_id") @db.Uuid
-  property      Property @relation(fields: [propertyId], references: [id])
-  businessDate  DateTime @map("business_date") @db.Date
-  currency      String   @default("XOF") @db.Char(3)
-  occupied      Int      @default(0)
-  available     Int      @default(0)
-  revenueRoom   BigInt   @default(0) @map("revenue_room")
-  revenueByDept Json     @default("{}") @map("revenue_by_dept")
-  adr           BigInt   @default(0)
-  revpar        BigInt   @default(0)
-  covers        Int      @default(0)
-  appointments  Int      @default(0)
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id               String   @id @default(uuid(7)) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  tenant           Tenant   @relation(fields: [tenantId], references: [id])
+  propertyId       String   @map("property_id") @db.Uuid
+  property         Property @relation(fields: [propertyId], references: [id])
+  businessDate     DateTime @map("business_date") @db.Date
+  currency         String   @default("XOF") @db.Char(3)
+  occupied         Int      @default(0)
+  available        Int      @default(0)
+  revenueRoom      BigInt   @default(0) @map("revenue_room")
+  revenueByDept    Json     @default("{}") @map("revenue_by_dept")
+  adr              BigInt   @default(0)
+  revpar           BigInt   @default(0)
+  covers           Int      @default(0)
+  appointments     Int      @default(0)
+  /// Net revenue of the day, all departments (HT).
+  revenueTotal     BigInt   @default(0) @map("revenue_total")
+  /// Percentage taxes collected (TVA).
+  vatTotal         BigInt   @default(0) @map("vat_total")
+  /// Fixed taxes collected (taxe de séjour).
+  touristTaxTotal  BigInt   @default(0) @map("tourist_tax_total")
+  /// Taxes per code [{code, name, kind: VAT|TOURIST, amount}].
+  taxes            Json     @default("[]")
+  /// Payments of the business day per method [{method, amount}].
+  paymentsByMethod Json     @default("[]") @map("payments_by_method")
+  paymentsTotal    BigInt   @default(0) @map("payments_total")
+  arrivals         Int      @default(0)
+  departures       Int      @default(0)
+  inHouse          Int      @default(0) @map("in_house")
+  noShows          Int      @default(0) @map("no_shows")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@unique([propertyId, businessDate])
   @@index([tenantId])

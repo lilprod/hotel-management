@@ -1,5 +1,5 @@
-import type { Prisma } from '@hm/database';
-import { num, parseDay } from '../property/common.js';
+import type { DailyStatsProperty, Prisma } from '@hm/database';
+import { formatDay, num, parseDay } from '../property/common.js';
 import { COUNTED_PAYMENT_STATUSES, DEPT, SRC, taxesByCode, type Tx } from '../folio/repository.js';
 import { mulDivRound } from '../folio/tax-math.js';
 
@@ -27,7 +27,7 @@ export interface DayStats {
   departures: number;
   inHouse: number;
   noShows: number;
-  /** Window of the time-stamped facts (payments, check-ins, check-outs): previous closing → this one. */
+  /** Window of the time-stamped facts (check-ins, check-outs): previous closing → this one. */
   window: { from: string; to: string };
 }
 
@@ -51,10 +51,17 @@ export function zonedMidnight(day: string, timeZone: string): Date {
   return new Date(utc.getTime() - (asUtc - utc.getTime()));
 }
 
+/** Occupancy of a day as basis points and as "66.7" text. */
+function occupancyOf(sold: number, available: number) {
+  const occupancyBp = available ? Number(mulDivRound(BigInt(sold), 10_000n, BigInt(available))) : 0;
+  const occ10 = available ? Number(mulDivRound(BigInt(sold), 1_000n, BigInt(available))) : 0;
+  return { occupancyBp, occupancy: `${Math.trunc(occ10 / 10)}.${occ10 % 10}` };
+}
+
 /**
- * Daily KPIs of business date `D` (OP-100: occupancy, ADR, RevPAR; X13 aggregates). Postings are
- * taken by `business_date = D` (the day is locked, so final); payments, check-ins and check-outs
- * carry no business date and are taken in the `window` between two closings.
+ * Daily KPIs of business date `D` (OP-100: occupancy, ADR, RevPAR; X13 aggregates). Postings and
+ * payments are taken by `business_date = D` (the day is locked, so final); check-ins and
+ * check-outs carry no business date and are taken in the `window` between two closings.
  */
 export async function computeDayStats(
   tx: Tx,
@@ -99,7 +106,7 @@ export async function computeDayStats(
       where: {
         propertyId,
         status: { in: [...COUNTED_PAYMENT_STATUSES] },
-        paidAt: { gt: input.window.from, lte: input.window.to },
+        businessDate: day,
       },
       _sum: { amount: true },
     }),
@@ -128,8 +135,6 @@ export async function computeDayStats(
   const available = Math.max(0, rooms - blocked.length);
   const roomRevenue = byDept.get(DEPT.room) ?? 0n;
   const totalRevenue = [...byDept.values()].reduce((s, x) => s + x, 0n);
-  const occupancyBp = available ? Number(mulDivRound(BigInt(sold.size), 10_000n, BigInt(available))) : 0;
-  const occ10 = available ? Number(mulDivRound(BigInt(sold.size), 1_000n, BigInt(available))) : 0;
   const taxRows = [...byTax.entries()]
     .map(([code, amount]) => {
       const t = taxes.get(code);
@@ -154,8 +159,7 @@ export async function computeDayStats(
     currency: input.currency,
     roomsAvailable: available,
     roomsSold: sold.size,
-    occupancy: `${Math.trunc(occ10 / 10)}.${occ10 % 10}`,
-    occupancyBp,
+    ...occupancyOf(sold.size, available),
     roomRevenue: num(roomRevenue),
     totalRevenue: num(totalRevenue),
     adr: num(ratio(roomRevenue, BigInt(sold.size))),
@@ -185,6 +189,16 @@ export async function writeDailyStats(tx: Tx, tenantId: string, propertyId: stri
     revenueByDept: s.revenueByDept as Prisma.InputJsonValue,
     adr: BigInt(s.adr),
     revpar: BigInt(s.revpar),
+    revenueTotal: BigInt(s.totalRevenue),
+    vatTotal: BigInt(s.vatTotal),
+    touristTaxTotal: BigInt(s.touristTaxTotal),
+    taxes: s.taxes as unknown as Prisma.InputJsonValue,
+    paymentsByMethod: s.payments as unknown as Prisma.InputJsonValue,
+    paymentsTotal: BigInt(s.paymentsTotal),
+    arrivals: s.arrivals,
+    departures: s.departures,
+    inHouse: s.inHouse,
+    noShows: s.noShows,
   };
   await tx.dailyStatsProperty.upsert({
     where: { propertyId_businessDate: { propertyId, businessDate: day } },
@@ -203,4 +217,31 @@ export async function writeDailyStats(tx: Tx, tenantId: string, propertyId: stri
       update: { revenue, currency: s.currency },
     });
   }
+}
+
+/** KPIs of a closed day read back from `daily_stats_property` (the stored source of truth). */
+export function statsFromRow(r: DailyStatsProperty, window: { from: Date; to: Date }): DayStats {
+  const revenueByDept = (r.revenueByDept ?? {}) as Record<string, number>;
+  return {
+    businessDate: formatDay(r.businessDate),
+    currency: r.currency,
+    roomsAvailable: r.available,
+    roomsSold: r.occupied,
+    ...occupancyOf(r.occupied, r.available),
+    roomRevenue: num(r.revenueRoom),
+    totalRevenue: num(r.revenueTotal),
+    adr: num(r.adr),
+    revpar: num(r.revpar),
+    revenueByDept,
+    taxes: r.taxes as DayStats['taxes'],
+    vatTotal: num(r.vatTotal),
+    touristTaxTotal: num(r.touristTaxTotal),
+    payments: r.paymentsByMethod as DayStats['payments'],
+    paymentsTotal: num(r.paymentsTotal),
+    arrivals: r.arrivals,
+    departures: r.departures,
+    inHouse: r.inHouse,
+    noShows: r.noShows,
+    window: { from: window.from.toISOString(), to: window.to.toISOString() },
+  };
 }

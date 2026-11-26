@@ -413,6 +413,45 @@ describe('run', () => {
       where: { propertyId_businessDate: { propertyId: h.f.propertyId, businessDate: new Date('2026-11-12') } },
     });
     expect(dsp).toMatchObject({ occupied: 2, available: 4, revenueRoom: 70_000n, adr: 35_000n, revpar: 17_500n, revenueByDept: { ROOM: 70_000, MINIBAR: 3_000 } });
+    // SCH-2: every KPI is a column; the audit DTO reads them back (not from the summary JSON).
+    expect(dsp).toMatchObject({
+      revenueTotal: 73_000n,
+      vatTotal: 12_600n,
+      touristTaxTotal: 3_000n,
+      paymentsTotal: 30_000n,
+      paymentsByMethod: [
+        { method: 'CARD', amount: 20_000 },
+        { method: 'MIXX', amount: 10_000 },
+      ],
+      arrivals: 2,
+      departures: 0,
+      inHouse: 2,
+      noShows: 0,
+    });
+    const auditRow = await admin.nightAudit.findUniqueOrThrow({ where: { id: r.body.audit.id } });
+    expect(auditRow.lockedAt).toBeTruthy();
+    expect(Object.keys(auditRow.summary as object)).not.toContain('kpis');
+    await admin.dailyStatsProperty.update({ where: { id: dsp!.id }, data: { vatTotal: 12_601n } });
+    const reread = await h.api('get', `/night-audit/${r.body.audit.id}`);
+    expect(reread.body.kpis.vatTotal).toBe(12_601);
+    await admin.dailyStatsProperty.update({ where: { id: dsp!.id }, data: { vatTotal: 12_600n } });
+    // The closed day is final: properties.closed_through_date, enforced by the database too.
+    const prop = await admin.property.findUniqueOrThrow({ where: { id: h.f.propertyId } });
+    expect(day(prop.closedThroughDate!)).toBe('2026-11-12');
+    await expect(
+      admin.folioLine.create({
+        data: {
+          tenantId: h.f.tenantId,
+          propertyId: h.f.propertyId,
+          folioId: fa.id,
+          businessDate: new Date('2026-11-12'),
+          type: 'EXTRA',
+          label: 'Tardif',
+          unitAmount: 1n,
+          amount: 1n,
+        },
+      }),
+    ).rejects.toThrow(/is closed/);
     const dsd = await admin.dailyStatsDepartment.findMany({
       where: { propertyId: h.f.propertyId, businessDate: new Date('2026-11-12') },
       orderBy: { departmentCode: 'asc' },

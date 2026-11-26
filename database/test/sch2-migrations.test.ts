@@ -168,13 +168,48 @@ INSERT INTO folio_payments (id, tenant_id, property_id, folio_id, amount, method
   VALUES ('${P_SETTLE}', '${T}', '${PROP}', '${F_CL}', 30000, 'BANK_TRANSFER', 'VIR-1', '2026-11-12T10:00:00Z', now());
 `;
 
+const KPIS = JSON.stringify({
+  businessDate: '2026-11-11',
+  currency: 'XOF',
+  roomsAvailable: 4,
+  roomsSold: 2,
+  roomRevenue: 70000,
+  totalRevenue: 73000,
+  adr: 35000,
+  revpar: 17500,
+  revenueByDept: { ROOM: 70000, MINIBAR: 3000 },
+  taxes: [
+    { code: 'TVA18', name: 'TVA 18 %', kind: 'VAT', amount: 12600 },
+    { code: 'TS', name: 'Taxe de séjour', kind: 'TOURIST', amount: 3000 },
+  ],
+  vatTotal: 12600,
+  touristTaxTotal: 3000,
+  payments: [{ method: 'CARD', amount: 20000 }],
+  paymentsTotal: 20000,
+  arrivals: 2,
+  departures: 1,
+  inHouse: 3,
+  noShows: 1,
+});
+const FIXTURES_NIGHT_AUDIT = `
+INSERT INTO night_audits (id, tenant_id, property_id, business_date, status, completed_at, summary, updated_at) VALUES
+  (gen_random_uuid(), '${T}', '${PROP}', '2026-11-11', 'COMPLETED', '2026-11-12T02:00:00Z',
+   '{"trigger": "auto", "steps": {}, "locked": true, "lockedAt": "2026-11-12T01:59:00Z", "kpis": ${KPIS}}', now());
+`;
+
 let pg: TestPostgres;
 const q = (sql: string) => pg.psql(sql).then((s) => s.trim());
 
 beforeAll(async () => {
   pg = await startTestPostgres({ database: 'hm_sch2', migrate: false });
   for (const d of before) await pg.psql(sqlOf(d));
-  await pg.psql(FIXTURES_BASE + FIXTURES_RESERVATIONS + FIXTURES_FOLIO + FIXTURES_INVOICING);
+  await pg.psql(
+    FIXTURES_BASE +
+      FIXTURES_RESERVATIONS +
+      FIXTURES_FOLIO +
+      FIXTURES_INVOICING +
+      FIXTURES_NIGHT_AUDIT,
+  );
   for (const d of sch2) await pg.psql(sqlOf(d));
 });
 afterAll(async () => {
@@ -298,7 +333,7 @@ describe('SCH-2 group 2 — folio & payments', () => {
   it('a live (method, reference) is unique by index', async () => {
     await expect(
       q(`INSERT INTO folio_payments (id, tenant_id, property_id, folio_id, amount, method, reference, business_date, receipt_number, updated_at)
-           VALUES (gen_random_uuid(), '${T}', '${PROP}', '${F_PRE}', 100, 'MIXX', 'MX-1', '2026-11-11', 'REC-2026-000099', now())`),
+           VALUES (gen_random_uuid(), '${T}', '${PROP}', '${F_PRE}', 100, 'MIXX', 'MX-1', '2026-11-12', 'REC-2026-000099', now())`),
     ).rejects.toThrow(/folio_payments_method_reference_active_key/);
   });
 
@@ -371,5 +406,49 @@ describe('SCH-2 group 3 — invoicing', () => {
         `SELECT relrowsecurity || '|' || relforcerowsecurity FROM pg_class WHERE relname = 'ledger_allocations'`,
       ),
     ).toBe('true|true');
+  });
+});
+
+describe('SCH-2 group 4 — night audit', () => {
+  it('backfills locked_at and properties.closed_through_date, cleans the summary', async () => {
+    expect(
+      await q(
+        `SELECT string_agg(business_date || '|' || locked_at, ',' ORDER BY business_date) FROM night_audits`,
+      ),
+    ).toBe('2026-11-10|2026-11-11 02:00:00+00,2026-11-11|2026-11-12 01:59:00+00');
+    expect(await q(`SELECT closed_through_date FROM properties WHERE id = '${PROP}'`)).toBe(
+      '2026-11-11',
+    );
+    expect(
+      await q(
+        `SELECT count(*) FROM night_audits WHERE summary ?| ARRAY['kpis', 'locked', 'lockedAt']`,
+      ),
+    ).toBe('0');
+    expect(
+      await q(`SELECT summary->>'trigger' FROM night_audits WHERE business_date = '2026-11-11'`),
+    ).toBe('auto');
+  });
+
+  it('moves the summary KPIs into daily_stats_property columns', async () => {
+    expect(
+      await q(
+        `SELECT concat_ws('|', occupied, available, revenue_room, revenue_total, vat_total, tourist_tax_total,
+                          payments_total, arrivals, departures, in_house, no_shows, jsonb_array_length(taxes), payments_by_method::text)
+           FROM daily_stats_property WHERE business_date = '2026-11-11'`,
+      ),
+    ).toBe('2|4|70000|73000|12600|3000|20000|2|1|3|1|2|[{"amount": 20000, "method": "CARD"}]');
+  });
+
+  it('refuses postings and payments dated in a closed day (closed_through_date guard)', async () => {
+    await expect(
+      q(`INSERT INTO folio_lines (id, tenant_id, property_id, folio_id, business_date, type, label, unit_amount, amount)
+           VALUES (gen_random_uuid(), '${T}', '${PROP}', '${F_STAY}', '2026-11-11', 'EXTRA', 'Tardif', 1, 1)`),
+    ).rejects.toThrow(/is closed/);
+    await expect(
+      q(`INSERT INTO folio_payments (id, tenant_id, property_id, folio_id, amount, method, business_date, receipt_number, updated_at)
+           VALUES (gen_random_uuid(), '${T}', '${PROP}', '${F_STAY}', 1, 'CASH', '2026-11-10', 'REC-X', now())`),
+    ).rejects.toThrow(/is closed/);
+    await q(`INSERT INTO folio_lines (id, tenant_id, property_id, folio_id, business_date, type, label, unit_amount, amount)
+               VALUES (gen_random_uuid(), '${T}', '${PROP}', '${F_STAY}', '2026-11-12', 'EXTRA', 'Ouvert', 1, 1)`);
   });
 });

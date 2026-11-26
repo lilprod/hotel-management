@@ -12,7 +12,7 @@ import { notificationDeps } from '../notifications/deps.js';
 import { NIGHT_AUDIT_EVENTS, publishNightAudit } from './events.js';
 import { blockingCodes, precheck, type Precheck } from './precheck.js';
 import { renderAuditReport } from './report.js';
-import { computeDayStats, writeDailyStats, zonedMidnight, type DayStats } from './stats.js';
+import { computeDayStats, statsFromRow, writeDailyStats, zonedMidnight, type DayStats } from './stats.js';
 
 /** Steps of a run, in order; each is idempotent and recorded in `night_audits.summary.steps`. */
 export const STEPS = [
@@ -45,11 +45,7 @@ export interface Summary {
   /** Warnings of the pre-check at start (codes with counts). */
   warnings: { code: string; count: number }[];
   steps: Partial<Record<Step, StepState>>;
-  /** The day is closed: postings dated ≤ business date are refused (folio lock). */
-  locked?: boolean;
-  lockedAt?: string;
   advanced?: boolean;
-  kpis?: DayStats;
   reportFileId?: string | null;
   error?: string | null;
 }
@@ -59,7 +55,28 @@ const summaryOf = (a: Pick<NightAudit, 'summary'>): Summary => {
   return { trigger: 'manual', decisions: [], warnings: [], steps: {}, ...s };
 };
 
-export const toAudit = (a: NightAudit) => {
+/**
+ * KPIs of an audited day, from `daily_stats_property` (null before the stats step); the window of
+ * the time-stamped facts runs from the previous closing (`locked_at`) to this one.
+ */
+export async function loadKpis(
+  db: Pick<RCtx['db'], 'nightAudit' | 'dailyStatsProperty' | 'property'>,
+  a: NightAudit,
+): Promise<DayStats | null> {
+  const row = await db.dailyStatsProperty.findUnique({
+    where: { propertyId_businessDate: { propertyId: a.propertyId, businessDate: a.businessDate } },
+  });
+  if (!row || !a.lockedAt) return null;
+  const prev = await db.nightAudit.findFirst({
+    where: { propertyId: a.propertyId, businessDate: { lt: a.businessDate }, lockedAt: { not: null } },
+    orderBy: { businessDate: 'desc' },
+    select: { lockedAt: true },
+  });
+  const tz = (await db.property.findUnique({ where: { id: a.propertyId }, select: { timezone: true } }))?.timezone ?? 'UTC';
+  return statsFromRow(row, { from: prev?.lockedAt ?? zonedMidnight(formatDay(a.businessDate), tz), to: a.lockedAt });
+}
+
+export const toAudit = (a: NightAudit, kpis: DayStats | null = null) => {
   const s = summaryOf(a);
   return {
     id: a.id,
@@ -79,7 +96,7 @@ export const toAudit = (a: NightAudit) => {
     })),
     decisions: s.decisions,
     warnings: s.warnings,
-    kpis: s.kpis ?? null,
+    kpis,
     reportFileId: s.reportFileId ?? null,
     error: s.error ?? null,
   };
@@ -105,6 +122,8 @@ interface RunState {
   businessDate: string;
   currency: string;
   timezone: string;
+  /** KPIs computed by the stats step of this run. */
+  kpis?: DayStats | undefined;
 }
 
 async function saveSummary(ctx: RCtx, id: string, summary: Summary, extra: Prisma.NightAuditUpdateInput = {}) {
@@ -186,42 +205,35 @@ async function stepRoomNights(st: RunState) {
   return { stays: rows.length, posted };
 }
 
-/** Closes the day: from now on no posting may be dated on or before it (folio lock). */
+/**
+ * Closes the day: `properties.closed_through_date` = D, so no posting may be dated on or before it
+ * (folio check + `hm_closed_day_guard` trigger); `night_audits.locked_at` records when.
+ */
 async function stepLockDay(st: RunState) {
   const { ctx } = st;
-  await ctx.db.$transaction(async (tx) => {
+  st.audit = await ctx.db.$transaction(async (tx) => {
     // Exclusive day lock: waits for in-flight postings, later ones see the closing.
     await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${dayLockKey(st.propertyId)}, 0))::text AS l`;
     const row = await tx.nightAudit.findUniqueOrThrow({ where: { id: st.audit.id } });
-    const cur = summaryOf(row);
-    if (cur.locked) {
-      st.summary.locked = true;
-      st.summary.lockedAt = cur.lockedAt;
-      return;
-    }
-    st.summary.locked = true;
-    st.summary.lockedAt = now().toISOString();
-    await tx.nightAudit.update({
-      where: { id: st.audit.id },
-      data: { summary: st.summary as unknown as Prisma.InputJsonValue },
-    });
+    const day = parseDay(st.businessDate);
+    const p = await tx.property.findUniqueOrThrow({ where: { id: st.propertyId }, select: { closedThroughDate: true } });
+    if (!p.closedThroughDate || p.closedThroughDate < day)
+      await tx.property.update({ where: { id: st.propertyId }, data: { closedThroughDate: day } });
+    if (row.lockedAt) return row;
+    return tx.nightAudit.update({ where: { id: st.audit.id }, data: { lockedAt: now() } });
   });
-  return { lockedAt: st.summary.lockedAt };
+  return { lockedAt: st.audit.lockedAt?.toISOString() ?? null };
 }
 
 async function stepStats(st: RunState) {
   const { ctx } = st;
   const prev = await ctx.db.nightAudit.findFirst({
-    where: {
-      propertyId: st.propertyId,
-      businessDate: { lt: parseDay(st.businessDate) },
-      summary: { path: ['locked'], equals: true },
-    },
+    where: { propertyId: st.propertyId, businessDate: { lt: parseDay(st.businessDate) }, lockedAt: { not: null } },
     orderBy: { businessDate: 'desc' },
+    select: { lockedAt: true },
   });
-  const prevLockedAt = prev ? summaryOf(prev).lockedAt : undefined;
-  const from = prevLockedAt ? new Date(prevLockedAt) : zonedMidnight(st.businessDate, st.timezone);
-  const to = new Date(st.summary.lockedAt ?? now().toISOString());
+  const from = prev?.lockedAt ?? zonedMidnight(st.businessDate, st.timezone);
+  const to = st.audit.lockedAt ?? now();
   const noShows = Number(st.summary.steps.no_shows?.result?.noShows ?? 0);
   const kpis = await ctx.db.$transaction(async (tx) => {
     const s = await computeDayStats(tx, {
@@ -234,7 +246,7 @@ async function stepStats(st: RunState) {
     await writeDailyStats(tx, ctx.tenantId, st.propertyId, s);
     return s;
   });
-  st.summary.kpis = kpis;
+  st.kpis = kpis;
   return { roomsSold: kpis.roomsSold, occupancy: kpis.occupancy, totalRevenue: kpis.totalRevenue };
 }
 
@@ -267,7 +279,7 @@ async function stepAdvance(st: RunState) {
 
 async function stepReport(st: RunState) {
   try {
-    const out = await renderAuditReport(st.ctx, { ...st.audit, summary: st.summary as never });
+    const out = await renderAuditReport(st.ctx, { ...st.audit, summary: st.summary as never }, await kpisOf(st));
     st.summary.reportFileId = out.fileId;
     return { fileId: out.fileId };
   } catch (err) {
@@ -301,7 +313,7 @@ export async function managersOf(ctx: RCtx, propertyId: string) {
 
 async function stepNotify(st: RunState) {
   const { ctx } = st;
-  const k = st.summary.kpis;
+  const k = await kpisOf(st);
   const prop = await ctx.db.property.findUniqueOrThrow({ where: { id: st.propertyId }, select: { name: true } });
   let notified = 0;
   for (const u of await managersOf(ctx, st.propertyId))
@@ -331,6 +343,12 @@ async function stepNotify(st: RunState) {
       ctx.services.logger.warn('night audit notification failed', { userId: u.id, err: (err as Error).message });
     }
   return { notified };
+}
+
+/** KPIs computed by this run, or read back from the columns when the stats step ran earlier. */
+async function kpisOf(st: RunState): Promise<DayStats | null> {
+  st.kpis ??= (await loadKpis(st.ctx.db, st.audit)) ?? undefined;
+  return st.kpis ?? null;
 }
 
 const STEP_FNS: Record<Step, (st: RunState) => Promise<Record<string, unknown>>> = {
@@ -389,7 +407,8 @@ async function execute(ctx: RCtx, input: RunInput) {
   let audit = await ctx.db.nightAudit.findUnique({
     where: { propertyId_businessDate: { propertyId: prop.id, businessDate: parseDay(D) } },
   });
-  if (audit?.status === 'COMPLETED') return { audit: toAudit(audit), alreadyCompleted: true };
+  if (audit?.status === 'COMPLETED')
+    return { audit: toAudit(audit, await loadKpis(ctx.db, audit)), alreadyCompleted: true };
   const resumable = audit && summaryOf(audit).advanced && prop.businessDate === addDays(D, 1);
   if (prop.businessDate !== D && !resumable)
     throw conflict(`The current business date is ${prop.businessDate}, not ${D}`, {
@@ -475,6 +494,7 @@ async function execute(ctx: RCtx, input: RunInput) {
     }
   }
 
+  const kpis = await kpisOf(st);
   const done = await ctx.db.$transaction(async (tx) => {
     const row = await tx.nightAudit.update({
       where: { id: audit.id },
@@ -489,9 +509,9 @@ async function execute(ctx: RCtx, input: RunInput) {
       auditId: audit.id,
       businessDate: D,
       newBusinessDate: addDays(D, 1),
-      occupancy: st.summary.kpis?.occupancy ?? null,
-      roomRevenue: st.summary.kpis?.roomRevenue ?? 0,
-      totalRevenue: st.summary.kpis?.totalRevenue ?? 0,
+      occupancy: kpis?.occupancy ?? null,
+      roomRevenue: kpis?.roomRevenue ?? 0,
+      totalRevenue: kpis?.totalRevenue ?? 0,
     });
     return row;
   });
@@ -499,9 +519,9 @@ async function execute(ctx: RCtx, input: RunInput) {
     action: 'night_audit.complete',
     entity: 'night_audit',
     entityId: audit.id,
-    after: { businessDate: D, kpis: st.summary.kpis ?? null },
+    after: { businessDate: D, kpis },
   });
-  return { audit: toAudit(done), alreadyCompleted: false };
+  return { audit: toAudit(done, kpis), alreadyCompleted: false };
 }
 
 function validateDecisions(pc: Precheck, decisions: Decision[]): Decision[] {
@@ -544,7 +564,9 @@ export async function listAudits(
   });
   const more = rows.length > q.limit;
   const items = more ? rows.slice(0, q.limit) : rows;
-  return { items: items.map(toAudit), nextCursor: more ? (items[items.length - 1]?.id ?? null) : null };
+  const out = [];
+  for (const a of items) out.push(toAudit(a, await loadKpis(ctx.db, a)));
+  return { items: out, nextCursor: more ? (items[items.length - 1]?.id ?? null) : null };
 }
 
 export async function loadAudit(ctx: RCtx, id: string): Promise<NightAudit> {
@@ -554,13 +576,17 @@ export async function loadAudit(ctx: RCtx, id: string): Promise<NightAudit> {
   return a;
 }
 
-export const getAudit = async (ctx: RCtx, id: string) => toAudit(await loadAudit(ctx, id));
+export const getAudit = async (ctx: RCtx, id: string) => {
+  const a = await loadAudit(ctx, id);
+  return toAudit(a, await loadKpis(ctx.db, a));
+};
 
 /** Signed URL of the day report (rendered on demand when missing). */
 export async function auditReport(ctx: RCtx, id: string) {
   const a = await loadAudit(ctx, id);
   const s = summaryOf(a);
-  if (!s.kpis) throw conflict('The day statistics are not computed yet', { reason: 'NO_STATS' });
+  const kpis = await loadKpis(ctx.db, a);
+  if (!kpis) throw conflict('The day statistics are not computed yet', { reason: 'NO_STATS' });
   const file = s.reportFileId ? await ctx.db.file.findFirst({ where: { id: s.reportFileId } }) : null;
   let key: string;
   let fileId: string;
@@ -568,7 +594,7 @@ export async function auditReport(ctx: RCtx, id: string) {
     key = file.key;
     fileId = file.id;
   } else {
-    const out = await renderAuditReport(ctx, a);
+    const out = await renderAuditReport(ctx, a, kpis);
     key = out.key;
     fileId = out.fileId;
     await saveSummary(ctx, a.id, { ...s, reportFileId: out.fileId });

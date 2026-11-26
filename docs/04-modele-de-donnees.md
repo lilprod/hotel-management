@@ -46,7 +46,7 @@ Conventions : PK `id UUID v7`, `created_at`, `updated_at`, `created_by`. Toute t
 ## 3. Tenant — opérationnel (RLS)
 | Table | Colonnes principales |
 |---|---|
-| `properties` | tenant_id, name, address, city, country, phone, email, tax_id, rccm, currency, timezone, checkin_time, checkout_time, business_date |
+| `properties` | tenant_id, name, address, city, country, phone, email, tax_id, rccm, currency, timezone, checkin_time, checkout_time, business_date, closed_through_date (dernière journée clôturée par l'audit de nuit : aucune écriture de folio ni encaissement daté à cette date ou avant — trigger `hm_closed_day_guard`) |
 | `room_types` | property_id, code, name, name_i18n, description_i18n, max_adults, max_children, base_occupancy, beds, size_m2, amenities[], photos[] |
 | `rooms` | property_id, room_type_id, number, floor, building, hk_status, is_active, features[] |
 | `room_blocks` | room_id, from_date, to_date, reason (`MAINTENANCE`/`OUT_OF_SERVICE`) |
@@ -74,7 +74,7 @@ Conventions : PK `id UUID v7`, `created_at`, `updated_at`, `created_by`. Toute t
 | `receipts_payments` (`folio_payments`) | folio_id, amount, method (`MIXX`/`MOOV_MONEY`/`CASH`/`CARD`/`BANK_TRANSFER`/`CITY_LEDGER`), reference, cash_session_id, is_deposit, reversed_by_id, business_date (date d'exploitation à l'encaissement), receipt_number (`REC-AAAA-000001`, sans trou par établissement et année via `sequences` clé `receipt`, UNIQUE par établissement) — **UNIQUE (tenant_id, method, reference) WHERE reference IS NOT NULL AND status <> 'REVERSED' AND amount > 0** |
 | `cash_sessions` | property_id, user_id, opened_at, opening_float, closed_at, counted_amount, expected_amount, variance (espèces, devise de la session), expected / counted (JSONB par moyen et devise, figés à la clôture — rapport Z), note — **UNIQUE (tenant_id, property_id, user_id) WHERE closed_at IS NULL** |
 | `cash_movements` | cash_session_id, type (`IN`/`OUT`), amount, reason |
-| `night_audits` | property_id, business_date, started_by, completed_at, summary (JSONB) |
+| `night_audits` | property_id, business_date, status, started_by, completed_at, locked_at (clôture de la journée), summary (JSONB : état d'exécution — étapes, décisions, alertes ; les KPI sont dans `daily_stats_property`) |
 | `hk_tasks` | property_id, room_id, date, assigned_to, type, status, notes |
 | `maintenance_tickets` | property_id, room_id, title, description, priority, status, assigned_to, photos[], blocks_room |
 | `products` | property_id, category_id, name, price, tax_id, is_stock_item, stock_item_id |
@@ -160,7 +160,7 @@ Ajouts aux tables existantes :
 | Comptabilité | `ledger_accounts`, `account_mappings`, `accounting_exports`, `period_closings` | plan SYSCOHADA ; mapping (département, mode de paiement, taxe) → compte ; période, fichier ; période verrouillée |
 | Opérations | `minibar_templates`, `minibar_counts`, `lost_found_items` | — |
 | Intégrations | `api_keys`, `webhook_subscriptions`, `webhook_deliveries` | scopes, hash, last_used_at ; url, events[], secret_enc ; status, attempts, response_code |
-| Analytique | `daily_stats_property`, `daily_stats_department` | business_date, occupied, available, revenue_room, revenue_by_dept (JSONB), adr, revpar, covers, appointments |
+| Analytique | `daily_stats_property`, `daily_stats_department` | business_date, occupied, available, revenue_room, revenue_total, revenue_by_dept (JSONB), adr, revpar, vat_total (TVA), tourist_tax_total (taxe de séjour), taxes (JSONB par code), payments_by_method (JSONB, encaissements de la date d'exploitation), payments_total, arrivals, departures, in_house, no_shows, covers, appointments — source des KPI de l'audit de nuit |
 
 ## 4. Index et contraintes notables
 - `UNIQUE (tenant_id, property_id, number)` sur les chambres (`WHERE deleted_at IS NULL`), réservations, factures et folios.
