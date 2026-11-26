@@ -24,6 +24,7 @@ export interface PricingData {
       id: string;
       code: string;
       name: string;
+      nameI18n: unknown;
       baseOccupancy: number;
       maxAdults: number;
       maxChildren: number;

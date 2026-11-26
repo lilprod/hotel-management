@@ -30,7 +30,7 @@ Conventions : PK `id UUID v7`, `created_at`, `updated_at`, `created_by`. Toute t
 ## 2. Tenant — IAM, sécurité et branding (RLS)
 | Table | Colonnes principales |
 |---|---|
-| `users` | tenant_id, email, phone, name, password_hash, status (`INVITED`/`PENDING_VERIFICATION`/`ACTIVE`/`DISABLED`), totp_secret_enc, must_change_password, failed_attempts, locked_until, last_login_at |
+| `users` | tenant_id, email, phone, name, password_hash, status (`INVITED`/`PENDING_VERIFICATION`/`ACTIVE`/`DISABLED`), disabled_from_status (statut détenu à la désactivation, rétabli à la réactivation : un propriétaire inscrit non vérifié redevient `PENDING_VERIFICATION`), totp_secret_enc, must_change_password, failed_attempts, locked_until, last_login_at |
 | `password_history` | tenant_id, user_id, hash, created_at |
 | `mfa_backup_codes` | tenant_id, user_id, code_hash, used_at |
 | `user_properties` | user_id, property_id |

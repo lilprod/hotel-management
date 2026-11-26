@@ -37,6 +37,8 @@ export const availabilitySchema = z.object({
       roomTypeId: uuid,
       code: z.string(),
       name: z.string(),
+      /** Translations of the name {locale: label}; `name` is the tenant default locale. */
+      nameI18n: z.record(z.string(), z.string()),
       maxAdults: z.number().int(),
       maxChildren: z.number().int(),
       totalUnits: z.number().int(),
@@ -75,6 +77,7 @@ export const planningSchema = z.object({
       id: uuid,
       code: z.string(),
       name: z.string(),
+      nameI18n: z.record(z.string(), z.string()),
       rooms: z.array(
         z.object({
           id: uuid,

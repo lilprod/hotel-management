@@ -25,6 +25,7 @@ import { ReservationDrawer } from './ReservationDrawer';
 import { addDays, conflictDetails, get, keys, nightsBetween, planningPath, post } from './api';
 import type { PlanningData, PlanningSegment } from './api';
 import { conflictLines } from './conflict';
+import { localizeTypes } from './refs';
 import {
   applyOp,
   buildPlanningModel,
@@ -95,9 +96,15 @@ export function PlanningPage() {
     () => keys.planning(propertyId ?? '', from, to),
     [propertyId, from, to],
   );
+  const lang = i18n.language;
   const query = useQuery({
     queryKey: planningKey,
     queryFn: () => get<PlanningData>(planningPath(propertyId!, from, to)),
+    // Room type names in the UI language (room_types.name_i18n).
+    select: useCallback(
+      (d: PlanningData) => ({ ...d, roomTypes: localizeTypes(d.roomTypes, lang) }),
+      [lang],
+    ),
     enabled: !!propertyId,
     placeholderData: (prev) => prev,
   });

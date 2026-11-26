@@ -151,6 +151,7 @@ export interface PlanningData {
     id: string;
     code: string;
     name: string;
+    nameI18n?: Record<string, string>;
     rooms: PlanningRoom[];
     freeByNight: { date: string; free: number }[];
   }[];
@@ -173,6 +174,7 @@ export interface AvailabilityRoomType {
   roomTypeId: string;
   code: string;
   name: string;
+  nameI18n?: Record<string, string>;
   maxAdults: number;
   maxChildren: number;
   totalUnits: number;

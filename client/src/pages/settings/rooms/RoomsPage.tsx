@@ -14,7 +14,9 @@ import { BulkRooms } from './BulkRooms';
 const typeSchema = z.object({
   code: z.string().regex(/^[A-Za-z0-9_-]{1,20}$/),
   name: z.string().trim().min(1).max(120),
+  nameEn: z.string().trim().max(120).optional(),
   description: z.string().max(2000).optional(),
+  descriptionEn: z.string().max(2000).optional(),
   maxAdults: z.number().int().min(1),
   maxChildren: z.number().int().min(0),
   baseOccupancy: z.number().int().min(1),
@@ -25,6 +27,40 @@ const roomSchema = z.object({
   number: z.string().trim().min(1).max(20),
   floor: z.string().max(20).optional(),
   building: z.string().max(60).optional(),
+});
+
+interface RoomTypeRow extends RoomType {
+  maxAdults: number;
+  description?: string | null;
+  nameI18n?: Record<string, string>;
+  descriptionI18n?: Record<string, string> | null;
+}
+
+/** Form values ↔ API: `name` / `description` are French (default locale), `…En` the English one. */
+export function roomTypePayload(v: Record<string, unknown>, editing: boolean) {
+  const { code, nameEn, descriptionEn, ...rest } = clean(v) as Record<string, unknown>;
+  const name = rest.name as string | undefined;
+  const description = rest.description as string | undefined;
+  const payload = {
+    ...rest,
+    nameI18n: { ...(name ? { fr: name } : {}), ...(nameEn ? { en: nameEn as string } : {}) },
+    descriptionI18n:
+      description || descriptionEn
+        ? {
+            ...(description ? { fr: description } : {}),
+            ...(descriptionEn ? { en: descriptionEn as string } : {}),
+          }
+        : null,
+  };
+  return editing ? payload : { code, ...payload };
+}
+
+export const roomTypeFormValues = (r: RoomTypeRow) => ({
+  ...r,
+  name: r.nameI18n?.fr ?? r.name,
+  nameEn: r.nameI18n?.en ?? '',
+  description: r.descriptionI18n?.fr ?? r.description ?? '',
+  descriptionEn: r.descriptionI18n?.en ?? '',
 });
 
 interface RoomRow {
@@ -51,7 +87,7 @@ export function RoomsPage() {
   if (!propertyId) return null;
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <ResourceManager<RoomType & { maxAdults: number }>
+      <ResourceManager<RoomTypeRow>
         name="room-types"
         title={t('rooms.types')}
         listPath={`/lodging/room-types?propertyId=${propertyId}`}
@@ -59,19 +95,24 @@ export function RoomsPage() {
         extra={{ propertyId }}
         schema={typeSchema}
         defaults={{ maxAdults: 2, maxChildren: 0, baseOccupancy: 2 }}
-        toPayload={(v, editing) => {
-          const { code, ...rest } = clean(v);
-          return editing ? rest : { code, ...rest };
-        }}
+        toPayload={roomTypePayload}
+        fromRow={roomTypeFormValues}
         columns={[
           { title: t('f.code'), dataIndex: 'code' },
           { title: t('f.name'), dataIndex: 'name' },
+          {
+            title: t('rooms.nameEn'),
+            key: 'nameEn',
+            render: (_: unknown, r: RoomTypeRow) => r.nameI18n?.en ?? '—',
+          },
           { title: t('rooms.maxAdults'), dataIndex: 'maxAdults' },
         ]}
         fields={[
           { name: 'code', label: 'f.code', type: 'text', createOnly: true },
-          { name: 'name', label: 'f.name', type: 'text' },
-          { name: 'description', label: 'f.description', type: 'textarea' },
+          { name: 'name', label: 'rooms.nameFr', type: 'text' },
+          { name: 'nameEn', label: 'rooms.nameEn', type: 'text' },
+          { name: 'description', label: 'rooms.descriptionFr', type: 'textarea' },
+          { name: 'descriptionEn', label: 'rooms.descriptionEn', type: 'textarea' },
           { name: 'maxAdults', label: 'rooms.maxAdults', type: 'number' },
           { name: 'maxChildren', label: 'rooms.maxChildren', type: 'number' },
           { name: 'baseOccupancy', label: 'rooms.baseOccupancy', type: 'number' },

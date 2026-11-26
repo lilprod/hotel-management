@@ -40,6 +40,10 @@
     "building": "Bâtiment"
   },
   "rooms": {
+    "nameFr": "Nom (français)",
+    "nameEn": "Nom (anglais)",
+    "descriptionFr": "Description (français)",
+    "descriptionEn": "Description (anglais)",
     "types": "Types de chambre",
     "rooms": "Chambres",
     "type": "Type",
@@ -64,6 +68,9 @@
     }
   },
   "rates": {
+    "maxStay": "Séjour max.",
+    "closedToArrival": "Fermé à l'arrivée",
+    "closedToDeparture": "Fermé au départ",
     "plans": "Plans tarifaires",
     "seasons": "Saisons",
     "grid": "Grille tarifaire",

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, Button, InputNumber, Select, Table } from 'antd';
+import { Alert, Button, Checkbox, InputNumber, Select, Table } from 'antd';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -18,6 +18,9 @@ interface Rate {
   extraAdult: number;
   extraChild: number;
   minStay: number;
+  maxStay: number | null;
+  closedToArrival: boolean;
+  closedToDeparture: boolean;
 }
 interface Plan {
   id: string;
@@ -28,14 +31,18 @@ interface Season {
   id: string;
   name: string;
 }
-type Col = 'price' | 'weekend' | 'extraAdult' | 'extraChild' | 'minStay';
+type Col = 'price' | 'weekend' | 'extraAdult' | 'extraChild' | 'minStay' | 'maxStay';
+type Flag = 'closedToArrival' | 'closedToDeparture';
 interface GridRow {
   key: string;
   roomType: RoomType;
   season: Season | null;
 }
 
-/** Rate grid editor: room type × season rows; price, weekend price, extras and min stay columns. */
+/**
+ * Rate grid editor: room type × season rows; price, weekend price, extras, stay restrictions
+ * (min / max stay, closed to arrival / departure) columns.
+ */
 export function RateGrid({ onCreatePlan }: { onCreatePlan?: () => void }) {
   const { t } = useTranslation('settings');
   const propertyId = usePropertyId();
@@ -75,7 +82,7 @@ export function RateGrid({ onCreatePlan }: { onCreatePlan?: () => void }) {
     );
 
   const save = useMutation({
-    mutationFn: async (a: { row: GridRow; col: Col; value: number }) => {
+    mutationFn: async (a: { row: GridRow; col: Col | Flag; value: number | boolean | null }) => {
       const mask = a.col === 'weekend' ? DOW_WEEKEND : DOW_ALL;
       const cur = find(a.row, mask);
       const field = a.col === 'weekend' ? 'price' : a.col;
@@ -108,18 +115,35 @@ export function RateGrid({ onCreatePlan }: { onCreatePlan?: () => void }) {
     return (
       <InputNumber
         aria-label={`${t(`rates.${col}`)} ${row.roomType.code} ${row.season?.name ?? t('rates.base')}`}
-        min={col === 'minStay' ? 1 : 0}
+        min={col === 'minStay' || col === 'maxStay' ? 1 : 0}
         precision={0}
         controls={false}
-        defaultValue={value}
+        defaultValue={value ?? undefined}
         key={`${row.key}:${col}:${value ?? ''}`}
         disabled={col !== 'price' && col !== 'weekend' && !find(row, DOW_ALL)}
         onBlur={(e) => {
           const raw = e.target.value.replace(/\s/g, '');
-          if (raw === '') return;
+          // An emptied max stay removes the limit; other columns keep their value.
+          if (raw === '') {
+            if (col === 'maxStay' && value !== null && value !== undefined)
+              save.mutate({ row, col, value: null });
+            return;
+          }
           const n = Number(raw);
           if (Number.isInteger(n) && n !== value) save.mutate({ row, col, value: n });
         }}
+      />
+    );
+  };
+
+  const flag = (col: Flag) => (_: unknown, row: GridRow) => {
+    const rate = find(row, DOW_ALL);
+    return (
+      <Checkbox
+        aria-label={`${t(`rates.${col}`)} ${row.roomType.code} ${row.season?.name ?? t('rates.base')}`}
+        checked={rate?.[col] ?? false}
+        disabled={!rate}
+        onChange={(e) => save.mutate({ row, col, value: e.target.checked })}
       />
     );
   };
@@ -179,6 +203,9 @@ export function RateGrid({ onCreatePlan }: { onCreatePlan?: () => void }) {
             { title: t('rates.extraAdult'), render: cell('extraAdult') },
             { title: t('rates.extraChild'), render: cell('extraChild') },
             { title: t('rates.minStay'), render: cell('minStay') },
+            { title: t('rates.maxStay'), render: cell('maxStay') },
+            { title: t('rates.closedToArrival'), render: flag('closedToArrival') },
+            { title: t('rates.closedToDeparture'), render: flag('closedToDeparture') },
           ]}
         />
       )}

@@ -68,6 +68,7 @@ export async function searchAvailability(ctx: RCtx, q: z.infer<typeof availabili
         roomTypeId: rt.id,
         code: rt.code,
         name: rt.name,
+        nameI18n: (rt.nameI18n ?? {}) as Record<string, string>,
         maxAdults: rt.maxAdults,
         maxChildren: rt.maxChildren,
         totalUnits: nights[0]?.total ?? 0,
@@ -117,7 +118,7 @@ export async function planning(ctx: RCtx, q: z.infer<typeof planningQuery>) {
     ctx.db.roomType.findMany({
       where: { propertyId: prop.id, deletedAt: null },
       orderBy: [{ sort: 'asc' }, { code: 'asc' }],
-      select: { id: true, code: true, name: true },
+      select: { id: true, code: true, name: true, nameI18n: true },
     }),
     ctx.db.room.findMany({
       where: { propertyId: prop.id, deletedAt: null, isActive: true },
@@ -194,6 +195,7 @@ export async function planning(ctx: RCtx, q: z.infer<typeof planningQuery>) {
       id: t.id,
       code: t.code,
       name: t.name,
+      nameI18n: (t.nameI18n ?? {}) as Record<string, string>,
       rooms: (roomsByType.get(t.id) ?? []).map((r) => ({
         id: r.id,
         number: r.number,

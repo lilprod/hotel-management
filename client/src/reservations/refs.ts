@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { get, qs } from './api';
@@ -12,16 +13,37 @@ export interface RoomTypeRef {
   id: string;
   code: string;
   name: string;
+  /** Translations {locale: label}; `name` is the tenant default locale. */
+  nameI18n?: Record<string, string> | null;
   maxAdults?: number;
   maxChildren?: number;
 }
 
+/** Name of a room type in the UI language (falls back on the default-locale name). */
+export function localName(
+  x: { name: string; nameI18n?: Record<string, string> | null },
+  lang: string,
+): string {
+  return x.nameI18n?.[lang.slice(0, 2)] || x.name;
+}
+
+/** Same objects with `name` in the UI language (room types of a planning / availability). */
+export function localizeTypes<T extends { name: string; nameI18n?: Record<string, string> | null }>(
+  types: T[],
+  lang: string,
+): T[] {
+  return types.map((x) => ({ ...x, name: localName(x, lang) }));
+}
+
 export function useRoomTypes(propertyId: string | null) {
+  const { i18n } = useTranslation();
+  const lang = i18n.language;
   return useQuery({
     queryKey: ['ref', 'room-types', propertyId],
     queryFn: async () =>
       (await get<{ items: RoomTypeRef[] }>(`/lodging/room-types${qs({ propertyId, limit: 200 })}`))
         .items,
+    select: useCallback((items: RoomTypeRef[]) => localizeTypes(items, lang), [lang]),
     enabled: !!propertyId,
     staleTime: STALE,
   });

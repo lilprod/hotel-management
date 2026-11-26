@@ -197,6 +197,23 @@ INSERT INTO night_audits (id, tenant_id, property_id, business_date, status, com
    '{"trigger": "auto", "steps": {}, "locked": true, "lockedAt": "2026-11-12T01:59:00Z", "kpis": ${KPIS}}', now());
 `;
 
+const U_OWNER = id(290);
+const U_VERIFIED = id(291);
+const U_STAFF = id(292);
+const U_INV = id(293);
+const FIXTURES_USERS = `
+INSERT INTO users (id, tenant_id, email, name, password_hash, status, last_login_at, updated_at) VALUES
+  ('${U_OWNER}', '${T}', 'owner@mig.test', 'Owner', '$argon2id$x', 'DISABLED', NULL, now()),
+  ('${U_VERIFIED}', '${T}', 'verified@mig.test', 'Verified', '$argon2id$x', 'DISABLED', NULL, now()),
+  ('${U_STAFF}', '${T}', 'staff@mig.test', 'Staff', '$argon2id$x', 'DISABLED', now(), now()),
+  ('${U_INV}', '${T}', 'inv@mig.test', 'Inv', NULL, 'DISABLED', NULL, now());
+INSERT INTO audit_logs (id, tenant_id, user_id, action, entity, entity_id, before, at) VALUES
+  (gen_random_uuid(), '${T}', '${U_OWNER}', 'tenant.signup', 'tenant', '${T}', NULL, '2026-11-01T00:00:00Z'),
+  (gen_random_uuid(), '${T}', '${U_VERIFIED}', 'tenant.signup', 'tenant', '${T}', NULL, '2026-11-01T00:00:00Z'),
+  (gen_random_uuid(), '${T}', '${U_VERIFIED}', 'tenant.owner_email_verified', 'user', '${U_VERIFIED}', NULL, '2026-11-01T01:00:00Z'),
+  (gen_random_uuid(), '${T}', NULL, 'iam.user_deactivated', 'user', '${U_STAFF}', '{"status": "ACTIVE"}', '2026-11-05T00:00:00Z');
+`;
+
 let pg: TestPostgres;
 const q = (sql: string) => pg.psql(sql).then((s) => s.trim());
 
@@ -208,7 +225,8 @@ beforeAll(async () => {
       FIXTURES_RESERVATIONS +
       FIXTURES_FOLIO +
       FIXTURES_INVOICING +
-      FIXTURES_NIGHT_AUDIT,
+      FIXTURES_NIGHT_AUDIT +
+      FIXTURES_USERS,
   );
   for (const d of sch2) await pg.psql(sqlOf(d));
 });
@@ -450,5 +468,24 @@ describe('SCH-2 group 4 — night audit', () => {
     ).rejects.toThrow(/is closed/);
     await q(`INSERT INTO folio_lines (id, tenant_id, property_id, folio_id, business_date, type, label, unit_amount, amount)
                VALUES (gen_random_uuid(), '${T}', '${PROP}', '${F_STAY}', '2026-11-12', 'EXTRA', 'Ouvert', 1, 1)`);
+  });
+});
+
+describe('SCH-2 group 5 — disabled users keep their previous status', () => {
+  it('restores PENDING_VERIFICATION for a never-verified self-signup owner', async () => {
+    const rows = await q(
+      `SELECT email || '|' || status || '|' || coalesce(disabled_from_status::text, '-') FROM users
+        WHERE id IN ('${U_OWNER}', '${U_VERIFIED}', '${U_STAFF}', '${U_INV}', '${USER}') ORDER BY email`,
+    );
+    expect(rows.split('\n')).toEqual([
+      'cash@mig.test|ACTIVE|-',
+      'inv@mig.test|DISABLED|INVITED',
+      'owner@mig.test|DISABLED|PENDING_VERIFICATION',
+      'staff@mig.test|DISABLED|ACTIVE',
+      'verified@mig.test|DISABLED|ACTIVE',
+    ]);
+    await expect(
+      q(`UPDATE users SET disabled_from_status = 'ACTIVE' WHERE id = '${USER}'`),
+    ).rejects.toThrow(/users_disabled_from_status_check/);
   });
 });

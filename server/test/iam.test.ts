@@ -359,6 +359,29 @@ describe('activation', () => {
     expect(lastOwner.status).toBe(409);
     expect(lastOwner.body.meta.reason).toBe('LAST_OWNER');
   });
+
+  it('re-enabling a never-verified self-signup user restores PENDING_VERIFICATION, not ACTIVE', async () => {
+    const u = await userWith(P, ['reservations.read']);
+    await env.services.admin.user.update({
+      where: { id: u.id },
+      data: { status: 'PENDING_VERIFICATION' },
+    });
+    const off = await request(app)
+      .post(`${IAM}/users/${u.id}/deactivate`)
+      .set('Host', P.host)
+      .set(bearer(tokenP));
+    expect(off.body.status).toBe('DISABLED');
+    expect(
+      (await env.services.admin.user.findUniqueOrThrow({ where: { id: u.id } })).disabledFromStatus,
+    ).toBe('PENDING_VERIFICATION');
+    const back = await request(app)
+      .post(`${IAM}/users/${u.id}/activate`)
+      .set('Host', P.host)
+      .set(bearer(tokenP));
+    expect(back.body.status).toBe('PENDING_VERIFICATION');
+    const row = await env.services.admin.user.findUniqueOrThrow({ where: { id: u.id } });
+    expect(row.disabledFromStatus).toBeNull();
+  });
 });
 
 describe('security policy and IP allowlist', () => {

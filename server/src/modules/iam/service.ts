@@ -404,17 +404,24 @@ export async function setUserStatus(req: Request, id: string, active: boolean) {
     );
     await assertNotLastOwner(req, user);
   }
+  // Re-activation restores the status held when disabled (`disabled_from_status`): a self-signup
+  // owner who never verified the e-mail goes back to PENDING_VERIFICATION, never straight ACTIVE.
+  const held = user.status === 'DISABLED' ? user.disabledFromStatus : user.status;
   const status: UserStatus = !active
     ? 'DISABLED'
-    : user.status === 'PENDING_VERIFICATION'
+    : held === 'PENDING_VERIFICATION'
       ? 'PENDING_VERIFICATION'
-      : user.passwordHash
+      : held !== 'INVITED' && user.passwordHash
         ? 'ACTIVE'
         : 'INVITED';
   await inTenant(req, () =>
     db(req).user.update({
       where: { id },
-      data: { status, ...(active ? { failedAttempts: 0, lockedUntil: null } : {}) },
+      data: {
+        status,
+        disabledFromStatus: active ? null : held && held !== 'DISABLED' ? held : null,
+        ...(active ? { failedAttempts: 0, lockedUntil: null } : {}),
+      },
     }),
   );
   if (!active) await revokeStaffSessions(req.services, tid, { userId: id });

@@ -741,6 +741,8 @@ model User {
   name                    String
   passwordHash            String?                  @map("password_hash")
   status                  UserStatus               @default(ACTIVE)
+  /// Status held when the user was disabled (restored on re-activation, e.g. PENDING_VERIFICATION).
+  disabledFromStatus      UserStatus?              @map("disabled_from_status")
   totpSecretEnc           String?                  @map("totp_secret_enc")
   mustChangePassword      Boolean                  @default(false) @map("must_change_password")
   failedAttempts          Int                      @default(0) @map("failed_attempts")

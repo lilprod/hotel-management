@@ -37,7 +37,7 @@ import type {
   Warning,
 } from './api';
 import { useActiveProperty } from './property';
-import { useCustomFieldDefs, useLabel, useLookup } from './refs';
+import { localizeTypes, useCustomFieldDefs, useLabel, useLookup } from './refs';
 
 const { Text } = Typography;
 
@@ -130,7 +130,10 @@ export function NewReservationWizard({
       ),
     enabled: !!propertyId && stayValid && step >= 1,
   });
-  const types = useMemo(() => availability.data?.roomTypes ?? [], [availability.data]);
+  const types = useMemo(
+    () => localizeTypes(availability.data?.roomTypes ?? [], i18n.language),
+    [availability.data, i18n.language],
+  );
   const anySellable = types.some((x) => x.sellable);
 
   // Planning quick-create: preselect the clicked room's type with its first available rate plan.

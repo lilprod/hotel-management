@@ -40,6 +40,10 @@
     "building": "Building"
   },
   "rooms": {
+    "nameFr": "Name (French)",
+    "nameEn": "Name (English)",
+    "descriptionFr": "Description (French)",
+    "descriptionEn": "Description (English)",
     "types": "Room types",
     "rooms": "Rooms",
     "type": "Type",
@@ -64,6 +68,9 @@
     }
   },
   "rates": {
+    "maxStay": "Max stay",
+    "closedToArrival": "Closed to arrival",
+    "closedToDeparture": "Closed to departure",
     "plans": "Rate plans",
     "seasons": "Seasons",
     "grid": "Rate grid",
