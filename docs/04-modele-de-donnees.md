@@ -5,19 +5,20 @@ Conventions : PK `id UUID v7`, `created_at`, `updated_at`, `created_by`. Toute t
 ## 1. Plateforme (sans RLS — accès admin uniquement)
 | Table | Colonnes principales |
 |---|---|
-| `platform_users` | email, password_hash, name, role (`SUPER_ADMIN`/`FINANCE`/`SUPPORT`/`READ_ONLY`), totp_secret_enc, is_active, last_login_at |
+| `platform_users` | email, password_hash, name, role (`SUPER_ADMIN`/`FINANCE`/`SUPPORT`/`READ_ONLY`), totp_secret_enc, is_active, failed_attempts, locked_until, last_login_at |
+| `platform_password_history`, `platform_mfa_backup_codes` | platform_user_id, hash / code_hash, used_at, created_at |
 | `plans` | code (`STANDARD`/`MEDIUM`/`PREMIUM`), name, description, trial_days, sort, is_public, is_active |
 | `plan_prices` | plan_id, billing_cycle (`MONTHLY`/`QUARTERLY`/`YEARLY`), currency, amount, valid_from, valid_to |
 | `plan_features` | plan_id, feature_key, enabled |
 | `plan_quotas` | plan_id, quota_key, limit (NULL = illimité) |
-| `tenants` | slug (unique), name, legal_name, country, phone, email, status, default_locale, default_currency, timezone, allow_impersonation, notes, tags |
+| `tenants` | slug (unique), name, legal_name, country, phone, email, status, default_locale, default_currency, timezone, allow_impersonation, perm_ver, notes, tags |
 | `tenant_domains` | tenant_id, hostname (unique), type (`SUBDOMAIN`/`CUSTOM`), verified_at, tls_status |
 | `tenant_overrides` | tenant_id, kind (`FEATURE`/`QUOTA`/`DISCOUNT`), key, value, ends_at |
-| `subscriptions` | tenant_id, plan_id, billing_cycle, status (`TRIALING`/`ACTIVE`/`PAST_DUE`/`SUSPENDED`/`CANCELLED`), trial_ends_at, current_period_start, current_period_end, grace_ends_at, cancel_at, price_snapshot |
+| `subscriptions` | tenant_id, plan_id, billing_cycle, status (`TRIALING`/`ACTIVE`/`PAST_DUE`/`SUSPENDED`/`CANCELLED`), trial_ends_at, current_period_start, current_period_end, grace_ends_at, cancel_at, pending_plan_id, pending_cycle, pending_effective_at, suspended_at, cancelled_at, price_snapshot |
 | `subscription_events` | subscription_id, from_status, to_status, reason, actor |
-| `platform_invoices` | tenant_id, subscription_id, number (unique), issue_date, due_date, period_start, period_end, subtotal, tax, total, amount_paid, status, pdf_file_id |
+| `platform_invoices` | tenant_id, subscription_id, number (unique), issue_date, due_date, period_start, period_end, subtotal, tax, total, amount_paid, status (`ISSUED` = ouverte), kind (`SUBSCRIPTION`/`RENEWAL`/`PRORATA`/`ADDON`/`MANUAL`), void_reason, voided_at, pdf_file_id |
 | `platform_invoice_lines` | invoice_id, label, qty, unit_amount, amount |
-| `payments` | tenant_id, amount, currency, method (`MIXX`/`MOOV_MONEY`/`CASH`/`CARD`), reference, paid_at, status (`PENDING_VALIDATION`/`CONFIRMED`/`REVERSED`), provider (défaut `manual`), provider_payload, attachment_file_id, note, recorded_by, validated_by, reversed_by, reversal_reason, receipt_number. **UNIQUE (method, reference) WHERE reference IS NOT NULL AND status <> 'REVERSED'** |
+| `payments` | tenant_id, amount, currency, method (`MIXX`/`MOOV_MONEY`/`CASH`/`CARD`), reference, paid_at, status (`PENDING_VALIDATION`/`CONFIRMED`/`REVERSED`), provider (défaut `manual`), provider_payload, attachment_file_id, note, recorded_by, validated_by, reversed_by, reversal_reason, receipt_number, receipt_file_id (posé une fois). **UNIQUE (method, reference) WHERE reference IS NOT NULL AND status <> 'REVERSED'** |
 | `payment_allocations` | payment_id, invoice_id, amount |
 | `tenant_credits` | tenant_id, amount, source_payment_id, consumed_amount |
 | `payment_declarations` | tenant_id, amount, method, reference, paid_at, attachment_file_id, status (`SUBMITTED`/`APPROVED`/`REJECTED`), reviewed_by, reject_reason, payment_id |
@@ -29,28 +30,30 @@ Conventions : PK `id UUID v7`, `created_at`, `updated_at`, `created_by`. Toute t
 ## 2. Tenant — IAM, sécurité et branding (RLS)
 | Table | Colonnes principales |
 |---|---|
-| `users` | tenant_id, email, phone, name, password_hash, status, totp_secret_enc, must_change_password, failed_attempts, locked_until, last_login_at |
+| `users` | tenant_id, email, phone, name, password_hash, status (`INVITED`/`PENDING_VERIFICATION`/`ACTIVE`/`DISABLED`), totp_secret_enc, must_change_password, failed_attempts, locked_until, last_login_at |
+| `password_history` | tenant_id, user_id, hash, created_at |
+| `mfa_backup_codes` | tenant_id, user_id, code_hash, used_at |
 | `user_properties` | user_id, property_id |
 | `roles` | tenant_id, name, is_system, description |
 | `role_permissions` | role_id, permission_key (ex. `reservations.create`) |
 | `user_roles` | user_id, role_id |
 | `security_policies` | tenant_id, pwd_min_length, pwd_require_classes, pwd_expiry_days, pwd_history, mfa_mode (`OFF`/`OPTIONAL`/`REQUIRED_FOR_ROLES`/`REQUIRED_ALL`), mfa_roles, session_idle_minutes, max_sessions, lockout_threshold, lockout_minutes, ip_allowlist (CIDR[]), allow_impersonation |
-| `sessions` | user_id, refresh_hash, ip, user_agent, expires_at, revoked_at |
+| `sessions` | user_id, refresh_hash, kind (`STANDARD`/`IMPERSONATION`), impersonated_by, ip, user_agent, expires_at, revoked_at (sessions portail / plateforme : Redis) |
 | `audit_logs` | tenant_id, user_id, impersonated_by, action, entity, entity_id, before, after, ip, at (partitionnée par mois) |
-| `branding` | tenant_id, logo_file_id, logo_dark_file_id, favicon_file_id, primary_color, secondary_color, login_bg_file_id, login_message, doc_header, doc_footer, legal_mentions, signature_file_id, email_sender_name |
+| `branding` | tenant_id, logo_file_id, logo_dark_file_id, favicon_file_id, primary_color, secondary_color, login_bg_file_id, login_message, doc_header, doc_footer, legal_mentions, signature_file_id, email_sender_name, legal_form, tax_id (NIF), rccm, tax_regime, legal_address, public_languages, public_contact |
 | `message_templates` | tenant_id, channel, code, locale, subject, body |
 
 ## 3. Tenant — opérationnel (RLS)
 | Table | Colonnes principales |
 |---|---|
 | `properties` | tenant_id, name, address, city, country, phone, email, tax_id, rccm, currency, timezone, checkin_time, checkout_time, business_date |
-| `room_types` | property_id, code, name, max_adults, max_children, base_occupancy, beds, size_m2, amenities[], photos[] |
+| `room_types` | property_id, code, name, name_i18n, description_i18n, max_adults, max_children, base_occupancy, beds, size_m2, amenities[], photos[] |
 | `rooms` | property_id, room_type_id, number, floor, building, hk_status, is_active, features[] |
 | `room_blocks` | room_id, from_date, to_date, reason (`MAINTENANCE`/`OUT_OF_SERVICE`) |
 | `taxes` | property_id, code, name, type (`PERCENT`/`FIXED_PER_PERSON_NIGHT`/`FIXED_PER_NIGHT`), value, inclusive, applies_to |
 | `rate_plans` | property_id, code, name, meal_plan (`RO`/`BB`/`HB`/`FB`), cancellation_policy_id, is_public, company_id |
 | `seasons` | property_id, name, from_date, to_date, priority |
-| `rates` | rate_plan_id, room_type_id, season_id, dow_mask, price, extra_adult, extra_child, min_stay |
+| `rates` | rate_plan_id, room_type_id, season_id, dow_mask, price, extra_adult, extra_child, min_stay, max_stay, closed_to_arrival, closed_to_departure |
 | `policies` | property_id, kind (`CANCELLATION`/`DEPOSIT`), rules (JSONB) |
 | `guests` | tenant_id, first_name, last_name, gender, birth_date, birth_place, nationality, profession, phone, email, address, id_doc_type, id_doc_number_enc, id_doc_file_id, tags[], is_blacklisted, notes |
 | `companies` | tenant_id, name, tax_id, address, contact, credit_limit, rate_plan_id |
@@ -61,7 +64,8 @@ Conventions : PK `id UUID v7`, `created_at`, `updated_at`, `created_by`. Toute t
 | `reservation_guests` | reservation_room_id, guest_id, is_primary |
 | `groups` | property_id, name, company_id, master_folio_id |
 | `stays` | reservation_room_id, checked_in_at, checked_in_by, checked_out_at, checked_out_by |
-| `police_records` | stay_id, guest_id, snapshot (JSONB : pièce, provenance, destination, motif), signature_file_id |
+| `police_records` | property_id, stay_id, guest_id, business_date, provenance, destination, purpose, snapshot (JSONB, copie légale), signature_file_id — **immuable** |
+| `stay_events` | stay_id, type (`ROOM_CHANGE`/`EXTEND`/`SHORTEN`/`EARLY_DEPARTURE`/`CHECKOUT_OVERRIDE`), reason, actor_id, payload, at — **immuable** |
 | `folios` | property_id, stay_id / group_id / company_id, number, status (`OPEN`/`CLOSED`), balance |
 | `folio_lines` | folio_id, business_date, type (`ROOM`/`EXTRA`/`POS`/`TAX`/`DISCOUNT`/`ADJUSTMENT`), product_id, label, qty, unit_amount, amount, tax_amount, reversal_of_id, pos_order_id |
 | `invoices` | property_id, folio_id, number, issue_date, customer_snapshot, totals, status, credit_note_of_id, pdf_file_id |
@@ -157,7 +161,7 @@ Ajouts aux tables existantes :
 | Analytique | `daily_stats_property`, `daily_stats_department` | business_date, occupied, available, revenue_room, revenue_by_dept (JSONB), adr, revpar, covers, appointments |
 
 ## 4. Index et contraintes notables
-- `UNIQUE (tenant_id, property_id, number)` sur les chambres, réservations, factures et folios.
+- `UNIQUE (tenant_id, property_id, number)` sur les chambres (`WHERE deleted_at IS NULL`), réservations, factures et folios.
 - `UNIQUE (unit_id, night)` sur `unit_nights` (anti-surbooking).
 - Contraintes d'exclusion GiST (`btree_gist`) sur `appointments` (praticien, cabine) et `table_reservations` (table).
 - Index `(tenant_id, guest_id)` sur toutes les tables d'historique client ; `(tenant_id, status, priority)` sur `maintenance_requests` ; `(item_id, warehouse_id)` sur `stock_levels`.
