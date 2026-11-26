@@ -460,6 +460,11 @@ describe('guest payments', () => {
     const dup = await pay(other.folioId, { method: 'CARD', amount: 1_000, reference: `TPE-${st.number}` });
     expect(dup.status).toBe(409);
     expect(dup.body.meta.reason).toBe('DUPLICATE_REFERENCE');
+    // Mapped from the partial unique index violation (no lock), naming the existing payment.
+    expect(dup.body.meta.paymentId).toBe(c.body.payment.id);
+    // Real columns: business day of the property and gap-free receipt number.
+    expect(c.body.payment.businessDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(c.body.payment.receiptNumber).toMatch(/^REC-\d{4}-\d{6}$/);
     const mixx = await pay(other.folioId, { method: 'MIXX', amount: 5_000, reference: `TPE-${st.number}` });
     expect(mixx.status, JSON.stringify(mixx.body)).toBe(201);
     const nothing = await pay(other.folioId, { method: 'CARD' });
@@ -509,7 +514,7 @@ describe('guest payments', () => {
     for (const format of ['ticket', 'a4']) {
       const rec = await api('post', `/folios/${st.folioId}/payments/${pid}/receipt`).query({ format });
       expect(rec.status, JSON.stringify(rec.body)).toBe(200);
-      expect(rec.body.number).toMatch(/^REC-[0-9A-F]{10}$/);
+      expect(rec.body.number).toMatch(/^REC-\d{4}-\d{6}$/);
       expect(rec.body.url).toContain('https://files.test/');
     }
     expect(stored.some((s) => s.key.includes('documents/ticket/'))).toBe(true);
@@ -617,11 +622,18 @@ describe('cash sessions and multi-currency tender', () => {
     expect(ok.body.counted.every((r: { variance: number }) => r.variance === 0)).toBe(true);
     const z = await api('get', `/cash-sessions/${sessionId}/z-report`, tokCashier);
     expect(z.body.counted).toHaveLength(3);
+    // The close detail is frozen in the cash_sessions columns (not read back from the audit).
+    const row = await env.services.admin.cashSession.findUnique({ where: { id: sessionId } });
+    expect(row?.counted).toEqual(z.body.counted);
+    expect(row?.expected).toEqual(z.body.expected);
     const st = await stayWithNight();
     expect((await pay(st.folioId, { method: 'CASH', amount: 100 }, tokCashier)).status).toBe(412);
 
     // A manager may close with a variance.
     const m = await api('post', '/cash-sessions').send({ propertyId: A.propertyId, openingFloat: 1_000 });
+    const twice = await api('post', '/cash-sessions').send({ propertyId: A.propertyId, openingFloat: 1_000 });
+    expect(twice.status).toBe(409);
+    expect(twice.body.meta).toMatchObject({ reason: 'SESSION_ALREADY_OPEN', sessionId: m.body.id });
     const closed = await api('post', `/cash-sessions/${m.body.id}/close`).send({ counted: [{ method: 'CASH', amount: 900 }], note: 'Manque 100' });
     expect(closed.status, JSON.stringify(closed.body)).toBe(200);
     expect(closed.body.session.variance).toBe(-100);

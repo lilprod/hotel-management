@@ -67,11 +67,11 @@ Conventions : PK `id UUID v7`, `created_at`, `updated_at`, `created_by`. Toute t
 | `stays` | reservation_room_id, checked_in_at, checked_in_by, checked_out_at, checked_out_by |
 | `police_records` | property_id, stay_id, guest_id, business_date, provenance, destination, purpose, snapshot (JSONB, copie légale), signature_file_id — **immuable** |
 | `stay_events` | stay_id, type (`ROOM_CHANGE`/`EXTEND`/`SHORTEN`/`EARLY_DEPARTURE`/`CHECKOUT_OVERRIDE`), reason, actor_id, payload, at — **immuable** |
-| `folios` | property_id, stay_id / group_id / company_id, number, status (`OPEN`/`CLOSED`), balance |
-| `folio_lines` | folio_id, business_date, type (`ROOM`/`EXTRA`/`POS`/`TAX`/`DISCOUNT`/`ADJUSTMENT`), product_id, label, qty, unit_amount, amount, tax_amount, reversal_of_id, pos_order_id |
+| `folios` | property_id, kind (`STAY`/`GROUP`/`COMPANY`/`OTHER`), reservation_id + reservation_room_id (FK RESTRICT, posés dès le premier acompte, avant l'arrivée), stay_id / group_id / company_id, number, status (`OPEN`/`CLOSED`), balance — CHECK de cohérence du `kind` ; **UNIQUE (tenant_id, property_id, company_id) WHERE kind = 'COMPANY'** (un compte débiteur par société et établissement) |
+| `folio_lines` | folio_id, business_date, type (`ROOM`/`EXTRA`/`POS`/`TAX`/`DISCOUNT`/`ADJUSTMENT`), product_id, label, qty, unit_amount, amount, tax_amount, reversal_of_id, pos_order_id, reason (motif obligatoire des contre-passations et remises — CHECK) |
 | `invoices` | property_id, folio_id, number, issue_date, customer_snapshot, totals, status, credit_note_of_id, pdf_file_id |
-| `receipts_payments` (`folio_payments`) | folio_id, amount, method (`MIXX`/`MOOV_MONEY`/`CASH`/`CARD`/`BANK_TRANSFER`/`CITY_LEDGER`), reference, cash_session_id, is_deposit, reversed_by_id |
-| `cash_sessions` | property_id, user_id, opened_at, opening_float, closed_at, counted_amount, expected_amount, variance, note |
+| `receipts_payments` (`folio_payments`) | folio_id, amount, method (`MIXX`/`MOOV_MONEY`/`CASH`/`CARD`/`BANK_TRANSFER`/`CITY_LEDGER`), reference, cash_session_id, is_deposit, reversed_by_id, business_date (date d'exploitation à l'encaissement), receipt_number (`REC-AAAA-000001`, sans trou par établissement et année via `sequences` clé `receipt`, UNIQUE par établissement) — **UNIQUE (tenant_id, method, reference) WHERE reference IS NOT NULL AND status <> 'REVERSED' AND amount > 0** |
+| `cash_sessions` | property_id, user_id, opened_at, opening_float, closed_at, counted_amount, expected_amount, variance (espèces, devise de la session), expected / counted (JSONB par moyen et devise, figés à la clôture — rapport Z), note — **UNIQUE (tenant_id, property_id, user_id) WHERE closed_at IS NULL** |
 | `cash_movements` | cash_session_id, type (`IN`/`OUT`), amount, reason |
 | `night_audits` | property_id, business_date, started_by, completed_at, summary (JSONB) |
 | `hk_tasks` | property_id, room_id, date, assigned_to, type, status, notes |

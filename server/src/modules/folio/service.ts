@@ -836,6 +836,7 @@ export async function moveLines(
             taxAmount: l.taxAmount,
             sourceType: l.sourceType,
             sourceId: l.sourceId && map.has(l.sourceId) ? map.get(l.sourceId)! : l.sourceId,
+            reason: l.reason,
             createdBy: ctx.actorId,
           },
         });

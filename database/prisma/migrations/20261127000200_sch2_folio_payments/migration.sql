@@ -83,14 +83,17 @@ UPDATE "folio_lines" SET reason = left(COALESCE((regexp_match(label, '^Remise su
  WHERE reversal_of_id IS NULL AND type = 'DISCOUNT' AND source_type = 'discount';
 ALTER TABLE "folio_lines" ENABLE TRIGGER folio_lines_append_only;
 
--- 2.3 Payments: business date = day after the last night audit completed before the payment
--- (fallback: local date of the creation in the property time zone); receipt number in the order
--- of creation, per property and business year; the `receipt` sequences continue after them.
+-- 2.3 Payments: business date = the day still open when the payment was recorded, i.e. the
+-- first night audit completed after it; else the day after the last completed audit, never before
+-- the local date of the creation (property time zone). Receipt numbers follow the creation order
+-- per property and business year; the `receipt` sequences continue after them.
 ALTER TABLE "folio_payments" DISABLE TRIGGER folio_payments_restrict_update;
 UPDATE "folio_payments" p SET business_date = COALESCE(
-    (SELECT max(na.business_date) + 1 FROM "night_audits" na
-      WHERE na.property_id = p.property_id AND na.status = 'COMPLETED' AND na.completed_at <= p.created_at),
-    (p.created_at AT TIME ZONE pr.timezone)::date)
+    (SELECT min(na.business_date) FROM "night_audits" na
+      WHERE na.property_id = p.property_id AND na.status = 'COMPLETED' AND na.completed_at > p.created_at),
+    GREATEST((p.created_at AT TIME ZONE pr.timezone)::date,
+             (SELECT max(na.business_date) + 1 FROM "night_audits" na
+               WHERE na.property_id = p.property_id AND na.status = 'COMPLETED' AND na.completed_at <= p.created_at)))
   FROM "properties" pr
  WHERE pr.id = p.property_id;
 UPDATE "folio_payments" p SET receipt_number = 'REC-' || x.y || '-' || lpad(x.rn::text, GREATEST(6, length(x.rn::text)), '0')
